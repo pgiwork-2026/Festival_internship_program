@@ -5,7 +5,7 @@ const show = id => { document.querySelectorAll('main > section, #loading').forEa
 const msg = (id, t, ok) => { const e = $(id); e.textContent = t; e.className = 'msg ' + (ok ? 'ok' : 'err'); };
 const inr = p => '₹' + (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 let lastCoupon = null, me2 = null, cfg, sb, token, stream, attempt, skew = 0, timerH, faceH, lastViol = {}, mode = 'register', proctor = null, enrolled = false, attemptId = null, warnings = 0;
-const LABEL = { blocked_shortcut: 'Blocked keyboard shortcut used', multiple_faces: 'More than one person detected', no_face: 'Your face is not visible', looking_away: 'Your head is turned away from the screen', face_mismatch: 'Your face does not match the verified candidate', camera_unavailable: 'Your camera is unavailable or switched off', tab_switch: 'You left the test tab or window', fullscreen_exit: 'You exited full-screen mode', copy_paste: 'Copy / paste is not allowed' };
+const LABEL = { blocked_shortcut: 'Blocked keyboard shortcut used', multiple_faces: 'More than one person detected', no_face: 'Your face is not visible', looking_away: 'Your head is turned away from the screen', face_mismatch: 'Your face does not match the verified candidate', camera_unavailable: 'Your camera is unavailable or switched off', tab_switch: 'You left the test tab or window', fullscreen_exit: 'You exited full-screen mode', copy_paste: 'Copy / paste is not allowed', phone_detected: 'A mobile phone was detected in the camera view' };
 const live = () => !$('s-test').classList.contains('hidden') && !finishing;
 
 try { cfg = await (await fetch('/api/config')).json(); } catch { $('loading').textContent = 'Cannot reach the server. Please try again later.'; return; }

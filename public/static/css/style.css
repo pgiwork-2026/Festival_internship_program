@@ -85,3 +85,6 @@ h2{font-size:clamp(1.6rem,3.5vw,2.4rem);color:var(--green-dark);margin-bottom:.6
 .schol .tier .pl .strike{font-size:1.1rem}.schol .tier .pl .new{font-size:1.5rem;font-weight:900;color:var(--green-dark)}
 .schol .tier .valid{font-size:.85rem;margin-top:.6rem}
 .schol .tier.best{border-color:var(--green)}
+
+/* perks */
+.perks .perk{text-align:center}.perks .ic{font-size:2.2rem;display:block;margin-bottom:.4rem}.perks .perk h3{color:var(--green-dark);margin:.2rem 0 .5rem}
