@@ -1,0 +1,10 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import { tierFor, payablePaise, couponState, scorePercent, BASE_PRICE_PAISE as B } from '../logic.js';
+test('tiers', () => { assert.equal(tierFor(0,20),85); assert.equal(tierFor(9,20),85); assert.equal(tierFor(10,20),90); assert.equal(tierFor(19,20),90); assert.equal(tierFor(20,20),100); assert.equal(tierFor(1,3),85); assert.equal(tierFor(2,3),90); });
+test('exact paise', () => { assert.equal(payablePaise(B,85),149985); assert.equal(payablePaise(B,90),99990); assert.equal(payablePaise(B,100),0); });
+test('invalid', () => { assert.throws(() => tierFor(5,4)); assert.throws(() => payablePaise(B,50)); });
+test('coupon expiry 24h', () => { const t=new Date('2026-01-01T00:00:00Z'), exp=new Date(+t+864e5).toISOString();
+  assert.equal(couponState({status:'active',expires_at:exp}, new Date(+t+864e5-1)),'active');
+  assert.equal(couponState({status:'active',expires_at:exp}, new Date(+t+864e5)),'expired');
+  assert.equal(couponState({status:'redeemed',expires_at:exp}, t),'redeemed'); });
+test('score pct', () => assert.equal(scorePercent(1,3),33.33));

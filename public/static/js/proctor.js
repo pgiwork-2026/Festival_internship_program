@@ -1,0 +1,33 @@
+import { FilesetResolver, FaceLandmarker } from '/static/vendor/mediapipe/vision_bundle.mjs';
+import { THRESH, poseFromMatrix, signature, sigDistance, medianSig, median, makeTracker } from './proctor-core.js';
+// Put face_landmarker.task in public/static/models/ to run fully offline; otherwise it is fetched from Google's public model bucket.
+const MODELS = ['/static/models/face_landmarker.task', 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'];
+export async function createProctor(video) {
+  const fs = await FilesetResolver.forVisionTasks('/static/vendor/mediapipe'); let lm;
+  for (const url of MODELS) for (const delegate of ['GPU', 'CPU']) { try { lm = await FaceLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: url, delegate }, runningMode: 'VIDEO', numFaces: 3, outputFacialTransformationMatrixes: true }); break; } catch {} if (lm) break; }
+  if (!lm) throw new Error('Face detection model could not be loaded.');
+  const look = () => { const r = lm.detectForVideo(video, performance.now()), n = r.faceLandmarks.length;
+    return { n, lm: r.faceLandmarks[0], pose: poseFromMatrix(r.facialTransformationMatrixes?.[0]?.data) }; };
+  let base = null, timer = null;
+  return {
+    // Verify exactly one face looking at the camera for ~8 good frames; stores it as the reference for the whole test.
+    async enroll(onTip) {
+      const sigs = [], yaws = [], pitches = []; const t0 = Date.now();
+      while (sigs.length < 8 && Date.now() - t0 < 20000) { await new Promise(r => setTimeout(r, 400)); if (video.readyState < 2) continue; const f = look();
+        if (f.n !== 1) { onTip(f.n ? 'Only one person should be in front of the camera.' : 'Face not visible. Sit in good light, facing the camera.'); continue; }
+        if (Math.abs(f.pose.yaw) > 15 || Math.abs(f.pose.pitch) > 20) { onTip('Look straight at the screen.'); continue; }
+        sigs.push(signature(f.lm, video.videoWidth, video.videoHeight)); yaws.push(f.pose.yaw); pitches.push(f.pose.pitch); onTip(`Verifying… ${sigs.length}/8`); }
+      if (sigs.length < 8) return false; base = { sig: medianSig(sigs), yaw: median(yaws), pitch: median(pitches) }; return true; },
+    start(onViolation, onState) {
+      const tr = makeTracker(); let mism = 0; const w = video.videoWidth, h = video.videoHeight;
+      timer = setInterval(() => { if (video.readyState < 2) return; const f = look(), now = Date.now(); let state = 'Monitoring: OK', ok = true;
+        const fire = (k, on) => { if (tr(k, on, now)) onViolation(k); if (on) { ok = false; } };
+        fire('no_face', f.n === 0); fire('multiple_faces', f.n > 1);
+        if (f.n === 0) state = 'Face not visible'; else if (f.n > 1) state = 'More than one face detected';
+        if (f.n === 1) { const dy = Math.abs(f.pose.yaw - base.yaw), dp = Math.abs(f.pose.pitch - base.pitch), away = dy > THRESH.yaw || dp > THRESH.pitch;
+          fire('looking_away', away); if (away) state = 'Look at the screen';
+          if (dy < 15 && dp < 15) { mism = sigDistance(signature(f.lm, w, h), base.sig) > THRESH.sig ? mism + 1 : 0; fire('face_mismatch', mism >= 4); if (mism >= 4) state = 'Face does not match'; } }
+        else { tr('looking_away', false, now); }
+        onState(state, ok); }, 400); },
+    stop() { clearInterval(timer); lm.close?.(); } };
+}
