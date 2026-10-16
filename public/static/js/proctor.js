@@ -8,9 +8,9 @@ export async function createProctor(video) {
   for (const url of MODELS) for (const delegate of ['GPU', 'CPU']) { try { lm = await FaceLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: url, delegate }, runningMode: 'VIDEO', numFaces: 3, outputFacialTransformationMatrixes: true }); break; } catch {} if (lm) break; }
   if (!lm) throw new Error('Face detection model could not be loaded.');
   let od = null; // phone detector is optional: if it cannot load, face proctoring still works
-  for (const url of OBJ_MODELS) for (const delegate of ['GPU', 'CPU']) { try { od = await ObjectDetector.createFromOptions(fs, { baseOptions: { modelAssetPath: url, delegate }, runningMode: 'VIDEO', scoreThreshold: 0.35, maxResults: 5, categoryAllowlist: ['cell phone'] }); break; } catch {} if (od) break; }
-  if (!od) console.warn('Phone detection model could not be loaded.');
-  const seePhone = () => { if (!od || video.readyState < 2) return false; try { return od.detectForVideo(video, performance.now()).detections.length > 0; } catch { return false; } };
+  for (const url of OBJ_MODELS) for (const delegate of ['GPU', 'CPU']) { try { od = await ObjectDetector.createFromOptions(fs, { baseOptions: { modelAssetPath: url, delegate }, runningMode: 'VIDEO', scoreThreshold: 0.3, maxResults: 5, categoryAllowlist: ['cell phone'] }); break; } catch (e) { console.warn('Phone model load failed', url, delegate, e); } if (od) break; }
+  console.log(od ? 'Phone detection ready' : 'Phone detection NOT available');
+  const seePhone = () => { if (!od || video.readyState < 2) return false; try { return od.detectForVideo(video, performance.now()).detections.length > 0; } catch (e) { console.warn('Phone detect error', e); return false; } };
   const look = () => { const r = lm.detectForVideo(video, performance.now()), n = r.faceLandmarks.length;
     return { n, lm: r.faceLandmarks[0], pose: poseFromMatrix(r.facialTransformationMatrixes?.[0]?.data) }; };
   let base = null, timer = null;
