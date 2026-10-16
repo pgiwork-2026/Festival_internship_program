@@ -28,7 +28,7 @@ export async function createProctor(video) {
       // Microphone: loudness only (nothing is recorded). The first ~6 s set the room's baseline; sustained sound well above it is logged for review.
       if (micStream?.getAudioTracks().length) { try { const AC = window.AudioContext || window.webkitAudioContext; micCtx = new AC(); micCtx.resume?.(); an = micCtx.createAnalyser(); an.fftSize = 1024; micCtx.createMediaStreamSource(micStream).connect(an); abuf = new Float32Array(an.fftSize); } catch (e) { console.warn('Microphone check unavailable', e); an = null; } }
       timer = setInterval(() => { if (video.readyState < 2) return; const f = look(), now = Date.now(); let state = 'Monitoring: OK', ok = true;
-        if (tick++ % 3 === 0) phone = seePhone(); // object model is heavier: run it every 3rd tick (~1.2 s)
+        if (tick++ % 2 === 0) phone = seePhone(); // object model is heavier: run it every 2nd tick (~0.6 s); needs 2 positive checks in a row
         if (an) { an.getFloatTimeDomainData(abuf); const lv = rms(abuf); if (ambient === null) { amb.push(lv); if (amb.length >= 15) ambient = Math.max(median(amb), 0.002); } else noisy = lv > noiseLimit(ambient); }
         const fire = (k, on) => { if (tr(k, on, now)) onViolation(k); if (on) { ok = false; } };
         fire('noise_detected', noisy); if (noisy) state = 'Voice or noise detected';
@@ -39,6 +39,6 @@ export async function createProctor(video) {
           const down = !away && f.down - base.down > THRESH.down; fire('looking_down', down); if (down) state = 'Please look at the screen, not down';
           if (dy < 15 && dp < 15) { mism = sigDistance(signature(f.lm, w, h), base.sig) > THRESH.sig ? mism + 1 : 0; fire('face_mismatch', mism >= 4); if (mism >= 4) state = 'Face does not match'; } }
         else { tr('looking_away', false, now); tr('looking_down', false, now); }
-        onState(state, ok); }, 400); },
+        onState(state, ok); }, THRESH.tickMs); },
     stop() { clearInterval(timer); try { micCtx && micCtx.close(); } catch {} micCtx = null; lm.close?.(); } };
 }

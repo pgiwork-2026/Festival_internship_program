@@ -17,10 +17,13 @@ const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'pu
 const wrap = f => (req, res) => f(req, res).catch(e => { console.error(req.method, req.url, e); res.status(e.status || 400).json({ error: e.message }); });
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
+const authCache = new Map(); // token -> { user, exp }: skips the Supabase Auth round trip on every request (30 s)
 async function auth(req, _res, next) {
-  const t = (req.headers.authorization || '').replace('Bearer ', '');
+  const t = (req.headers.authorization || '').replace('Bearer ', ''), hit = authCache.get(t);
+  if (hit && hit.exp > Date.now()) { req.user = hit.user; return next(); }
   const { data, error } = await db.auth.getUser(t);
   if (error || !data.user) return next(fail(401, 'unauthorized'));
+  if (authCache.size > 500) authCache.clear(); authCache.set(t, { user: data.user, exp: Date.now() + 30000 });
   req.user = data.user; next();
 }
 const settings = async () => (await db.from('test_settings').select('*').single()).data;
@@ -77,18 +80,22 @@ app.post('/api/attempts/:id/answer', auth, wrap(async (req, res) => {
 }));
 
 app.post('/api/attempts/:id/violation', auth, wrap(async (req, res) => {
-  const a = await ownAttempt(req), type = req.body?.type;
-  if (a.status !== 'in_progress' || !VIOLATIONS.includes(type)) throw fail(400, 'invalid');
-  let snapshot = cleanSnapshot(req.body?.snapshot); // evidence still for admins, at most MAX_SNAPSHOTS per attempt
-  if (snapshot) { const { count } = await db.from('proctoring_violations').select('id', { count: 'exact', head: true }).eq('attempt_id', a.id).not('snapshot', 'is', null); if ((count || 0) >= MAX_SNAPSHOTS) snapshot = null; }
-  if (ADVISORY_TYPES.includes(type)) { // logged for review only; at most one per type every ADVISORY_GAP_MS
-    const { data: last } = await db.from('proctoring_violations').select('occurred_at').eq('attempt_id', a.id).eq('type', type).order('occurred_at', { ascending: false }).limit(1);
-    if (!last?.[0] || Date.now() - new Date(last[0].occurred_at).getTime() >= ADVISORY_GAP_MS) { const { error } = await db.from('proctoring_violations').insert({ attempt_id: a.id, type, counted: false, snapshot }); if (error) throw fail(500, 'could not record violation'); }
+  const type = req.body?.type; if (!VIOLATIONS.includes(type)) throw fail(400, 'invalid');
+  const advisory = ADVISORY_TYPES.includes(type), V = () => db.from('proctoring_violations'); let snapshot = cleanSnapshot(req.body?.snapshot); // evidence still for admins, at most MAX_SNAPSHOTS per attempt
+  // one parallel round of reads instead of three in a row: ownership, snapshot quota, and the prior events used for counting
+  const [a, sc, prior] = await Promise.all([ownAttempt(req),
+    snapshot ? V().select('id', { count: 'exact', head: true }).eq('attempt_id', req.params.id).not('snapshot', 'is', null) : null,
+    advisory ? V().select('occurred_at').eq('attempt_id', req.params.id).eq('type', type).order('occurred_at', { ascending: false }).limit(1)
+      : V().select('occurred_at').eq('attempt_id', req.params.id).eq('counted', true).order('occurred_at', { ascending: false })]);
+  if (a.status !== 'in_progress') throw fail(400, 'invalid');
+  if (snapshot && (sc?.count || 0) >= MAX_SNAPSHOTS) snapshot = null;
+  if (advisory) { // logged for review only; at most one per type every ADVISORY_GAP_MS
+    const last = prior.data?.[0];
+    if (!last || Date.now() - new Date(last.occurred_at).getTime() >= ADVISORY_GAP_MS) { const { error } = await V().insert({ attempt_id: a.id, type, counted: false, snapshot }); if (error) throw fail(500, 'could not record violation'); }
     return res.json({ counted: false, advisory: true });
   }
-  const { data: rows } = await db.from('proctoring_violations').select('occurred_at').eq('attempt_id', a.id).eq('counted', true).order('occurred_at', { ascending: false });
-  const d = violationDecision(rows.length, rows[0]?.occurred_at); // counting is server-side: the browser cannot reset or skip it
-  const { error } = await db.from('proctoring_violations').insert({ attempt_id: a.id, type, counted: d.counted, snapshot }); if (error) throw fail(500, 'could not record violation');
+  const rows = prior.data || [], d = violationDecision(rows.length, rows[0]?.occurred_at); // counting is server-side: the browser cannot reset or skip it
+  const { error } = await V().insert({ attempt_id: a.id, type, counted: d.counted, snapshot }); if (error) throw fail(500, 'could not record violation');
   if (d.autoSubmit) { await finalize(a, 'auto_submitted'); return res.json({ ...d, autoSubmitted: true, result: await result(a) }); }
   res.json({ ...d, autoSubmitted: false, maxWarnings: MAX_WARNINGS });
 }));

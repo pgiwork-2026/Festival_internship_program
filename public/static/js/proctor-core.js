@@ -1,5 +1,5 @@
 // Pure proctoring maths (no DOM) so it can be unit-tested with `npm test`.
-export const THRESH = { yaw: 28, pitch: 22, sig: 0.16, hold: { no_face: 4000, multiple_faces: 2000, looking_away: 3000, face_mismatch: 0, phone_detected: 1500, looking_down: 3500, noise_detected: 2500 }, repeatMs: 15000, down: 0.25, noiseMin: 0.05, noiseFactor: 3 };
+export const THRESH = { yaw: 28, pitch: 22, sig: 0.16, hold: { no_face: 2500, multiple_faces: 1200, looking_away: 2000, face_mismatch: 0, phone_detected: 500, looking_down: 3000, noise_detected: 2000 }, tickMs: 300, repeatMs: 15000, down: 0.25, noiseMin: 0.05, noiseFactor: 3 };
 const deg = r => r * 180 / Math.PI;
 // MediaPipe facialTransformationMatrix (4x4, column-major) -> head yaw/pitch in degrees.
 export function poseFromMatrix(m) {

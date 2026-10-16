@@ -142,10 +142,15 @@ const updWarn = () => $('wcount').textContent = `Warnings ${Math.min(warnings, 3
 // Small still frame (about 10 KB) sent with a flagged event so admins can review it. Only kept for the program team; never shown to other students.
 const snapCv = document.createElement('canvas');
 function snap() { try { const v = $('prev'); if (!v || v.readyState < 2 || !v.videoWidth) return null; snapCv.width = 256; snapCv.height = Math.round(256 * v.videoHeight / v.videoWidth); snapCv.getContext('2d').drawImage(v, 0, 0, snapCv.width, snapCv.height); return snapCv.toDataURL('image/jpeg', 0.55); } catch { return null; } }
+let modalTok = 0; const ADVISORY = ['looking_down', 'noise_detected'];
 async function violation(type) { if (!attempt || !live()) return; const now = Date.now(); if (now - (lastViol[type] || 0) < 3000) return; lastViol[type] = now;
-  try { const r = await api(`/attempts/${attempt.attemptId}/violation`, { type, snapshot: snap() }); if (r.advisory) return; warnings = r.total; updWarn();
+  // Show the warning straight away; the server (which does the counting) then fills in "Warning N of 3". A duplicate or error removes it again.
+  const quick = !ADVISORY.includes(type) && $('viol-modal').classList.contains('hidden'), tok = quick ? ++modalTok : 0, undo = () => { if (quick && tok === modalTok) $('viol-modal').classList.add('hidden'); };
+  if (quick) { $('vm-title').textContent = 'Warning'; $('vm-body').textContent = `${LABEL[type] || type}. Recording this violation…`; $('viol-modal').classList.remove('hidden'); }
+  const img = snap(); // grab the frame now, at the moment of the violation
+  try { const r = await api(`/attempts/${attempt.attemptId}/violation`, { type, snapshot: img }); if (r.advisory) return undo(); warnings = r.total; updWarn();
     if (r.autoSubmitted) { finishing = true; endTest(); $('viol-modal').classList.add('hidden'); return showResult(r.result); }
-    if (r.counted) warnModal(type, r); } catch {} }
+    if (r.counted) warnModal(type, r); else undo(); } catch { undo(); } }
 function warnModal(type, r) { $('vm-title').textContent = `Warning ${r.total} of ${r.maxWarnings}`;
   $('vm-body').textContent = `${LABEL[type] || type}. ` + (r.warningsLeft ? `You have ${r.warningsLeft} warning${r.warningsLeft > 1 ? 's' : ''} left. ` : 'This was your last warning. ') + 'The next violation will submit your test automatically.';
   $('viol-modal').classList.remove('hidden'); }
