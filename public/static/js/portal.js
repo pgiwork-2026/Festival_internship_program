@@ -203,7 +203,14 @@ function addReport(box) { const w = el(box, 'div', null, 'rep'); el(w, 'h2', 'As
       m.textContent = 'Report image downloaded and post text copied. Attach the image' + (target === 'wa' ? ' in the WhatsApp chat (text is pre-filled).' : ' and paste the text in the LinkedIn post.'); m.className = 'msg';
       window.open(target === 'wa' ? 'https://wa.me/?text=' + encodeURIComponent(text) : 'https://www.linkedin.com/feed/?shareActive=true&text=' + encodeURIComponent(text), '_blank');
     } catch (e) { bad(e); } };
-  wa.onclick = () => share('wa'); li.onclick = () => share('li'); }
+  wa.onclick = () => share('wa');
+  // LinkedIn cannot receive an attached file from a web link. The post text carries the public report link; LinkedIn unfurls it into a card showing the report image (og:image).
+  li.onclick = async () => { const win = window.open('about:blank', '_blank'); m.textContent = ''; m.className = 'msg';
+    try { const s = await api(`/attempts/${attemptId}/share`, {}), parts = s.text.split('\n\n#'), text = parts[0] + '\n\n\u{1F4C4} My assessment report: ' + s.url + '\n\n#' + parts[1];
+      try { await navigator.clipboard.writeText(text); } catch {}
+      const u = 'https://www.linkedin.com/feed/?shareActive=true&text=' + encodeURIComponent(text); win ? (win.location.href = u) : (location.href = u);
+      m.textContent = 'Opening LinkedIn with your post ready. The report image appears as the link preview (text is also copied in case you need to paste it).';
+    } catch (e) { win && win.close(); bad(e); } }; }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const payable = (base, d) => Math.floor((base * (100 - d) + 50) / 100); // display only; the server is authoritative
 function el(parent, tag, text, cls) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; parent.appendChild(e); return e; }
