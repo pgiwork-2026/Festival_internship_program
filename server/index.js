@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { mountAdmin } from './admin.js';
 import { createClient } from '@supabase/supabase-js';
 import { registerPayments } from './payments.js';
-import { tierFor, payablePaise, scorePercent, shuffle, makeCouponCode, couponState, validateAnswer, BASE_PRICE_PAISE, VIOLATION_TYPES, violationDecision, MAX_WARNINGS, STATUS_TEXT } from './logic.js';
+import { tierFor, payablePaise, scorePercent, shuffle, makeCouponCode, couponState, validateAnswer, BASE_PRICE_PAISE, VIOLATION_TYPES, violationDecision, MAX_WARNINGS, STATUS_TEXT, ADVISORY_TYPES, MAX_SNAPSHOTS, ADVISORY_GAP_MS, cleanSnapshot } from './logic.js';
 import { buildReportPDF, reportId, fmtDate } from './report.js';
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
@@ -79,9 +79,16 @@ app.post('/api/attempts/:id/answer', auth, wrap(async (req, res) => {
 app.post('/api/attempts/:id/violation', auth, wrap(async (req, res) => {
   const a = await ownAttempt(req), type = req.body?.type;
   if (a.status !== 'in_progress' || !VIOLATIONS.includes(type)) throw fail(400, 'invalid');
+  let snapshot = cleanSnapshot(req.body?.snapshot); // evidence still for admins, at most MAX_SNAPSHOTS per attempt
+  if (snapshot) { const { count } = await db.from('proctoring_violations').select('id', { count: 'exact', head: true }).eq('attempt_id', a.id).not('snapshot', 'is', null); if ((count || 0) >= MAX_SNAPSHOTS) snapshot = null; }
+  if (ADVISORY_TYPES.includes(type)) { // logged for review only; at most one per type every ADVISORY_GAP_MS
+    const { data: last } = await db.from('proctoring_violations').select('occurred_at').eq('attempt_id', a.id).eq('type', type).order('occurred_at', { ascending: false }).limit(1);
+    if (!last?.[0] || Date.now() - new Date(last[0].occurred_at).getTime() >= ADVISORY_GAP_MS) { const { error } = await db.from('proctoring_violations').insert({ attempt_id: a.id, type, counted: false, snapshot }); if (error) throw fail(500, 'could not record violation'); }
+    return res.json({ counted: false, advisory: true });
+  }
   const { data: rows } = await db.from('proctoring_violations').select('occurred_at').eq('attempt_id', a.id).eq('counted', true).order('occurred_at', { ascending: false });
   const d = violationDecision(rows.length, rows[0]?.occurred_at); // counting is server-side: the browser cannot reset or skip it
-  const { error } = await db.from('proctoring_violations').insert({ attempt_id: a.id, type, counted: d.counted }); if (error) throw fail(500, 'could not record violation');
+  const { error } = await db.from('proctoring_violations').insert({ attempt_id: a.id, type, counted: d.counted, snapshot }); if (error) throw fail(500, 'could not record violation');
   if (d.autoSubmit) { await finalize(a, 'auto_submitted'); return res.json({ ...d, autoSubmitted: true, result: await result(a) }); }
   res.json({ ...d, autoSubmitted: false, maxWarnings: MAX_WARNINGS });
 }));
@@ -118,7 +125,7 @@ app.get('/api/attempts/:id/result', auth, wrap(async (req, res) => {
 async function reportData(a, user) {
   const [{ data: profile }, { data: c }, { data: vs }, { count: answered }] = await Promise.all([
     db.from('profiles').select('full_name,phone').eq('id', a.user_id).single(), db.from('scholarship_coupons').select('*').eq('attempt_id', a.id).maybeSingle(),
-    db.from('proctoring_violations').select('*').eq('attempt_id', a.id).order('occurred_at'), db.from('responses').select('question_id', { count: 'exact', head: true }).eq('attempt_id', a.id)]);
+    db.from('proctoring_violations').select('id,attempt_id,type,counted,occurred_at').eq('attempt_id', a.id).order('occurred_at'), db.from('responses').select('question_id', { count: 'exact', head: true }).eq('attempt_id', a.id)]);
   const { data: at } = await db.from('assessment_attempts').select('*').eq('id', a.id).single();
   if (!profile) throw fail(404, 'Profile not found');
   let email = user?.email; if (!email) email = (await db.auth.admin.getUserById(a.user_id)).data?.user?.email;

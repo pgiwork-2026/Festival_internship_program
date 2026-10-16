@@ -1,7 +1,7 @@
 import PDFDocument from 'pdfkit';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MAX_WARNINGS, VIOLATION_LABELS, STATUS_TEXT, formatINR } from './logic.js';
+import { MAX_WARNINGS, VIOLATION_LABELS, STATUS_TEXT, formatINR, ADVISORY_TYPES } from './logic.js';
 
 const D = path.dirname(fileURLToPath(import.meta.url)), A = f => path.join(D, 'assets', f), FNT = f => path.join(D, 'fonts', f);
 const GREEN = '#2f5d3c', LEFT = 72, W = 612 - 2 * LEFT, BOTTOM = 725; // Letter page, 1" side margins like the template
@@ -14,7 +14,7 @@ const dur = (a, b) => { const s = Math.max(0, Math.round((new Date(b) - new Date
 // Warning label for each counted violation: Warning 1..3, then "Auto-submitted".
 export function violationRows(vs) {
   let n = 0; return vs.map(v => ({ time: fmtTime(v.occurred_at), event: VIOLATION_LABELS[v.type] || v.type,
-    action: !v.counted ? 'Duplicate (not counted)' : ++n <= MAX_WARNINGS ? `Warning ${n} of ${MAX_WARNINGS}` : 'Test auto-submitted' }));
+    action: !v.counted ? (ADVISORY_TYPES.includes(v.type) ? 'Logged for review (not counted)' : 'Duplicate (not counted)') : ++n <= MAX_WARNINGS ? `Warning ${n} of ${MAX_WARNINGS}` : 'Test auto-submitted' }));
 }
 
 // r = { profile, email, attempt, coupon, answered, violations }. pub=true omits contact details, coupon and anything private.

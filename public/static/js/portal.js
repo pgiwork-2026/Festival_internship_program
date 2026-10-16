@@ -4,8 +4,8 @@ const show = id => { document.querySelectorAll('main > section, #loading').forEa
   if (id in BOOK || id === 's-test') { b.classList.remove('hidden'); if (id === 's-test') $('s-test').classList.remove('hidden'); else bk.step(id); } else { b && b.classList.add('hidden'); $(id).classList.remove('hidden'); } };
 const msg = (id, t, ok) => { const e = $(id); e.textContent = t; e.className = 'msg ' + (ok ? 'ok' : 'err'); };
 const inr = p => '₹' + (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-let lastCoupon = null, me2 = null, cfg, sb, token, stream, attempt, skew = 0, timerH, faceH, lastViol = {}, mode = 'register', proctor = null, enrolled = false, attemptId = null, warnings = 0;
-const LABEL = { blocked_shortcut: 'Blocked keyboard shortcut used', multiple_faces: 'More than one person detected', no_face: 'Your face is not visible', looking_away: 'Your head is turned away from the screen', face_mismatch: 'Your face does not match the verified candidate', camera_unavailable: 'Your camera is unavailable or switched off', tab_switch: 'You left the test tab or window', fullscreen_exit: 'You exited full-screen mode', copy_paste: 'Copy / paste is not allowed', phone_detected: 'A mobile phone was detected in the camera view' };
+let lastCoupon = null, me2 = null, cfg, sb, token, stream, micStream = null, attempt, skew = 0, timerH, faceH, lastViol = {}, mode = 'register', proctor = null, enrolled = false, attemptId = null, warnings = 0;
+const LABEL = { blocked_shortcut: 'Blocked keyboard shortcut used', multiple_faces: 'More than one person detected', no_face: 'Your face is not visible', looking_away: 'Your head is turned away from the screen', face_mismatch: 'Your face does not match the verified candidate', camera_unavailable: 'Your camera is unavailable or switched off', tab_switch: 'You left the test tab or window', fullscreen_exit: 'You exited full-screen mode', copy_paste: 'Copy / paste is not allowed', phone_detected: 'A mobile phone was detected in the camera view', looking_down: 'You were looking down for a long time', noise_detected: 'Voices or loud noise were detected' };
 const live = () => !$('s-test').classList.contains('hidden') && !finishing;
 
 try { cfg = await (await fetch('/api/config')).json(); } catch { $('loading').textContent = 'Cannot reach the server. Please try again later.'; return; }
@@ -38,7 +38,8 @@ $('logout').onclick = async () => { await sb.auth.signOut(); location.reload(); 
 $('p-save').onclick = async () => { try { $('p-save').disabled = true; await api('/profile', { fullName: $('p-name').value.trim(), phone: $('p-phone').value.trim() }); await boot(); } catch (e) { msg('p-msg', e.message); } finally { $('p-save').disabled = false; } };
 async function startCamera() {
   if (stream) return true;
-  try { stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio: false }); stream.getVideoTracks()[0].addEventListener('ended', () => live() && violation('camera_unavailable')); $('prev').srcObject = stream; $('pvid').srcObject = stream; $('prev').classList.remove('hidden'); msg('cam-msg', 'Camera is working.', true); return true; }
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false }); stream.getVideoTracks()[0].addEventListener('ended', () => live() && violation('camera_unavailable')); $('prev').srcObject = stream; $('pvid').srcObject = stream; $('prev').classList.remove('hidden'); try { micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } }); } catch { micStream = null; }
+    msg('cam-msg', 'Camera is working.' + (micStream ? ' Microphone is on (used only to detect voices or loud noise; nothing is recorded).' : ' Microphone not available, so the voice check is off.'), true); return true; }
   catch { msg('cam-msg', cfg.requireCamera ? 'Camera access is required for this test. Allow camera permission in your browser settings, then click the button again.' : 'Camera unavailable. You may continue, but this will be logged and reviewed by admins.'); return false; }
 }
 const gate = () => $('begin').disabled = !($('agree').checked && (enrolled || !cfg.requireCamera));
@@ -61,7 +62,7 @@ function runTest() {
   attemptId = attempt.attemptId; warnings = attempt.violations || 0; updWarn(); show('s-test'); $('pvid').classList.remove('hidden'); skew = new Date(attempt.serverTime) - Date.now();
   bk.startTest();
   updProg(); tick(); timerH = setInterval(tick, 500);
-  if (proctor && enrolled) proctor.start(violation, (t, ok) => { $('mon').textContent = t; $('mon').className = ok ? 'ok' : 'err'; });
+  if (proctor && enrolled) proctor.start(violation, (t, ok) => { $('mon').textContent = t; $('mon').className = ok ? 'ok' : 'err'; }, micStream);
 }
 
 // ---- Book UI: every assessment step is a page. Presentation only; existing handlers/logic are untouched. ----
@@ -138,8 +139,11 @@ async function save(qid, oid) {
 function tick() { const left = Math.max(0, Math.floor((new Date(attempt.expiresAt) - (Date.now() + skew)) / 1000));
   $('timer').textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`; if (left === 0) finish(); }
 const updWarn = () => $('wcount').textContent = `Warnings ${Math.min(warnings, 3)}/3`;
+// Small still frame (about 10 KB) sent with a flagged event so admins can review it. Only kept for the program team; never shown to other students.
+const snapCv = document.createElement('canvas');
+function snap() { try { const v = $('prev'); if (!v || v.readyState < 2 || !v.videoWidth) return null; snapCv.width = 256; snapCv.height = Math.round(256 * v.videoHeight / v.videoWidth); snapCv.getContext('2d').drawImage(v, 0, 0, snapCv.width, snapCv.height); return snapCv.toDataURL('image/jpeg', 0.55); } catch { return null; } }
 async function violation(type) { if (!attempt || !live()) return; const now = Date.now(); if (now - (lastViol[type] || 0) < 3000) return; lastViol[type] = now;
-  try { const r = await api(`/attempts/${attempt.attemptId}/violation`, { type }); warnings = r.total; updWarn();
+  try { const r = await api(`/attempts/${attempt.attemptId}/violation`, { type, snapshot: snap() }); if (r.advisory) return; warnings = r.total; updWarn();
     if (r.autoSubmitted) { finishing = true; endTest(); $('viol-modal').classList.add('hidden'); return showResult(r.result); }
     if (r.counted) warnModal(type, r); } catch {} }
 function warnModal(type, r) { $('vm-title').textContent = `Warning ${r.total} of ${r.maxWarnings}`;
@@ -161,7 +165,7 @@ async function finish() { if (finishing) return; finishing = true; clearInterval
   for (let i = 0; i < 5; i++) { try { const r = await api(`/attempts/${attempt.attemptId}/submit`, {}); endTest(); return showResult(r); } catch { await new Promise(r => setTimeout(r, 1500)); } }
   finishing = false; $('submit').disabled = false; msg('t-msg', 'Submission failed. Check your connection and press Submit again.'); }
 $('submit').onclick = () => { if (confirm('Submit your test now? You cannot change answers afterwards.')) finish(); };
-const stopCam = () => { stream && stream.getTracks().forEach(t => t.stop()); stream = null; $('pvid').classList.add('hidden'); };
+const stopCam = () => { stream && stream.getTracks().forEach(t => t.stop()); stream = null; micStream && micStream.getTracks().forEach(t => t.stop()); micStream = null; $('pvid').classList.add('hidden'); };
 function endTest() { clearInterval(timerH); proctor && proctor.stop(); proctor = null; enrolled = false; stopCam(); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }
 function showResult(r) { show('s-res'); const c = r.coupon, box = $('res'); box.innerHTML = '';
   const p = t => { const e = document.createElement('p'); e.textContent = t; box.appendChild(e); return e; };

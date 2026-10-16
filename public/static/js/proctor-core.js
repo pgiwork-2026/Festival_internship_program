@@ -1,5 +1,5 @@
 // Pure proctoring maths (no DOM) so it can be unit-tested with `npm test`.
-export const THRESH = { yaw: 28, pitch: 22, sig: 0.16, hold: { no_face: 4000, multiple_faces: 2000, looking_away: 3000, face_mismatch: 0, phone_detected: 1500 }, repeatMs: 15000 };
+export const THRESH = { yaw: 28, pitch: 22, sig: 0.16, hold: { no_face: 4000, multiple_faces: 2000, looking_away: 3000, face_mismatch: 0, phone_detected: 1500, looking_down: 3500, noise_detected: 2500 }, repeatMs: 15000, down: 0.25, noiseMin: 0.05, noiseFactor: 3 };
 const deg = r => r * 180 / Math.PI;
 // MediaPipe facialTransformationMatrix (4x4, column-major) -> head yaw/pitch in degrees.
 export function poseFromMatrix(m) {
@@ -27,3 +27,9 @@ export function makeTracker(hold = THRESH.hold, repeatMs = THRESH.repeatMs) {
     return false;
   };
 }
+
+// Eyes-looking-down score (0..1) from MediaPipe face blendshapes; a rise above the student's own baseline means looking at a desk, lap or phone.
+export function downScore(cats) { if (!cats) return 0; const g = n => cats.find(c => c.categoryName === n)?.score || 0; return (g('eyeLookDownLeft') + g('eyeLookDownRight')) / 2; }
+// Microphone loudness: root-mean-square of one audio frame, and the level above which sound counts as voice/noise (3x the room's own baseline, never below noiseMin).
+export const rms = buf => { let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i]; return Math.sqrt(s / (buf.length || 1)); };
+export const noiseLimit = ambient => Math.max(ambient * THRESH.noiseFactor, THRESH.noiseMin);

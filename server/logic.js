@@ -29,8 +29,13 @@ export const MAX_WARNINGS = 3, DEDUPE_MS = 5000;
 export const VIOLATION_LABELS = {
   multiple_faces: 'More than one person detected', no_face: 'Face not visible', looking_away: 'Head turned away from the screen',
   face_mismatch: 'Face does not match the verified candidate', camera_unavailable: 'Camera unavailable or switched off', phone_detected: 'Phone detected',
-  tab_switch: 'Left the test tab or window', fullscreen_exit: 'Exited full-screen mode', copy_paste: 'Copy / paste attempt', blocked_shortcut: 'Blocked keyboard shortcut (print / developer tools / save)' };
+  tab_switch: 'Left the test tab or window', fullscreen_exit: 'Exited full-screen mode', copy_paste: 'Copy / paste attempt', blocked_shortcut: 'Blocked keyboard shortcut (print / developer tools / save)',
+  looking_down: 'Looked down for a long time (possible phone or notes)', noise_detected: 'Voices or loud noise detected' };
 export const VIOLATION_TYPES = Object.keys(VIOLATION_LABELS);
+// Advisory events are logged (with a snapshot) for admin review but never count toward the 3 warnings or auto-submit: they are too easy to trigger innocently.
+export const ADVISORY_TYPES = ['looking_down', 'noise_detected'], MAX_SNAPSHOTS = 8, ADVISORY_GAP_MS = 30000;
+// Accept only a small base64 JPEG data URL; anything else is dropped (the violation is still recorded).
+export const cleanSnapshot = s => typeof s === 'string' && s.length < 60000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(s) ? s : null;
 // A burst of events within DEDUPE_MS (e.g. one Alt-Tab firing blur + visibility + fullscreen) counts once.
 export function violationDecision(countedSoFar, lastCountedAt, now = Date.now()) {
   const counted = !(lastCountedAt && now - new Date(lastCountedAt).getTime() < DEDUPE_MS);

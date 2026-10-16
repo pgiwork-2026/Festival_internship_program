@@ -33,3 +33,21 @@ test('violation log labels: warnings 1-3, then auto-submit; duplicates flagged',
   const v = [1, 2, 3, 4].map(i => ({ type: 'no_face', counted: true, occurred_at: new Date(i * 1e4) })); v.splice(1, 0, { type: 'tab_switch', counted: false, occurred_at: new Date(15000) });
   assert.deepEqual(violationRows(v).map(r => r.action), ['Warning 1 of 3', 'Duplicate (not counted)', 'Warning 2 of 3', 'Warning 3 of 3', 'Test auto-submitted']);
 });
+
+test('advisory events are logged for review but never count toward warnings', () => {
+  const v = [{ type: 'noise_detected', counted: false, occurred_at: new Date(1e4) }, { type: 'tab_switch', counted: true, occurred_at: new Date(2e4) }, { type: 'looking_down', counted: false, occurred_at: new Date(3e4) }];
+  assert.deepEqual(violationRows(v).map(r => r.action), ['Logged for review (not counted)', 'Warning 1 of 3', 'Logged for review (not counted)']);
+});
+test('snapshots: only small JPEG data URLs are accepted', async () => {
+  const { cleanSnapshot, ADVISORY_TYPES, VIOLATION_TYPES } = await import('../logic.js');
+  assert.equal(cleanSnapshot('data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ=='), 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==');
+  for (const bad of [null, 5, 'data:text/html;base64,PHNjcmlwdD4=', 'data:image/jpeg;base64,<script>', 'data:image/jpeg;base64,' + 'A'.repeat(70000)]) assert.equal(cleanSnapshot(bad), null);
+  assert.ok(ADVISORY_TYPES.every(t => VIOLATION_TYPES.includes(t)));
+});
+test('mic + eyes-down maths', async () => {
+  const { downScore, rms, noiseLimit } = await import('../../public/static/js/proctor-core.js');
+  assert.equal(downScore(null), 0);
+  assert.ok(Math.abs(downScore([{ categoryName: 'eyeLookDownLeft', score: 0.6 }, { categoryName: 'eyeLookDownRight', score: 0.4 }, { categoryName: 'eyeLookUpLeft', score: 0.9 }]) - 0.5) < 1e-9);
+  assert.equal(rms([]), 0); assert.ok(Math.abs(rms([0.5, -0.5, 0.5, -0.5]) - 0.5) < 1e-9);
+  assert.equal(noiseLimit(0.004), 0.05); assert.ok(Math.abs(noiseLimit(0.03) - 0.09) < 1e-9);
+});

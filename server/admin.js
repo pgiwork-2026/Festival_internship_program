@@ -1,3 +1,4 @@
+import { VIOLATION_LABELS } from './logic.js';
 // Admin API: every route requires a valid login AND profiles.role = 'admin' (checked on the server).
 export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, buildReportPDF, reportId }) {
   const adminOnly = async (req, _res, next) => { try { const { data } = await db.from('profiles').select('role').eq('id', req.user.id).single(); data?.role === 'admin' ? next() : next(fail(403, 'Admin access only')); } catch (e) { next(e); } };
@@ -27,6 +28,11 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
     const [at, vs, cp] = await Promise.all([rows(db.from('assessment_attempts').select('id,user_id,status,correct_count,total_questions,score_percent,started_at,submitted_at').order('started_at', { ascending: false }).limit(2000)), rows(db.from('proctoring_violations').select('attempt_id').eq('counted', true).limit(20000)), rows(db.from('scholarship_coupons').select('attempt_id,expires_at'))]);
     const vc = {}; vs.forEach(v => { vc[v.attempt_id] = (vc[v.attempt_id] || 0) + 1; });
     res.json(at.map(a => ({ ...a, name: by[a.user_id]?.full_name, email: em[a.user_id], violations: vc[a.id] || 0, hasCoupon: cp.some(c => c.attempt_id === a.id) })));
+  });
+
+  A('get', '/attempts/:id/evidence', async (req, res) => { // flagged events with their snapshots, for manual review
+    const vs = await rows(db.from('proctoring_violations').select('type,counted,occurred_at,snapshot').eq('attempt_id', req.params.id).order('occurred_at'));
+    res.json(vs.map(v => ({ label: VIOLATION_LABELS[v.type] || v.type, counted: v.counted !== false, at: v.occurred_at, snapshot: v.snapshot })));
   });
 
   A('get', '/payments', async (_q, res) => {
