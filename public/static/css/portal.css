@@ -77,3 +77,9 @@ a{color:var(--green)}
 @media(max-width:600px){.book{border-width:8px}}
 @media(prefers-reduced-motion:reduce){.leaf.turning .shade,.leaf.rise .shade,.leaf.sink .shade{animation:none}}
 .book-nav #pvid{position:static;width:96px;max-width:96px;margin:0;border-width:2px;border-radius:8px}
+/* scrolling instruction bar */
+.notice-bar{background:var(--maroon,#5a0f1c);color:var(--yellow);border-bottom:2px solid var(--gold);overflow:hidden;white-space:nowrap;font-size:17px;font-weight:700;padding:8px 0}
+.notice-track{display:inline-block;padding-left:100%;animation:notice-scroll 32s linear infinite}
+.notice-bar:hover .notice-track{animation-play-state:paused}
+@keyframes notice-scroll{to{transform:translateX(-100%)}}
+@media (prefers-reduced-motion:reduce){.notice-track{animation:none;display:block;padding:0 12px;white-space:normal;text-align:center}}
