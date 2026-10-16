@@ -16,10 +16,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/css/style.css">
-<link rel="stylesheet" href="static/css/intro-lamp.css">
+<link rel="stylesheet" href="static/css/velakku.css">
 </head>
 <body>
-<script src="static/js/intro-lamp.js"></script>
+<script src="static/js/intro-velakku.js"></script>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="kolam" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2"><path d="M60 8 112 60 60 112 8 60Z"/><path d="M60 24 96 60 60 96 24 60Z"/><circle cx="60" cy="60" r="14"/><g fill="currentColor"><circle cx="60" cy="8" r="3"/><circle cx="112" cy="60" r="3"/><circle cx="60" cy="112" r="3"/><circle cx="8" cy="60" r="3"/><circle cx="60" cy="36" r="3"/><circle cx="84" cy="60" r="3"/><circle cx="60" cy="84" r="3"/><circle cx="36" cy="60" r="3"/></g><path d="M60 46c10 0 14 14 0 14s-10 14 0 14"/></symbol>
   <symbol id="lamp" viewBox="0 0 60 140"><path class="flame" d="M30 4c6 12 12 18 12 28a12 12 0 0 1-24 0c0-10 6-16 12-28z" fill="#ffd36b"/><path d="M22 46h16l-3 10H25zM28 56h4v30h-4z" fill="#e0a800"/><ellipse cx="30" cy="92" rx="18" ry="6" fill="#b8801f"/><path d="M14 94h32l-6 26H20z" fill="#e0a800"/><path d="M10 124h40l6 12H4z" fill="#b8801f"/></symbol>
@@ -36,28 +36,20 @@
 </header>
 
 <main id="top">
-  <section class="hero">
-    <div class="sparkles" aria-hidden="true"></div><div class="rays" aria-hidden="true"></div>
-    <svg class="lamp l1" aria-hidden="true"><use href="#lamp"/></svg><svg class="lamp l2" aria-hidden="true"><use href="#lamp"/></svg>
-    <div class="hero-in">
-      <div class="hero-text">
-        <p class="kicker">Vijayadashami, the day of victory and learning</p>
+  <section class="vh hero-new">
+    <div class="vh-bg" aria-hidden="true"><img src="static/images/velakku/hero_bg.jpg" alt="" loading="eager"></div>
+    <div class="vh-petals" aria-hidden="true"><i style="left:6%;width:10px;height:14px;animation-delay:0.0s;animation-duration:6s"></i><i style="left:14%;width:14px;height:19px;animation-delay:1.1s;animation-duration:8s"></i><i style="left:22%;width:18px;height:25px;animation-delay:2.2s;animation-duration:10s"></i><i style="left:30%;width:10px;height:14px;animation-delay:3.3s;animation-duration:12s"></i><i style="left:38%;width:14px;height:19px;animation-delay:4.4s;animation-duration:6s"></i><i style="left:46%;width:18px;height:25px;animation-delay:5.5s;animation-duration:8s"></i><i style="left:54%;width:10px;height:14px;animation-delay:0.6s;animation-duration:10s"></i><i style="left:62%;width:14px;height:19px;animation-delay:1.7s;animation-duration:12s"></i><i style="left:70%;width:18px;height:25px;animation-delay:2.8s;animation-duration:6s"></i><i style="left:78%;width:10px;height:14px;animation-delay:3.9s;animation-duration:8s"></i><i style="left:86%;width:14px;height:19px;animation-delay:5.0s;animation-duration:10s"></i><i style="left:94%;width:18px;height:25px;animation-delay:0.1s;animation-duration:12s"></i></div>
+    <div class="vh-in">
+      <div class="vh-text">
+        <p class="vh-eye">Vijayadashami, the day of victory and learning</p>
         <h1>Vijayadashami Special Internship and Training Program</h1>
-        <p class="sub">Celebrate New Beginnings. Discover Your Potential. Become an Intern.</p>
-        <p class="support">A 10-day practical training and internship program at Plant Green Inertia Pvt. Ltd., from 20 to 30 October 2026. Take the scholarship test to qualify.</p>
-        <a class="btn" data-start href="#" aria-label="Start the scholarship test">START SCHOLARSHIP TEST</a>
+        <div class="vh-div" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3c-1.5 3-3 6.5-3 9.5 0 2 1.5 3.5 3 3.5s3-1.5 3-3.5C15 9.5 13.5 6 12 3z"/><path d="M9 12.5C7 11 4.5 11 3 13c1.5 3 4.5 4 6 3"/><path d="M15 12.5C17 11 19.5 11 21 13c-1.5 3-4.5 4-6 3"/></svg></div>
+        <p class="vh-tag">Celebrate New Beginnings.<br>Discover Your Potential.<br>Become an Intern.</p>
+        <p class="vh-support">A 10-day practical training and internship program at Plant Green Inertia Pvt. Ltd., from 20 to 30 October 2026. Take the scholarship test to qualify.</p>
+        <div class="vh-cta"><a class="btn" data-start href="#" aria-label="Start the scholarship test">START SCHOLARSHIP TEST</a></div>
       </div>
-      <div class="hero-img"><div class="frame video-frame">
-        <video autoplay muted loop playsinline preload="auto" poster="static/images/goddess.svg" aria-label="Goddess Saraswati with golden coins falling from her hands">
-          <source src="static/videos/vijayadashami_saraswati_hand_coins_loop.mp4" type="video/mp4">
-        </video>
-        <div class="fb">
-          <img src="static/images/goddess-photo.jpg" data-fallback="static/images/goddess.svg" onerror="this.onerror=null;this.src='static/images/goddess.svg'" alt="Goddess Saraswati illustration blessing new beginnings" width="400" height="480">
-          <div class="coins" aria-hidden="true"></div>
-        </div>
-      </div></div>
+      <div class="vh-spacer" aria-hidden="true"></div>
     </div>
-    <div class="garland" aria-hidden="true"></div>
   </section>
 
   <section id="scholarship" class="sec schol">
