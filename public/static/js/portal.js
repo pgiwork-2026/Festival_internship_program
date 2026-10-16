@@ -185,17 +185,25 @@ function showResult(r) { show('s-res'); const c = r.coupon, box = $('res'); box.
   else p('This coupon can no longer be used for a new payment.'); }
 function addReport(box) { const w = el(box, 'div', null, 'rep'); el(w, 'h2', 'Assessment report'); const row = el(w, 'div', null, 'btnrow');
   const dl = el(row, 'button', 'Download report (PDF)'), wa = el(row, 'button', 'Share on WhatsApp', 'alt'), li = el(row, 'button', 'Share on LinkedIn', 'alt'), m = el(w, 'div', null, 'msg');
-  el(w, 'p', 'Sharing creates a public link showing only your name, score and result. Your contact details and coupon are not included.', 'small');
+  el(w, 'p', 'Sharing attaches a one-page image of your report (and a public link) showing only your name, score and result. Your contact details and coupon are not included.', 'small');
   const bad = e => { m.textContent = e.message; m.className = 'msg err'; };
   dl.onclick = async () => { dl.disabled = true; m.textContent = '';
     try { const r = await fetch(`/api/attempts/${attemptId}/report.pdf`, { headers: { Authorization: 'Bearer ' + token } }); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Report unavailable (HTTP ' + r.status + ')');
       const u = URL.createObjectURL(await r.blob()), a = document.createElement('a'); a.href = u; a.download = 'Assessment-Report.pdf'; a.click(); setTimeout(() => URL.revokeObjectURL(u), 10000); } catch (e) { bad(e); } dl.disabled = false; };
-  const share = async mk => { const win = window.open('about:blank', '_blank'); m.textContent = '';
-    try { const s = await api(`/attempts/${attemptId}/share`, {}); const u = await mk(s); win ? (win.location.href = u) : (location.href = u); } catch (e) { win && win.close(); bad(e); } };
-  wa.onclick = () => share(s => 'https://wa.me/?text=' + encodeURIComponent(s.text.split('\n\n#')[0] + '\n\n\u{1F4C4} View my assessment report (PDF): ' + s.pdf + '\n\n#' + s.text.split('\n\n#')[1]));
-  li.onclick = () => share(async s => { const t = s.text.split('\n\n#')[0] + '\n\n\u{1F4C4} My assessment report: ' + s.url + '\n\n#' + s.text.split('\n\n#')[1];
-    try { await navigator.clipboard.writeText(t); m.textContent = 'Post text copied. Press Ctrl+V (or long-press, Paste) in the LinkedIn box.'; m.className = 'msg'; } catch (e) { m.textContent = t; m.className = 'msg'; }
-    return 'https://www.linkedin.com/feed/?shareActive=true&text=' + encodeURIComponent(t); }); }
+  // Share = image of the one-page report + post text. Phones: native share sheet attaches the image (pick WhatsApp / LinkedIn).
+  // Desktop fallback: image is downloaded, text copied, and the app opened so the image can be attached.
+  const share = async target => { m.textContent = ''; m.className = 'msg';
+    try { const s = await api(`/attempts/${attemptId}/share`, {});
+      const ir = await fetch(`/api/attempts/${attemptId}/report.png`, { headers: { Authorization: 'Bearer ' + token } }); if (!ir.ok) throw new Error('Report image unavailable (HTTP ' + ir.status + ')');
+      const blob = await ir.blob(), file = new File([blob], 'Assessment-Report.png', { type: 'image/png' }), parts = s.text.split('\n\n#'), tags = '#' + parts[1];
+      const text = target === 'wa' ? parts[0] + '\n\n\u{1F4C4} Full report (PDF): ' + s.pdf + '\n\n' + tags : parts[0] + '\n\n\u{1F4C4} My assessment report: ' + s.url + '\n\n' + tags;
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+      const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = 'Assessment-Report.png'; a.click(); setTimeout(() => URL.revokeObjectURL(u), 10000);
+      try { await navigator.clipboard.writeText(text); } catch {}
+      m.textContent = 'Report image downloaded and post text copied. Attach the image' + (target === 'wa' ? ' in the WhatsApp chat (text is pre-filled).' : ' and paste the text in the LinkedIn post.'); m.className = 'msg';
+      window.open(target === 'wa' ? 'https://wa.me/?text=' + encodeURIComponent(text) : 'https://www.linkedin.com/feed/?shareActive=true&text=' + encodeURIComponent(text), '_blank');
+    } catch (e) { bad(e); } };
+  wa.onclick = () => share('wa'); li.onclick = () => share('li'); }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const payable = (base, d) => Math.floor((base * (100 - d) + 50) / 100); // display only; the server is authoritative
 function el(parent, tag, text, cls) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; parent.appendChild(e); return e; }
@@ -241,8 +249,8 @@ async function boot() {
       if (pp) { try { await api('/profile', { fullName: pp.name, phone: pp.phone }); localStorage.removeItem('pendingProfile'); return boot(); } catch {} }
       $('p-name').value = me.profile.full_name || ''; return show('s-profile'); }
     const d = await api('/dashboard'); if (d.enrollment) return showDash(d);
-    if (me.attempt && me.attempt.status !== 'in_progress') return showResult(await api(`/attempts/${me.attempt.id}/result`));
-    show('s-inst'); if (me.attempt) msg('inst-msg', 'You have a test in progress. Start the camera and click Start test to resume — the timer kept running.', true);
+    if (me.attempt && me.attempt.status !== 'in_progress' && !me.canRetry) return showResult(await api(`/attempts/${me.attempt.id}/result`));
+    show('s-inst'); if (me.canRetry) msg('inst-msg', 'Your 6-month wait is over — you can attempt the assessment again.', true); else if (me.attempt) msg('inst-msg', 'You have a test in progress. Start the camera and click Start test to resume — the timer kept running.', true);
   } catch (e) { if (e.status === 401) { await sb.auth.signOut(); return boot(); } $('loading').textContent = e.message; show('loading'); }
 }
 await boot();

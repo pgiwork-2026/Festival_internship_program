@@ -7,7 +7,7 @@ import { mountAdmin } from './admin.js';
 import { createClient } from '@supabase/supabase-js';
 import { registerPayments } from './payments.js';
 import { tierFor, payablePaise, scorePercent, shuffle, makeCouponCode, couponState, validateAnswer, BASE_PRICE_PAISE, VIOLATION_TYPES, violationDecision, MAX_WARNINGS, STATUS_TEXT, ADVISORY_TYPES, MAX_SNAPSHOTS, ADVISORY_GAP_MS, cleanSnapshot } from './logic.js';
-import { buildReportPDF, reportId, fmtDate } from './report.js';
+import { buildReportPDF, buildReportPNG, reportId, fmtDate } from './report.js';
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const app = express(); app.use(express.json({ limit: '100kb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
@@ -26,6 +26,9 @@ async function auth(req, _res, next) {
   if (authCache.size > 500) authCache.clear(); authCache.set(t, { user: data.user, exp: Date.now() + 30000 });
   req.user = data.user; next();
 }
+const RETRY_MONTHS = 6, QUALIFY_PERCENT = 50; // qualified = score >= 50% (the 90%/100% coupon tiers)
+const qualified = a => Number(a.score_percent) >= QUALIFY_PERCENT;
+const nextEligible = list => { const d = (list || []).filter(a => a.status !== 'in_progress' && !qualified(a)).map(a => new Date(a.started_at)).sort((a, b) => b - a)[0]; if (!d) return null; const n = new Date(d); n.setMonth(n.getMonth() + RETRY_MONTHS); return n; };
 const settings = async () => (await db.from('test_settings').select('*').single()).data;
 async function ownAttempt(req) { // ownership enforced server-side
   const { data } = await db.from('assessment_attempts').select('*').eq('id', req.params.id).eq('user_id', req.user.id).maybeSingle();
@@ -44,8 +47,9 @@ async function view(a) { // questions WITHOUT correct answers, in the stored shu
 app.get('/api/config', (_q, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabaseAnonKey: process.env.SUPABASE_ANON_KEY, requireCamera: process.env.REQUIRE_CAMERA !== 'false', razorpayConfigured: !!process.env.RAZORPAY_KEY_ID }));
 app.get('/api/me', auth, wrap(async (req, res) => {
   const { data: profile } = await db.from('profiles').select('full_name,phone,role').eq('id', req.user.id).single();
-  const { data: attempt } = await db.from('assessment_attempts').select('id,status').eq('user_id', req.user.id).order('started_at', { ascending: false }).limit(1).maybeSingle();
-  res.json({ profile, email: req.user.email, attempt });
+  const { data: attempt } = await db.from('assessment_attempts').select('id,status,started_at,score_percent').eq('user_id', req.user.id).order('started_at', { ascending: false }).limit(1).maybeSingle();
+  const nx = attempt && attempt.status !== 'in_progress' ? nextEligible([attempt]) : null;
+  res.json({ profile, email: req.user.email, attempt, canRetry: !!nx && nx <= new Date(), nextEligibleAt: nx });
 }));
 app.post('/api/profile', auth, wrap(async (req, res) => {
   const n = String(req.body?.fullName || '').trim(), p = String(req.body?.phone || '').trim();
@@ -59,7 +63,8 @@ app.post('/api/attempts/start', auth, wrap(async (req, res) => {
   const active = existing.find(a => a.status === 'in_progress');
   if (active && new Date(active.expires_at) > new Date()) return res.json(await view(active)); // refresh recovery
   if (active) await finalize(active, 'timed_out');
-  if (existing.some(a => a.status !== 'in_progress')) throw fail(409, 'attempt already used'); // one scholarship attempt per student
+  if (existing.some(a => a.status !== 'in_progress' && qualified(a))) throw fail(409, 'You have already qualified in the assessment.');
+  const nx = nextEligible(existing); if (nx && nx > new Date()) throw fail(409, `You did not qualify. You can retry only after ${nx.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}.`); // one attempt per registered email, retry after 6 months
   const s = await settings();
   const { data: pool } = await db.from('questions').select('id,options').eq('active', true);
   if (pool.length < s.question_count) throw fail(500, 'not enough questions configured');
@@ -139,23 +144,28 @@ async function reportData(a, user) {
   return { profile, email, attempt: at, answered: answered || 0, violations: (vs || []).map(v => ({ ...v, counted: v.counted !== false })), coupon: c && { code: c.code, discount_percent: c.discount_percent, payable_paise: payablePaise(BASE_PRICE_PAISE, c.discount_percent), expires_at: c.expires_at } };
 }
 async function closedAttempt(req) { const a = await ownAttempt(req); if (a.status === 'in_progress') throw fail(403, 'Report is available after the test ends'); return a; }
+const sendPng = (res, buf, name) => { res.set({ 'Content-Type': 'image/png', 'Content-Disposition': `inline; filename="${name}"`, 'Cache-Control': 'private, no-store' }).send(buf); };
 const sendPdf = (res, buf, name) => { res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${name}"`, 'Cache-Control': 'private, no-store' }).send(buf); };
 app.get('/api/attempts/:id/report.pdf', auth, wrap(async (req, res) => {
   const a = await closedAttempt(req); sendPdf(res, await buildReportPDF(await reportData(a, req.user)), reportId(a.id) + '.pdf');
+}));
+app.get('/api/attempts/:id/report.png', auth, wrap(async (req, res) => { // share image: public version (no contact details / coupon)
+  const a = await closedAttempt(req); sendPng(res, await buildReportPNG(await reportData(a, req.user), true), reportId(a.id) + '.png');
 }));
 app.post('/api/attempts/:id/share', auth, wrap(async (req, res) => { // student opts in; link shows name, score and integrity only
   const a = await closedAttempt(req); let t = a.share_token;
   if (!t) { t = crypto.randomBytes(12).toString('base64url'); await db.from('assessment_attempts').update({ share_token: t }).eq('id', a.id); }
   const base = (process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
   const { data: p } = await db.from('profiles').select('full_name').eq('id', a.user_id).single();
-  res.json({ url: `${base}/r/${t}`, pdf: `${base}/r/${t}/report.pdf`, text: `\u{1F389} I just completed the Scholarship Assessment at Plant Green Inertia (Vijayadashami Internship Fair) and scored ${Number(a.score_percent).toFixed(0)}%! \u{1F3C6}\n\n#PlantGreenInertia #Vijayadashami #Internship` });
+  res.json({ url: `${base}/r/${t}`, pdf: `${base}/r/${t}/report.pdf`, image: `${base}/r/${t}/report.png`, text: `\u{1F389} I just completed the Scholarship Assessment at Plant Green Inertia (Vijayadashami Internship Fair) and scored ${Number(a.score_percent).toFixed(0)}%! \u{1F3C6}\n\n#PlantGreenInertia #Vijayadashami #Internship` });
 }));
 const sharedAttempt = async t => { if (!/^[\w-]{10,40}$/.test(t)) throw fail(404, 'not found'); const { data } = await db.from('assessment_attempts').select('*').eq('share_token', t).maybeSingle(); if (!data) throw fail(404, 'Report not found'); return data; };
+app.get('/r/:token/report.png', wrap(async (req, res) => { const a = await sharedAttempt(req.params.token); sendPng(res, await buildReportPNG(await reportData(a), true), reportId(a.id) + '.png'); }));
 app.get('/r/:token/report.pdf', wrap(async (req, res) => { const a = await sharedAttempt(req.params.token); sendPdf(res, await buildReportPDF(await reportData(a), true), reportId(a.id) + '.pdf'); }));
 app.get('/r/:token', wrap(async (req, res) => {
   const a = await sharedAttempt(req.params.token), { data: p } = await db.from('profiles').select('full_name').eq('id', a.user_id).single();
   const title = `${p.full_name}: Scholarship Assessment Report`, desc = `Scored ${a.correct_count}/${a.total_questions} (${Number(a.score_percent).toFixed(0)}%) on ${fmtDate(a.started_at)}. ${STATUS_TEXT[a.status]}. Plant Green Inertia Pvt. Ltd.`;
-  res.type('html').send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="website"><link rel="stylesheet" href="/static/css/portal.css"></head><body><main><div class="card"><h1>${esc(title)}</h1><p>${esc(desc)}</p><p>Report ID: ${reportId(a.id)}</p><a href="/r/${esc(req.params.token)}/report.pdf"><button>Open report (PDF)</button></a></div></main></body></html>`);
+  res.type('html').send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:image" content="${esc((process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, ''))}/r/${esc(req.params.token)}/report.png"><meta name="twitter:card" content="summary_large_image"><link rel="stylesheet" href="/static/css/portal.css"></head><body><main><div class="card"><h1>${esc(title)}</h1><p>${esc(desc)}</p><p>Report ID: ${reportId(a.id)}</p><a href="/r/${esc(req.params.token)}/report.pdf"><button>Open report (PDF)</button></a></div></main></body></html>`);
 }));
 
 registerPayments(app, { db, auth, wrap, fail });
