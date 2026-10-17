@@ -21,6 +21,12 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
     let enr = data;
     if (error) { const { data: ex } = await db.from('enrollments').select('*').eq('user_id', userId).maybeSingle(); if (!ex) throw fail(500, 'Enrollment failed'); enr = ex; }
     await db.from('scholarship_coupons').update({ status: 'redeemed', redeemed_at: new Date().toISOString(), course_id: course.id }).eq('id', coupon.id).eq('status', 'active');
+    // Privacy: once the student is enrolled (payment done), delete their proctoring evidence images. Violation records (type/time/counts) are kept; failures here never block enrollment.
+    try {
+      const { data: atts } = await db.from('assessment_attempts').select('id').eq('user_id', userId);
+      const ids = (atts || []).map(a => a.id);
+      if (ids.length) await db.from('proctoring_violations').update({ snapshot: null }).in('attempt_id', ids).not('snapshot', 'is', null);
+    } catch (e) { console.error('evidence cleanup failed', e?.message || e); }
     return enr;
   }
 
