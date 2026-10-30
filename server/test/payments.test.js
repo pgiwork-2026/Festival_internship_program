@@ -1,0 +1,14 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import crypto from 'node:crypto';
+import { verifySignature, verifyWebhook } from '../razorpay.js'; import { payablePaise } from '../logic.js';
+const h = (k, m) => crypto.createHmac('sha256', k).update(m).digest('hex');
+test('checkout signature', () => { const s = h('sec', 'order_1|pay_1');
+  assert.equal(verifySignature('order_1', 'pay_1', s, 'sec'), true);
+  assert.equal(verifySignature('order_1', 'pay_2', s, 'sec'), false);
+  assert.equal(verifySignature('order_1', 'pay_1', s, 'wrong'), false);
+  assert.equal(verifySignature('order_1', 'pay_1', 'zz', 'sec'), false);
+  assert.equal(verifySignature('order_1', 'pay_1', s, undefined), false); });
+test('webhook signature', () => { const raw = Buffer.from('{"event":"payment.captured"}');
+  assert.equal(verifyWebhook(raw, h('wh', raw), 'wh'), true);
+  assert.equal(verifyWebhook(Buffer.from('{"event":"x"}'), h('wh', raw), 'wh'), false);
+  assert.equal(verifyWebhook(raw, undefined, 'wh'), false); });
+test('rounding policy', () => { assert.equal(payablePaise(999900, 85), 149985); assert.equal(payablePaise(100001, 90), 10000); assert.equal(payablePaise(100005, 90), 10001); });
