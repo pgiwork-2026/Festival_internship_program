@@ -1,0 +1,3 @@
+-- Run after 004. Adds the 'blocked_shortcut' violation type (admin role: update profiles set role='admin' where id=(select id from auth.users where email='YOU@EMAIL');)
+alter table proctoring_violations drop constraint if exists proctoring_violations_type_check;
+alter table proctoring_violations add constraint proctoring_violations_type_check check (type in ('multiple_faces','no_face','looking_away','phone_detected','camera_unavailable','tab_switch','face_mismatch','fullscreen_exit','copy_paste','blocked_shortcut'));

@@ -1,0 +1,13 @@
+-- Delete proctoring evidence photos exactly 7 days after the attempt started.
+-- Runs inside the database every 10 minutes, so it works even when the web server is asleep.
+create extension if not exists pg_cron;
+create or replace function purge_old_snapshots() returns void language sql security definer as $$
+  update proctoring_violations v set snapshot = null
+  from assessment_attempts a
+  where v.attempt_id = a.id and v.snapshot is not null and a.started_at < now() - interval '7 days';
+$$;
+select cron.unschedule('purge-evidence-snapshots') where exists (select 1 from cron.job where jobname = 'purge-evidence-snapshots');
+select cron.schedule('purge-evidence-snapshots', '*/10 * * * *', 'select purge_old_snapshots()');
+-- One-off now, then reclaim the disk space:
+select purge_old_snapshots();
+vacuum full proctoring_violations;
