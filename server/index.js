@@ -757,10 +757,11 @@ app.get('/api/assessment/payment-eligibility', auth, wrap(async (req, res) => {
   }
 
   if (!completed) {
+    const acct = req.user?.email ? ` (${req.user.email})` : '';
     return res.json({
       completed: false,
       enrolled: false,
-      message: 'No completed assessment found for your account yet. Complete Proctor Verification and submit the assessment first to unlock the payment screen.'
+      message: `No completed assessment found for this account${acct}. If you completed the test using a different email or Candidate UID, sign out and log in with that account — or complete Proctor Verification and submit the assessment here first.`
     });
   }
 
