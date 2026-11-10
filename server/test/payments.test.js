@@ -167,3 +167,29 @@ test('Winter 2026 remittance pricing: default ₹9,999 without coupon vs ₹1,19
   assert.equal(winterPayablePaise({ discount_percent: 100 }), 0);
   assert.equal(payablePaise(999900, 88), 119900);
 });
+
+
+test('payment receipt PDF builds cleanly across ₹9,999, ₹1,199, ₹999, and ₹0 Free amounts', async () => {
+  for (const [amountPaise, couponCode] of [
+    [999900, null],
+    [119900, 'WIN-LOW123'],
+    [99900, 'WIN-MID456'],
+    [0, 'WIN-FREE100']
+  ]) {
+    const pdfBuffer = await buildReceiptPDF({
+      studentId: 'PGI-S26-TEST',
+      receiptNo: 'REC-PGI-W26-TEST',
+      name: 'Test Candidate',
+      email: 'test@example.com',
+      phone: '+918220699083',
+      course: 'Full-Stack Web Development',
+      duration: '30 Hours',
+      couponCode,
+      amountPaise,
+      transactionRef: 'pay_test_123',
+      paidAt: new Date().toISOString()
+    });
+    assert.ok(pdfBuffer instanceof Buffer);
+    assert.equal(pdfBuffer.subarray(0, 5).toString('ascii'), '%PDF-');
+  }
+});

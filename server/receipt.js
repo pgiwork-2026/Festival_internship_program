@@ -135,12 +135,31 @@ export function buildReceiptPDF(data) {
     doc.y = thY + 20;
 
     // Line Item 1
+    const paidPaise = Number.isFinite(data.amountPaise) ? Number(data.amountPaise) : 99900;
+    const basePaise = Number.isFinite(data.basePricePaise) ? Number(data.basePricePaise) : 999900;
+    const fmtInr2 = p => '₹' + (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const paidStr = fmtInr2(paidPaise);
+    const rateStr = fmtInr2(basePaise);
+    const pctOff = paidPaise === 0 ? 100 : (paidPaise === 119900 ? 88 : (paidPaise === 99900 ? 90 : Math.max(0, Math.round(((basePaise - paidPaise) / Math.max(basePaise, 1)) * 100))));
+    const grantLabel = paidPaise === basePaise
+      ? 'Standard Tuition'
+      : (data.couponCode ? `Coupon: ${data.couponCode} (${pctOff}%)` : `${pctOff}% Merit Grant`);
+    const wordsLabel = paidPaise === 0
+      ? 'Zero Rupees Only (100% Merit Scholarship)'
+      : paidPaise === 99900
+        ? 'Nine Hundred and Ninety-Nine Rupees Only'
+        : paidPaise === 119900
+          ? 'One Thousand One Hundred and Ninety-Nine Rupees Only'
+          : paidPaise === 999900
+            ? 'Nine Thousand Nine Hundred and Ninety-Nine Rupees Only'
+            : `${paidStr} Only`;
+
     const tr1Y = doc.y;
     doc.rect(LEFT, tr1Y, W, 24).fillAndStroke('#FFFFFF', '#E2ECF5');
     doc.font('R').fontSize(9).fillColor('#101D35').text('Winter Internship Tuition (30 Hours)', LEFT + 12, tr1Y + 7);
-    doc.text('₹10,000.00', LEFT + 260, tr1Y + 7);
-    doc.font('B').fontSize(9).fillColor('#2A6636').text(data.couponCode ? `Coupon: ${data.couponCode} (90%)` : '90% Merit', LEFT + 340, tr1Y + 7);
-    doc.font('B').fontSize(9.5).fillColor('#101D35').text('₹999.00', LEFT + 420, tr1Y + 7, { width: 50, align: 'right' });
+    doc.text(rateStr, LEFT + 260, tr1Y + 7);
+    doc.font('B').fontSize(9).fillColor('#2A6636').text(grantLabel, LEFT + 336, tr1Y + 7);
+    doc.font('B').fontSize(9.5).fillColor('#101D35').text(paidStr, LEFT + 412, tr1Y + 7, { width: 58, align: 'right' });
 
     doc.y = tr1Y + 24;
 
@@ -148,13 +167,13 @@ export function buildReceiptPDF(data) {
     const totY = doc.y;
     doc.rect(LEFT, totY, W, 26).fillAndStroke('#EBF7EE', '#2A6636');
     doc.font('B').fontSize(10).fillColor('#101D35').text('TOTAL AMOUNT PAID', LEFT + 12, totY + 8);
-    doc.font('B').fontSize(11).fillColor('#2A6636').text('₹999.00', LEFT + 400, totY + 8, { width: 70, align: 'right' });
+    doc.font('B').fontSize(11).fillColor('#2A6636').text(paidStr, LEFT + 400, totY + 8, { width: 70, align: 'right' });
 
     doc.y = totY + 34;
 
     // Words & Transaction Ref
     doc.font('R').fontSize(8.5).fillColor('#536B82').text('Amount in words: ', LEFT, doc.y, { continued: true });
-    doc.font('B').fontSize(8.5).fillColor('#101D35').text('Nine Hundred and Ninety-Nine Rupees Only', { continued: false });
+    doc.font('B').fontSize(8.5).fillColor('#101D35').text(wordsLabel, { continued: false });
     doc.y += 4;
     doc.font('R').fontSize(8.5).fillColor('#536B82').text('Razorpay Transaction ID: ', LEFT, doc.y, { continued: true });
     doc.font('B').fontSize(8.5).fillColor('#101D35').text(data.transactionRef || '-', { continued: false });

@@ -53,6 +53,54 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
     return c;
   }
 
+  async function provisionStudentCredentials(userId) {
+    let prof = null;
+    try {
+      const { data } = await db.from('profiles').select('full_name,phone,student_id').eq('id', userId).maybeSingle();
+      prof = data;
+    } catch {}
+
+    let studentId = prof?.student_id;
+    if (!studentId) {
+      try {
+        const { data: sId, error } = await db.rpc('next_student_id');
+        if (!error && sId) studentId = sId;
+      } catch {}
+      if (!studentId) {
+        studentId = `PGI-S26-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+      }
+      try {
+        await db.from('profiles').update({ student_id: studentId }).eq('id', userId);
+      } catch {}
+    }
+
+    let receiptNo = null;
+    try {
+      const { data: rNo, error } = await db.rpc('next_receipt_no');
+      if (!error && rNo) receiptNo = rNo;
+    } catch {}
+    if (!receiptNo) {
+      receiptNo = `REC-PGI-W26-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+    }
+
+    const portalPassword = 'PGI-' + crypto.randomBytes(3).toString('hex').toUpperCase() + '!26';
+    try {
+      if (db.auth?.admin?.updateUserById) {
+        await db.auth.admin.updateUserById(userId, { password: portalPassword });
+      }
+    } catch (err) {
+      console.warn('[Auth Admin Password Provisioning]', err?.message || err);
+    }
+
+    let userEmail = null;
+    try {
+      const { data: u } = await db.auth.admin.getUserById(userId);
+      userEmail = u?.user?.email || null;
+    } catch {}
+
+    return { prof, studentId, receiptNo, portalPassword, userEmail };
+  }
+
   // Idempotent enrollment persistence
   async function enroll({ userId, course, coupon, kind, orderId, amount, txRef, studentId, receiptNo }) {
     const enrRecord = {
@@ -157,19 +205,40 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       if (coupon.discount_percent !== 100 || Number(coupon.score_percent) !== 100) {
         throw fail(403, 'Not eligible for 100% tuition waiver');
       }
-      const studentId = `PGI-S26-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
-      const receiptNo = `REC-PGI-W26-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+      const { prof, studentId, receiptNo, portalPassword, userEmail } = await provisionStudentCredentials(req.user.id);
+      const txRef = 'FREE-' + coupon.code;
       const enr = await enroll({
         userId: req.user.id,
         course,
         coupon,
         kind: 'free',
         amount: 0,
-        txRef: 'FREE-' + coupon.code,
+        txRef,
         studentId,
         receiptNo
       });
-      return res.json({ status: 'enrolled', enrollmentId: enr.id, studentId, receiptNo });
+      if (userEmail) {
+        sendEnrollmentReceiptEmail({
+          studentName: prof?.full_name || 'Candidate',
+          studentId,
+          email: userEmail,
+          password: portalPassword,
+          courseTitle: course.title,
+          duration: course.duration,
+          receiptNo,
+          transactionRef: txRef,
+          enrollmentId: enr.id
+        }).catch(err => console.error('[Enrollment Receipt Email Error]', err));
+      }
+      return res.json({
+        status: 'enrolled',
+        enrollmentId: enr.id,
+        studentId,
+        receiptNo,
+        portalPassword,
+        orderId: null,
+        paymentId: txRef
+      });
     }
 
     // Reuse existing open order for this coupon to prevent double charges on retries
@@ -302,46 +371,8 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       return null;
     }
 
-    // 2. Fetch candidate profile and assign unique Student ID
-    let prof = null;
-    try {
-      const { data } = await db.from('profiles').select('full_name,phone,student_id').eq('id', order.user_id).maybeSingle();
-      prof = data;
-    } catch {}
-
-    let studentId = prof?.student_id;
-    if (!studentId) {
-      try {
-        const { data: sId, error } = await db.rpc('next_student_id');
-        if (!error && sId) studentId = sId;
-      } catch {}
-      if (!studentId) {
-        studentId = `PGI-S26-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
-      }
-      try {
-        await db.from('profiles').update({ student_id: studentId }).eq('id', order.user_id);
-      } catch {}
-    }
-
-    // 3. Assign unique Receipt Number
-    let receiptNo = null;
-    try {
-      const { data: rNo, error } = await db.rpc('next_receipt_no');
-      if (!error && rNo) receiptNo = rNo;
-    } catch {}
-    if (!receiptNo) {
-      receiptNo = `REC-PGI-W26-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-    }
-
-    // 4. Generate secure student password / credentials
-    const securePassword = 'PGI-' + crypto.randomBytes(3).toString('hex').toUpperCase() + '!26';
-    try {
-      if (db.auth?.admin?.updateUserById) {
-        await db.auth.admin.updateUserById(order.user_id, { password: securePassword });
-      }
-    } catch (err) {
-      console.warn('[Auth Admin Password Provisioning]', err?.message || err);
-    }
+    // 2-4. Provision Student ID, Receipt No, and Portal Password
+    const { prof, studentId, receiptNo, portalPassword, userEmail } = await provisionStudentCredentials(order.user_id);
 
     // 5. Fetch course and coupon
     let course = null, coupon = null;
@@ -375,18 +406,12 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
     });
 
     // 7. Dispatch credentials and payment receipt email
-    let userEmail = null;
-    try {
-      const { data: u } = await db.auth.admin.getUserById(order.user_id);
-      userEmail = u?.user?.email;
-    } catch {}
-
     if (userEmail) {
       sendEnrollmentReceiptEmail({
         studentName: prof?.full_name || 'Candidate',
         studentId,
         email: userEmail,
-        password: securePassword,
+        password: portalPassword,
         courseTitle: course.title,
         duration: course.duration,
         receiptNo,
@@ -395,7 +420,7 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       }).catch(err => console.error('[Enrollment Receipt Email Error]', err));
     }
 
-    return enr;
+    return { ...enr, _portalPassword: portalPassword };
   }
 
   // Frontend Signature Verification Endpoint (Never Trusting Frontend Amount)
@@ -429,7 +454,10 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
         status: enr ? 'enrolled' : 'pending',
         enrollmentId: enr?.id,
         studentId: enr?.student_id,
-        receiptNo: enr?.receipt_no
+        receiptNo: enr?.receipt_no,
+        portalPassword: enr?._portalPassword || null,
+        orderId: oid,
+        paymentId: pid
       });
     }
 
@@ -570,6 +598,8 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       course: enr.courses?.title || 'Winter Internship Technical Track',
       duration: enr.courses?.duration || '30 Hours (10 Days)',
       couponCode,
+      amountPaise: enr.amount_paise ?? 99900,
+      basePricePaise: BASE_PRICE_PAISE,
       transactionRef: enr.transaction_ref || enr.payment_orders?.razorpay_payment_id
     });
 
@@ -610,6 +640,19 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       }
     }
 
+    let orderRefId = null;
+    if (enr?.payment_order_id) {
+      try {
+        const { data: po } = await db.from('payment_orders').select('razorpay_order_id').eq('id', enr.payment_order_id).maybeSingle();
+        if (po?.razorpay_order_id) orderRefId = po.razorpay_order_id;
+      } catch {}
+      if (!orderRefId) {
+        for (const lo of localOrders.values()) {
+          if (lo.id === enr.payment_order_id) { orderRefId = lo.razorpay_order_id; break; }
+        }
+      }
+    }
+
     const course = enr?.courses || { title: 'Winter Internship Program', duration: '30 Hours' };
     return {
       email: user.email,
@@ -630,6 +673,10 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
         kind: enr.kind,
         status: enr.status,
         amountPaise: enr.amount_paise,
+        basePricePaise: BASE_PRICE_PAISE,
+        couponCode: coup?.code || null,
+        discountPercent: coup?.discount_percent ?? null,
+        orderId: orderRefId,
         transactionRef: enr.transaction_ref,
         enrolledAt: enr.enrolled_at,
         course: {

@@ -1914,6 +1914,17 @@
             clearInterval(checkoutExpiryInterval);
             checkoutExpiryInterval = null;
           }
+          saveRecentPayment({
+            enrollmentId: ord.enrollmentId,
+            studentId: ord.studentId,
+            receiptNo: ord.receiptNo,
+            portalPassword: ord.portalPassword || null,
+            orderId: null,
+            paymentId: ord.paymentId,
+            methodLabel: '100% Merit Grant'
+          });
+          window.__pgiBootPromise = null;
+          window.__pgiBootToken = null;
           return boot();
         }
 
@@ -1924,6 +1935,7 @@
           throw new Error('Payment gateway failed to load. Check your internet connection.');
         }
 
+        const chosenMethodLabel = RAZORPAY_METHOD_LABELS[selectedMethod] || 'Razorpay';
         const prefillProfile = currentUser?.profile || {};
         const rz = new Razorpay({
           key: ord.keyId,
@@ -1940,7 +1952,7 @@
           },
           theme: { color: '#0F1B33' },
           handler: resp => {
-            verifyPayment(resp);
+            verifyPayment(resp, chosenMethodLabel);
           },
           modal: {
             ondismiss: () => {
@@ -1972,17 +1984,53 @@
     };
   }
 
-  async function checkoutCourse(course) {
-    openCheckoutModal(course);
+  function saveRecentPayment(info) {
+    try {
+      sessionStorage.setItem('pgi_recent_payment', JSON.stringify(info || {}));
+    } catch {}
   }
 
-  async function verifyPayment(resp) {
+  function loadRecentPayment() {
+    try {
+      return JSON.parse(sessionStorage.getItem('pgi_recent_payment') || 'null');
+    } catch {
+      return null;
+    }
+  }
+
+  function bindCopyButton(btn, value, idleText = 'Copy') {
+    if (!btn) return;
+    btn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(String(value || ''));
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = idleText; }, 1600);
+      } catch {
+        btn.textContent = 'Copy';
+      }
+    };
+  }
+
+  async function verifyPayment(resp, methodLabel = 'Razorpay') {
     show('loading');
     $('loading-text').textContent = 'Verifying payment with banking servers… please keep this window open.';
     for (let i = 0; i < 10; i++) {
       try {
         const v = await api('/checkout/verify', resp);
-        if (v.status === 'enrolled') return boot();
+        if (v.status === 'enrolled') {
+          saveRecentPayment({
+            enrollmentId: v.enrollmentId,
+            studentId: v.studentId,
+            receiptNo: v.receiptNo,
+            portalPassword: v.portalPassword || null,
+            orderId: v.orderId || resp.razorpay_order_id || null,
+            paymentId: v.paymentId || resp.razorpay_payment_id || null,
+            methodLabel
+          });
+          window.__pgiBootPromise = null;
+          window.__pgiBootToken = null;
+          return boot();
+        }
         if (v.status === 'failed') {
           show('s-courses');
           return msg('c-msg', 'Payment verification failed. Please contact support or retry.');
@@ -1999,7 +2047,7 @@
     msg('c-msg', 'Payment verification queued. If debited, your enrollment will reflect shortly. Refresh to view.', true);
   }
 
-  // Student Dashboard
+  // Student Seat Confirmation & Dashboard
   async function showDashboard(d) {
     show('s-dash');
     const box = $('dash');
@@ -2008,50 +2056,256 @@
     const studentId = e.studentId || d.studentId || 'Assigned';
     const receiptNo = e.receiptNo || 'REC-PGI-W26';
 
-    const dashContainer = document.createElement('div');
-    dashContainer.style.maxWidth = '1180px';
-    dashContainer.style.margin = '0 auto';
+    try {
+      if (token) {
+        localStorage.setItem('pgi_student_token', token);
+        sessionStorage.setItem('pgi_student_token', token);
+      }
+      if (studentId) {
+        localStorage.setItem('pgi_student_id', studentId);
+        sessionStorage.setItem('pgi_student_id', studentId);
+      }
+    } catch {}
 
+    const recent = loadRecentPayment();
+    const matchesRecent = recent && (recent.enrollmentId === e.id || recent.receiptNo === receiptNo);
+    const portalPassword = matchesRecent ? recent.portalPassword : null;
+    const orderId = e.orderId || (matchesRecent ? recent.orderId : null) || receiptNo;
+    const txRef = e.transactionRef || (matchesRecent ? recent.paymentId : null) || receiptNo;
+
+    const isFree = e.kind === 'free' || Number(e.amountPaise) === 0;
+    const basePaise = Number(e.basePricePaise || DEFAULT_TUITION_PAISE);
+    const paidPaise = Math.max(0, Number(e.amountPaise ?? 0));
+    const discountPaise = Math.max(0, basePaise - paidPaise);
+    const couponTag = e.couponCode || d.coupon?.code || '';
+    const methodText = isFree
+      ? '100% Merit Grant'
+      : (matchesRecent?.methodLabel ? `Razorpay (${matchesRecent.methodLabel})` : 'Razorpay Online');
+
+    const candName = escHtml(d.profile?.full_name || 'Candidate');
+    const candEmail = escHtml(d.email || '');
+    const courseTitle = escHtml(e.course?.title || 'Winter Internship Track');
+    const duration = escHtml(e.course?.duration || '30 Hours');
+    const paidDateFmt = escHtml(
+      e.enrolledAt
+        ? new Date(e.enrolledAt).toLocaleString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          })
+        : 'Confirmed'
+    );
+
+    const dashContainer = document.createElement('div');
     dashContainer.innerHTML = `
-      <div class="card" style="margin-bottom:20px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;border-bottom:1px solid var(--border-subtle);padding-bottom:12px;">
-          <div>
-            <span class="step-chip" style="margin-bottom:6px;">Enrolled Candidate</span>
-            <h2 style="color:var(--plant-green);font-size:1.35rem;margin:0;">✓ Enrolment Active &amp; Confirmed</h2>
-          </div>
-          <a href="dashboard.html" class="btn btn-primary" style="padding:8px 16px;font-size:0.9rem;">
-            Open 13-Module Dedicated Portal &rarr;
-          </a>
+      <div class="confirm-hero">
+        <div class="confirm-check-circle" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px;margin-bottom:18px;">
-          <p><strong>Candidate:</strong> ${d.profile?.full_name || 'Candidate'} (${d.email})</p>
-          <p><strong>Official Student ID:</strong> <code style="font-weight:700;color:var(--plant-green);font-size:1.05rem;">${studentId}</code></p>
-          <p><strong>Track:</strong> ${e.course.title}</p>
-          <p><strong>Cohort Duration:</strong> ${e.course.duration || '30 Hours'}</p>
-          <p><strong>Status:</strong> <span style="color:var(--plant-green);font-weight:700;">${e.status.toUpperCase()}</span> &middot; ${e.kind === 'free' ? '100% Scholarship' : 'Paid Enrollment (' + inr(e.amountPaise) + ')'}</p>
-          <p><strong>Receipt Number:</strong> <code>${receiptNo}</code></p>
-          <p><strong>Razorpay Payment Ref:</strong> <code>${e.transactionRef}</code></p>
-          <p><strong>Enrolled On:</strong> ${new Date(e.enrolledAt).toLocaleString('en-IN')}</p>
+        <div class="confirm-status-kicker">
+          <span>PAYMENT COMPLETE</span>
+          <span aria-hidden="true">&bull;</span>
+          <span class="ref">#${escHtml(receiptNo)}</span>
         </div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:18px;">
-          <button id="btn-receipt-pdf" class="btn btn-outline">&#128196; Download Payment Receipt (PDF)</button>
-          <button id="btn-offer-letter" class="btn btn-outline">&#127881; Download Official Offer Letter (PDF)</button>
-          <button id="btn-portal-report" class="btn btn-outline">&#128203; Download 1-Page Project Report (PDF)</button>
-          <a href="dashboard.html" class="btn btn-primary">&#128202; Access Full Student Dashboard</a>
+        <h1>Seat Confirmed</h1>
+        <p class="confirm-hero-sub">Welcome to Winter Cohort 2026.</p>
+        <div class="confirm-hero-chips">
+          <span class="confirm-chip">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>
+            ${isFree ? '100% Scholarship Verified' : 'Razorpay Verified'}
+          </span>
+          <span class="confirm-chip is-amt">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+            ${escHtml(inrDecimal(paidPaise))} INR Settled
+          </span>
         </div>
-        <div id="dash-doc-msg" class="msg" style="margin-top:12px;"></div>
       </div>
 
-      <!-- Integrated Attendance Preview (Linked by Student ID) -->
-      <div class="card" style="margin-bottom:20px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;border-bottom:1px solid var(--border-subtle);padding-bottom:10px;">
-          <div>
-            <h3 style="font-family:var(--font-display);font-size:1.2rem;color:var(--navy);margin:0 0 4px;">Integrated Attendance Register</h3>
-            <p style="font-size:0.85rem;color:var(--text-muted);margin:0;">Linked strictly by <strong>Student ID (<code style="color:var(--plant-green);">${studentId}</code>)</strong> &middot; Real-time sync</p>
+      <div class="confirm-two-col">
+        <!-- Left Card: Official Receipt -->
+        <div class="confirm-card">
+          <div class="confirm-card-head">
+            <div class="confirm-head-left">
+              <div class="confirm-doc-ico" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="8" y1="13" x2="16" y2="13"></line>
+                  <line x1="8" y1="17" x2="13" y2="17"></line>
+                </svg>
+              </div>
+              <div>
+                <h2>Official Receipt</h2>
+                <span class="confirm-head-sub">Invoice #${escHtml(receiptNo)}</span>
+              </div>
+            </div>
+            <span class="confirm-pill">&#10003; ${isFree ? 'Waived' : 'Paid'}</span>
           </div>
-          <span class="step-chip" id="portal-att-sync-badge">30-Hour Verified Clock</span>
+
+          <div class="confirm-meta-box">
+            <div>
+              <span class="confirm-meta-lbl">Payment ID</span>
+              <span class="confirm-meta-val">
+                <code id="conf-tx-ref">${escHtml(txRef)}</code>
+                <button type="button" class="confirm-copy-btn" id="copy-tx-btn" title="Copy Payment ID">Copy</button>
+              </span>
+            </div>
+            <div>
+              <span class="confirm-meta-lbl">Order ID</span>
+              <span class="confirm-meta-val"><code>${escHtml(orderId)}</code></span>
+            </div>
+            <div>
+              <span class="confirm-meta-lbl">Date</span>
+              <span class="confirm-meta-val">${paidDateFmt}</span>
+            </div>
+            <div>
+              <span class="confirm-meta-lbl">Payment Method</span>
+              <span class="confirm-meta-val">${escHtml(methodText)}</span>
+            </div>
+          </div>
+
+          <div class="confirm-mini-pair">
+            <div class="confirm-mini-box">
+              <span class="confirm-meta-lbl">Fellow</span>
+              <strong>${candName}</strong>
+              <small>${candEmail}</small>
+            </div>
+            <div class="confirm-mini-box">
+              <span class="confirm-meta-lbl">Track</span>
+              <strong class="is-track">${courseTitle}</strong>
+              <small class="is-green">Confirmed Seat &bull; ${duration}</small>
+            </div>
+          </div>
+
+          <div class="confirm-ledger">
+            <div class="confirm-ledger-row">
+              <span class="lbl">Fellowship Tuition</span>
+              <span class="val">${escHtml(inrDecimal(basePaise))}</span>
+            </div>
+            <div class="confirm-ledger-row ${discountPaise > 0 ? 'is-sub' : ''}">
+              <span class="lbl">Merit Grant Voucher${couponTag ? ` (${escHtml(couponTag)})` : ''}</span>
+              <span class="val">${discountPaise > 0 ? `-${escHtml(inrDecimal(discountPaise))}` : '₹0.00'}</span>
+            </div>
+            <div class="confirm-ledger-row">
+              <span class="lbl">GST (Included)</span>
+              <span class="val">₹0.00</span>
+            </div>
+            <div class="confirm-total-row">
+              <strong>AMOUNT PAID</strong>
+              <strong>${escHtml(inrDecimal(paidPaise))}</strong>
+            </div>
+          </div>
+
+          <div class="confirm-receipt-foot">
+            <button type="button" id="btn-receipt-pdf" class="confirm-btn-pdf">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Download PDF</span>
+            </button>
+            <span class="confirm-emailed-note">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"></rect><polyline points="22,6 12,13 2,6"></polyline></svg>
+              Receipt Emailed
+            </span>
+          </div>
         </div>
-        
+
+        <!-- Right Column Stack: Portal Credentials + Next Steps -->
+        <div class="confirm-right-stack">
+          <div class="confirm-card">
+            <div class="confirm-card-head">
+              <h2>Portal Credentials</h2>
+              <span class="confirm-pill">&bull; Active</span>
+            </div>
+
+            <div class="confirm-cred-grid">
+              <div class="confirm-cred-box">
+                <span class="confirm-meta-lbl">Student ID</span>
+                <div class="confirm-cred-val-row">
+                  <strong id="conf-student-id">${escHtml(studentId)}</strong>
+                  <button type="button" class="confirm-copy-btn" id="copy-uid-btn" title="Copy Student ID">Copy</button>
+                </div>
+              </div>
+              <div class="confirm-cred-box">
+                <span class="confirm-meta-lbl">Access Key</span>
+                <div class="confirm-cred-val-row">
+                  <strong id="conf-access-key" class="is-green">${portalPassword ? escHtml(portalPassword) : 'Sent via Email'}</strong>
+                  ${portalPassword ? '<button type="button" class="confirm-copy-btn" id="copy-pass-btn" title="Copy Access Key">Copy</button>' : ''}
+                </div>
+              </div>
+            </div>
+
+            <p class="confirm-cred-note">
+              ${portalPassword
+                ? `Temporary access key issued above and emailed to ${candEmail}. Use Student ID (${escHtml(studentId)}) at Student Portal login.`
+                : `Portal session is active. Sign in anytime using Student ID (${escHtml(studentId)}) or ${candEmail} with your emailed password.`}
+            </p>
+
+            <a href="dashboard.html" class="confirm-open-btn" id="conf-open-portal">
+              <span>Open Portal</span>
+              <span aria-hidden="true">&rarr;</span>
+            </a>
+          </div>
+
+          <div class="confirm-card">
+            <div class="confirm-card-head">
+              <h2>Next Steps</h2>
+              <span class="confirm-pill">4 of 4 Ready</span>
+            </div>
+
+            <div class="confirm-step-list">
+              <div class="confirm-step-item">
+                <span class="confirm-step-left"><span class="confirm-step-ico">&#10003;</span> Fee Remitted</span>
+                <span class="confirm-step-right is-muted">${paidPaise === 0 ? '₹0 Free' : escHtml(inr(paidPaise))}</span>
+              </div>
+              <div class="confirm-step-item">
+                <span class="confirm-step-left"><span class="confirm-step-ico">&#10003;</span> Student ID Provisioned</span>
+                <span class="confirm-step-right">${escHtml(studentId)}</span>
+              </div>
+              <div class="confirm-step-item">
+                <span class="confirm-step-left"><span class="confirm-step-ico">&#10003;</span> Offer Letter &amp; Receipt</span>
+                <span class="confirm-step-right">Ready Below</span>
+              </div>
+              <div class="confirm-step-item">
+                <span class="confirm-step-left"><span class="confirm-step-ico">&#128197;</span> Winter Cohort Curriculum</span>
+                <span class="confirm-step-right">Active Now</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="confirm-help-bar">
+        <div class="confirm-help-left">
+          <div class="confirm-help-ico" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+          </div>
+          <div>
+            <strong>Need Help?</strong>
+            <span>Admissions &amp; Academic Desk &bull; +91 82206 99083</span>
+          </div>
+        </div>
+        <div class="confirm-help-actions">
+          <a href="mailto:admissions@plantgreeninertia.com" class="confirm-mail-pill">admissions@plantgreeninertia.com</a>
+          <a href="https://wa.me/918220699083" target="_blank" rel="noopener" class="confirm-wa-pill">WhatsApp Help</a>
+        </div>
+      </div>
+
+      <div class="card confirm-docs-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+          <div>
+            <h3 style="font-family:var(--font-display);font-size:1.1rem;color:var(--navy);margin:0 0 4px;">Official Credentials &amp; Attendance Register</h3>
+            <p style="font-size:0.84rem;color:var(--text-muted);margin:0;">Linked strictly by <strong>Student ID (<code style="color:var(--plant-green);">${escHtml(studentId)}</code>)</strong></p>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button type="button" id="btn-offer-letter" class="btn btn-outline">&#127881; Official Offer Letter (PDF)</button>
+            <button type="button" id="btn-portal-report" class="btn btn-outline">&#128203; 1-Page Project Report (PDF)</button>
+          </div>
+        </div>
+        <div id="dash-doc-msg" class="msg" style="margin-bottom:12px;"></div>
         <div class="telemetry-grid" style="margin-bottom:16px;">
           <div class="telemetry-tile">
             <span class="tile-title">Attendance Ratio</span>
@@ -2096,6 +2350,12 @@
     `;
 
     box.appendChild(dashContainer);
+
+    bindCopyButton(dashContainer.querySelector('#copy-tx-btn'), txRef);
+    bindCopyButton(dashContainer.querySelector('#copy-uid-btn'), studentId);
+    if (portalPassword) {
+      bindCopyButton(dashContainer.querySelector('#copy-pass-btn'), portalPassword);
+    }
 
     // Event listeners
     dashContainer.querySelector('#btn-receipt-pdf').onclick = async () => {
