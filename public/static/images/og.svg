@@ -1,1 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630"><rect width="1200" height="630" fill="#4a1020"/><rect x="30" y="30" width="1140" height="570" fill="none" stroke="#ffc928" stroke-width="4"/><text x="600" y="290" fill="#ffc928" font-family="serif" font-size="70" text-anchor="middle">Diwali</text><text x="600" y="370" fill="#ffffff" font-family="serif" font-size="54" text-anchor="middle">Special Internship Fair</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#101D35"/>
+      <stop offset="50%" stop-color="#182C4E"/>
+      <stop offset="100%" stop-color="#0A1324"/>
+    </linearGradient>
+    <linearGradient id="frost" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#B9DDF5"/>
+      <stop offset="100%" stop-color="#DCEEFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="40" y="40" width="1120" height="550" rx="24" fill="none" stroke="#B9DDF5" stroke-width="2" opacity="0.4"/>
+  <rect x="60" y="60" width="1080" height="510" rx="18" fill="rgba(245, 250, 255, 0.03)" stroke="#D8E2EC" stroke-width="1" opacity="0.3"/>
+  
+  <!-- Winter Badge -->
+  <rect x="475" y="140" width="250" height="42" rx="21" fill="rgba(185, 221, 245, 0.15)" stroke="#B9DDF5" stroke-width="1.5"/>
+  <text x="600" y="167" fill="#B9DDF5" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" letter-spacing="3" text-anchor="middle">WELCOME TO PGI PORTAL</text>
+  
+  <!-- Main Titles -->
+  <text x="600" y="270" fill="url(#frost)" font-family="system-ui, -apple-system, sans-serif" font-size="56" font-weight="800" text-anchor="middle" letter-spacing="-1">Winter Internship &amp; Training Program</text>
+  <text x="600" y="340" fill="#2A6636" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="600" text-anchor="middle">Your Winter Internship Journey Starts Here</text>
+  <text x="600" y="390" fill="#D8E2EC" font-family="system-ui, -apple-system, sans-serif" font-size="20" text-anchor="middle">Plant Green Inertia Pvt. Ltd. • Online &amp; Offline Cohorts</text>
+  
+  <!-- 4 Highlights -->
+  <g transform="translate(180, 440)">
+    <!-- Pill 1 -->
+    <rect x="0" y="0" width="190" height="50" rx="25" fill="rgba(245, 250, 255, 0.08)" stroke="#B9DDF5" stroke-width="1"/>
+    <text x="95" y="31" fill="#F5FAFF" font-family="system-ui, sans-serif" font-size="15" font-weight="700" text-anchor="middle">₹10,000 Scholarship</text>
+    
+    <!-- Pill 2 -->
+    <rect x="210" y="0" width="190" height="50" rx="25" fill="rgba(245, 250, 255, 0.08)" stroke="#B9DDF5" stroke-width="1"/>
+    <text x="305" y="31" fill="#F5FAFF" font-family="system-ui, sans-serif" font-size="15" font-weight="700" text-anchor="middle">30-Hour Program</text>
+    
+    <!-- Pill 3 -->
+    <rect x="420" y="0" width="190" height="50" rx="25" fill="rgba(245, 250, 255, 0.08)" stroke="#B9DDF5" stroke-width="1"/>
+    <text x="515" y="31" fill="#F5FAFF" font-family="system-ui, sans-serif" font-size="15" font-weight="700" text-anchor="middle">Online &amp; Offline</text>
+    
+    <!-- Pill 4 -->
+    <rect x="630" y="0" width="210" height="50" rx="25" fill="rgba(245, 250, 255, 0.08)" stroke="#B9DDF5" stroke-width="1"/>
+    <text x="735" y="31" fill="#F5FAFF" font-family="system-ui, sans-serif" font-size="15" font-weight="700" text-anchor="middle">Pre-Placement Offers</text>
+  </g>
+</svg>

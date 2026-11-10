@@ -1,306 +1,2344 @@
 (async () => {
-try { sessionStorage.setItem('fromPortal', '1'); } catch {} // coming back to the home page skips the intro game
-const $ = id => document.getElementById(id);
-const show = id => { document.querySelectorAll('main > section, #loading').forEach(e => e.classList.add('hidden')); const b = $('bookroot');
-  if (id in BOOK || id === 's-test') { b.classList.remove('hidden'); if (id === 's-test') $('s-test').classList.remove('hidden'); else bk.step(id); } else { b && b.classList.add('hidden'); $(id).classList.remove('hidden'); } };
-const msg = (id, t, ok) => { const e = $(id); e.textContent = t; e.className = 'msg ' + (ok ? 'ok' : 'err'); };
-const inr = p => '₹' + (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-let lastCoupon = null, me2 = null, cfg, sb, token, stream, micStream = null, attempt, skew = 0, timerH, faceH, lastViol = {}, mode = 'register', proctor = null, enrolled = false, attemptId = null, warnings = 0;
-const LABEL = { blocked_shortcut: 'Blocked keyboard shortcut used', multiple_faces: 'More than one person detected', no_face: 'Your face is not visible', looking_away: 'Your head is turned away from the screen', face_mismatch: 'Your face does not match the verified candidate', camera_unavailable: 'Your camera is unavailable or switched off', tab_switch: 'You left the test tab or window', fullscreen_exit: 'You exited full-screen mode', copy_paste: 'Copy / paste is not allowed', phone_detected: 'A mobile phone was detected in the camera view', looking_down: 'You were looking down for a long time', noise_detected: 'Voices or loud noise were detected' };
-const live = () => !$('s-test').classList.contains('hidden') && !finishing;
+  const $ = id => document.getElementById(id);
+  const show = id => {
+    document.querySelectorAll('main > section, #loading').forEach(e => e.classList.add('hidden'));
+    const target = $(id);
+    if (target) target.classList.remove('hidden');
+    document.body.classList.toggle('auth-stage', id === 's-auth');
+    document.body.classList.toggle('exam-fullscreen', id === 's-test');
+    if (id !== 's-checkout' && checkoutExpiryInterval) {
+      clearInterval(checkoutExpiryInterval);
+      checkoutExpiryInterval = null;
+    }
+    const navPayBtn = $('nav-payment-btn');
+    if (navPayBtn) navPayBtn.classList.toggle('hidden', !['s-auth', 's-profile', 's-inst'].includes(id));
+  };
 
-try { cfg = await (await fetch('/api/config')).json(); } catch { $('loading').textContent = 'Cannot reach the server. Please try again later.'; return; }
-sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
-async function deviceInfo() { // stable per-browser id + coarse device profile hash, used to spot one person using several accounts
-  let device = ''; try { device = localStorage.getItem('dv_id') || (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()); localStorage.setItem('dv_id', device); } catch {}
-  const raw = [navigator.userAgent, screen.width, screen.height, screen.colorDepth, Intl.DateTimeFormat().resolvedOptions().timeZone, navigator.language, navigator.hardwareConcurrency, navigator.deviceMemory].join('|');
-  let fp = ''; try { fp = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw)))].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32); } catch {}
-  return { device, fp };
-}
-async function api(path, body, method) {
-  const r = await fetch('/api' + path, { method: method || (body ? 'POST' : 'GET'), headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: body ? JSON.stringify(body) : undefined });
-  const j = await r.json().catch(() => ({})); if (!r.ok) throw Object.assign(new Error(j.error || 'Request failed'), { status: r.status }); return j;
-}
-function authMode(m) { mode = m; const reg = m === 'register';
-  $('auth-title').textContent = reg ? 'Register for the Scholarship Assessment' : 'Log in to continue';
-  $('f-name').classList.toggle('hidden', !reg); $('f-phone').classList.toggle('hidden', !reg);
-  $('auth-go').textContent = reg ? 'Register' : 'Log in'; $('auth-toggle').textContent = reg ? 'I already have an account' : 'Create a new account'; msg('auth-msg', ''); }
-$('auth-toggle').onclick = () => authMode(mode === 'register' ? 'login' : 'register');
-$('auth-go').onclick = async () => {
-  const email = $('email').value.trim(), pw = $('pw').value; if (!email || pw.length < 8) return msg('auth-msg', 'Enter a valid email and a password of at least 8 characters.');
-  $('auth-go').disabled = true; msg('auth-msg', 'Please wait…', true);
-  try {
-    if (mode === 'register') {
-      const name = $('name').value.trim(), phone = $('phone').value.trim();
-      if (name.length < 2 || !/^[0-9+\-\s]{10,15}$/.test(phone)) throw new Error('Enter your full name and a valid mobile number.');
-      localStorage.setItem('pendingProfile', JSON.stringify({ name, phone }));
-      const { data, error } = await sb.auth.signUp({ email, password: pw, options: { data: { full_name: name } } });
-      if (error) throw error;
-      if (!data.session) { msg('auth-msg', 'Account created. Check your email to confirm, then log in.', true); authMode('login'); return; }
-    } else { const { error } = await sb.auth.signInWithPassword({ email, password: pw }); if (error) throw error; }
+  function requestExamFullscreen() {
+    try {
+      if (document.fullscreenEnabled && !document.fullscreenElement) {
+        return document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch {}
+    return Promise.resolve();
+  }
+
+  const msg = (id, text, isOk = false) => {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'msg ' + (isOk ? 'ok' : 'err');
+  };
+
+  const DEFAULT_TUITION_PAISE = 999900;
+  const inr = p => '₹' + (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const inrDecimal = p => '₹' + (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const escHtml = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const formatDuration = sec => {
+    const total = Math.max(0, Math.round(Number(sec) || 0));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m}m ${String(s).padStart(2, '0')}s`;
+  };
+
+  let cfg = null;
+  let sb = null;
+  let token = null;
+  let stream = null;
+  let micStream = null;
+  let attempt = null;
+  let currentQIndex = 0;
+  let skew = 0;
+  let timerInterval = null;
+  let couponInterval = null;
+  let checkoutExpiryInterval = null;
+  let warnings = 0;
+  let finishing = false;
+  let proctor = null;
+  let enrolledFace = false;
+  let authModeState = 'register';
+  let lastCoupon = null;
+  let lastResult = null;
+  let currentUser = null;
+  let pendingPaymentRedirect = false;
+  let manualAuthCompleted = false;
+
+  const VIOLATION_LABELS = {
+    blocked_shortcut: 'Blocked keyboard shortcut used',
+    multiple_faces: 'More than one person detected',
+    no_face: 'Your face is not visible',
+    looking_away: 'Your head is turned away from the screen',
+    face_mismatch: 'Face does not match verified candidate',
+    camera_unavailable: 'Camera unavailable or switched off',
+    tab_switch: 'You left the test window or switched tabs',
+    fullscreen_exit: 'You exited full-screen mode',
+    copy_paste: 'Copy/paste is strictly restricted',
+    phone_detected: 'A mobile phone was detected in view',
+    looking_down: 'Looked down for extended period',
+    noise_detected: 'Sustained voices or background noise detected'
+  };
+
+  const isLive = () => !$('s-test').classList.contains('hidden') && !finishing;
+
+  function hasAnyStoredAuth() {
+    try {
+      if (sessionStorage.getItem('pgi_student_token') || localStorage.getItem('pgi_student_token')) return true;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('sb-') && k.endsWith('-auth-token') && localStorage.getItem(k)) return true;
+      }
+    } catch {}
+    return false;
+  }
+
+  let razorpayPromise = null;
+  function ensureRazorpay() {
+    if (typeof Razorpay !== 'undefined') return Promise.resolve(true);
+    if (razorpayPromise) return razorpayPromise;
+    razorpayPromise = new Promise(res => {
+      const s = document.createElement('script');
+      s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      s.async = true;
+      s.onload = () => res(typeof Razorpay !== 'undefined');
+      s.onerror = () => { razorpayPromise = null; res(false); };
+      document.head.appendChild(s);
+    });
+    return razorpayPromise;
+  }
+
+  // Show login immediately if no cached session exists so nav clicks don't stall on external scripts/API config
+  const qInit = new URLSearchParams(window.location.search);
+  const hasCachedSession = hasAnyStoredAuth();
+  if (!hasCachedSession) {
+    const qEm = qInit.get('email');
+    const qAp = qInit.get('appId');
+    if (qInit.get('ref')) {
+      try {
+        sessionStorage.setItem('pgi_referral', qInit.get('ref'));
+        localStorage.setItem('pgi_referral', qInit.get('ref'));
+      } catch {}
+    }
+    if ((qEm || qAp) && $('email') && !$('email').value) {
+      $('email').value = qEm || qAp;
+    }
+    if (qAp) {
+      try {
+        sessionStorage.setItem('pgi_application_id', qAp);
+        localStorage.setItem('pgi_application_id', qAp);
+      } catch {}
+    }
+    setAuthMode(qInit.get('mode') === 'register' ? 'register' : 'login');
+    if (qInit.get('mode') !== 'register' && (qAp || qEm)) {
+      msg('auth-msg', 'Enter your Date of Birth (DD/MM/YYYY) to verify and proceed to Proctor Check.', true);
+    }
+    show('s-auth');
+  }
+
+  // Initialize configuration immediately; Supabase CDN loads asynchronously so it never blocks first paint
+  const initReady = (async () => {
+    cfg = await (window.__pgiConfigPromise || fetch('/api/config').then(r => r.json()));
+    if (typeof supabase !== 'undefined') {
+      sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    }
+    return true;
+  })().catch(() => false);
+
+  async function ensureSb() {
+    if (sb) return sb;
+    await initReady;
+    if (sb) return sb;
+    if (typeof supabase !== 'undefined' && cfg) {
+      sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+      return sb;
+    }
+    for (let i = 0; i < 40; i++) {
+      if (typeof supabase !== 'undefined') {
+        if (!cfg) cfg = await (window.__pgiConfigPromise || fetch('/api/config').then(r => r.json()));
+        sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+        return sb;
+      }
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return null;
+  }
+
+  if (hasCachedSession && !window.__pgiBootPromise) {
+    const ok = await initReady;
+    if (!ok) {
+      $('loading-text').textContent = 'Cannot connect to the server. Please verify your internet connection and refresh.';
+      return;
+    }
+  }
+
+  async function deviceInfo() {
+    let device = '';
+    try {
+      device = localStorage.getItem('dv_id') || (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
+      localStorage.setItem('dv_id', device);
+    } catch {}
+    const raw = [
+      navigator.userAgent, screen.width, screen.height, screen.colorDepth,
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+      navigator.language, navigator.hardwareConcurrency, navigator.deviceMemory
+    ].join('|');
+    let fp = '';
+    try {
+      fp = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw)))]
+        .map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+    } catch {}
+    return { device, fp };
+  }
+
+  async function api(path, body, method) {
+    const res = await fetch('/api' + path, {
+      method: method || (body ? 'POST' : 'GET'),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + token
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(json.error || 'Request failed');
+      err.status = res.status;
+      throw err;
+    }
+    return json;
+  }
+
+  // Auth Mode Toggle
+  function setAuthMode(mode) {
+    authModeState = mode;
+    const isReg = mode === 'register';
+    const titleEl = $('auth-title');
+    const subEl = $('auth-sub');
+    const chipEl = $('auth-step-chip');
+    const emailEl = $('email');
+    const emailLbl = $('email-label');
+    const emailHlp = $('email-helper');
+    const findUidBtn = $('btn-find-uid');
+    const pwEl = $('pw');
+    const pwLbl = $('pw-label');
+    const pwFmt = $('pw-format-hint');
+    const pwHlp = $('pw-helper');
+
+    if (titleEl) titleEl.textContent = isReg ? 'Candidate Registration' : 'Candidate Assessment Login';
+    if (subEl) {
+      subEl.textContent = isReg
+        ? 'Create an account manually if you have not applied through the Winter 2026 form.'
+        : 'Enter your Candidate UID or registered institutional email along with your Date of Birth to access the monitored examination session.';
+    }
+    if (chipEl) {
+      chipEl.innerHTML = `<span class="auth-cohort-dot"></span><span>${isReg ? 'MANUAL REGISTRATION' : 'WINTER 2026 COHORT'}</span>`;
+    }
+    if (emailLbl) {
+      emailLbl.innerHTML = isReg
+        ? 'Email Address <span class="req">*</span>'
+        : 'Candidate UID or Institutional Email <span class="req">*</span>';
+    }
+    if (emailEl) {
+      emailEl.placeholder = isReg ? 'e.g. student@uni.edu' : 'e.g. PGI-W26-0001 or student@uni.edu';
+    }
+    if (emailHlp) {
+      emailHlp.textContent = isReg
+        ? 'Official email used for certificate issuance.'
+        : 'Sent in your initial Winter 2026 Application Confirmation receipt.';
+    }
+    if (findUidBtn) findUidBtn.classList.toggle('hidden', isReg);
+
+    if (pwLbl) {
+      pwLbl.innerHTML = isReg
+        ? 'Create Password <span class="req">*</span>'
+        : 'Date of Birth (Examination Key) <span class="req">*</span>';
+    }
+    if (pwFmt) pwFmt.textContent = isReg ? 'Min 8 characters' : 'Format: DD/MM/YYYY';
+    if (pwEl) pwEl.placeholder = isReg ? 'Minimum 8 characters' : 'DD / MM / YYYY';
+    if (pwHlp) {
+      pwHlp.textContent = isReg
+        ? 'Choose at least 8 characters for your portal password.'
+        : 'Must match registered application documents exactly.';
+    }
+
+    $('f-name').classList.toggle('hidden', !isReg);
+    $('f-phone').classList.toggle('hidden', !isReg);
+    $('auth-go').innerHTML = isReg
+      ? '<span>Register &amp; Start Assessment</span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>'
+      : '<span>Verify &amp; Proceed to Proctor Check</span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>';
+    $('auth-toggle').textContent = isReg ? 'Already have a Candidate UID? Sign in' : 'New candidate? Register manually';
+    msg('auth-msg', '');
+  }
+
+  $('auth-toggle').onclick = () => setAuthMode(authModeState === 'register' ? 'login' : 'register');
+
+  // Find UID & Recovery Drawer Triggers
+  function openRecoveryDrawer() {
+    const panel = $('panel-portal-forgot');
+    if (!panel) return;
+    const isHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden');
+    if (isHidden) {
+      const fid = $('forgot-portal-id');
+      if (fid && $('email')?.value.trim()) fid.value = $('email').value.trim();
+      if (fid) fid.focus();
+      msg('portal-forgot-msg', '');
+    }
+  }
+  const linkForgot = $('link-forgot-pw');
+  if (linkForgot) linkForgot.onclick = openRecoveryDrawer;
+  const btnFindUid = $('btn-find-uid');
+  if (btnFindUid) btnFindUid.onclick = openRecoveryDrawer;
+
+  const btnForgotCancel = $('btn-portal-forgot-cancel');
+  if (btnForgotCancel) {
+    btnForgotCancel.onclick = () => {
+      const panel = $('panel-portal-forgot');
+      if (panel) panel.classList.add('hidden');
+    };
+  }
+
+  const btnLookupUid = $('btn-portal-lookup-uid');
+  if (btnLookupUid) {
+    btnLookupUid.onclick = async () => {
+      const raw = ($('forgot-portal-id').value || $('email').value).trim();
+      if (!raw) return msg('portal-forgot-msg', 'Enter your registered email or 10-digit mobile number.');
+      btnLookupUid.disabled = true;
+      msg('portal-forgot-msg', 'Looking up Candidate UID…', true);
+      try {
+        const param = raw.includes('@')
+          ? `email=${encodeURIComponent(raw.toLowerCase())}`
+          : `phone=${encodeURIComponent(raw)}`;
+        const res = await fetch(`/api/applications/check?${param}`);
+        const data = await res.json();
+        if (data.exists && data.applicationId) {
+          if ($('email')) $('email').value = data.applicationId;
+          msg('portal-forgot-msg', `Candidate UID found: ${data.applicationId} (pre-filled above).`, true);
+        } else {
+          msg('portal-forgot-msg', 'No matching application found. Check your email/mobile or apply first.');
+        }
+      } catch (err) {
+        msg('portal-forgot-msg', 'Lookup failed. Please try again.');
+      } finally {
+        btnLookupUid.disabled = false;
+      }
+    };
+  }
+
+  const btnForgotSend = $('btn-portal-forgot-send');
+  if (btnForgotSend) {
+    btnForgotSend.onclick = async () => {
+      const ident = ($('forgot-portal-id').value || $('email').value).trim();
+      if (!ident) return msg('portal-forgot-msg', 'Please enter your Candidate UID or Registered Email.');
+      btnForgotSend.disabled = true;
+      msg('portal-forgot-msg', 'Sending password recovery instructions…', true);
+      try {
+        const res = await fetch('/api/student/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: ident })
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'Recovery request failed');
+        msg('portal-forgot-msg', d.message || 'Check your email inbox for recovery link.', true);
+      } catch (err) {
+        msg('portal-forgot-msg', err.message);
+      } finally {
+        btnForgotSend.disabled = false;
+      }
+    };
+  }
+
+  // Password visibility SVG toggle
+  const EYE_SHOW_SVG = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+  const EYE_HIDE_SVG = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
+
+  const toggleEye = $('toggle-portal-pw');
+  if (toggleEye) {
+    toggleEye.onclick = () => {
+      const pwInput = $('pw');
+      if (!pwInput) return;
+      if (pwInput.type === 'password') {
+        pwInput.type = 'text';
+        toggleEye.innerHTML = EYE_HIDE_SVG;
+        toggleEye.setAttribute('aria-label', 'Hide password');
+      } else {
+        pwInput.type = 'password';
+        toggleEye.innerHTML = EYE_SHOW_SVG;
+        toggleEye.setAttribute('aria-label', 'Show password');
+      }
+    };
+  }
+
+  function normalizeDobKey(rawPw) {
+    const raw = String(rawPw || '');
+    const m = raw.trim().match(/^(\d{2})\s*[/-]\s*(\d{2})\s*[/-]\s*(\d{4})$/);
+    if (!m) return raw;
+    return `${m[1]}${m[2]}${m[3]}`;
+  }
+
+  [$('email'), $('pw')].forEach(inp => {
+    if (!inp) return;
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        $('auth-go')?.click();
+      }
+    });
+  });
+
+  $('auth-go').onclick = async () => {
+    const rawIdentifier = $('email').value.trim();
+    const rawPw = $('pw').value;
+    const pw = authModeState === 'login' ? normalizeDobKey(rawPw) : rawPw;
+    if (!rawIdentifier || pw.length < 8) {
+      return msg('auth-msg', 'Enter your Candidate UID/Email and Date of Birth (DD/MM/YYYY) or 8+ character password.');
+    }
+    $('auth-go').disabled = true;
+    msg('auth-msg', 'Verifying credentials…', true);
+
+    try {
+      if (!(await initReady)) {
+        throw new Error('Cannot connect to the server. Please check your connection and try again.');
+      }
+      if (authModeState === 'register') {
+        const client = await ensureSb();
+        if (!client) throw new Error('Registration client is still loading. Please try again in a moment.');
+        const email = rawIdentifier.toLowerCase();
+        const name = $('name').value.trim();
+        const phone = $('phone').value.trim();
+        if (name.length < 2 || !/^[0-9+\-\s]{10,15}$/.test(phone)) {
+          throw new Error('Please enter your full name and a valid 10-digit mobile number.');
+        }
+        localStorage.setItem('pendingProfile', JSON.stringify({ name, phone }));
+        const { data, error } = await client.auth.signUp({
+          email,
+          password: pw,
+          options: { data: { full_name: name, phone } }
+        });
+        if (error) throw error;
+        if (!data.session) {
+          msg('auth-msg', 'Account registered. Check your email inbox to verify, then sign in.', true);
+          setAuthMode('login');
+          return;
+        }
+        if (data.session?.access_token) {
+          localStorage.setItem('pgi_student_token', data.session.access_token);
+          sessionStorage.setItem('pgi_student_token', data.session.access_token);
+          localStorage.setItem('pgi_student_email', email);
+          sessionStorage.setItem('pgi_student_email', email);
+        }
+      } else {
+        // Dual Login via /api/student/login supporting Student ID or Email
+        const res = await fetch('/api/student/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: rawIdentifier, password: pw })
+        });
+        const loginData = await res.json();
+        if (!res.ok) throw new Error(loginData.error || 'Authentication failed');
+
+        if (loginData.token) {
+          localStorage.setItem('pgi_student_token', loginData.token);
+          sessionStorage.setItem('pgi_student_token', loginData.token);
+          if (loginData.student?.email) {
+            sessionStorage.setItem('pgi_student_email', loginData.student.email.toLowerCase());
+            localStorage.setItem('pgi_student_email', loginData.student.email.toLowerCase());
+          }
+          if (loginData.student?.studentId) {
+            localStorage.setItem('pgi_student_id', loginData.student.studentId);
+          }
+          if (loginData.student?.applicationId) {
+            sessionStorage.setItem('pgi_application_id', loginData.student.applicationId);
+            localStorage.setItem('pgi_application_id', loginData.student.applicationId);
+          }
+          if (sb && loginData.refreshToken) {
+            sb.auth.setSession({
+              access_token: loginData.token,
+              refresh_token: loginData.refreshToken
+            }).catch(() => {});
+          }
+          if (loginData.student?.enrolled) {
+            // Directly forward enrolled student to dedicated full-featured dashboard
+            window.location.href = 'dashboard.html';
+            return;
+          }
+        }
+      }
+      manualAuthCompleted = true;
+      try {
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('email');
+        cleanUrl.searchParams.delete('appId');
+        window.history.replaceState({}, '', cleanUrl.pathname + cleanUrl.search);
+      } catch {}
+      await boot();
+    } catch (err) {
+      msg('auth-msg', err.message);
+    } finally {
+      $('auth-go').disabled = false;
+    }
+  };
+
+  function clearStoredAuth() {
+    token = null;
+    window.__pgiBootPromise = null;
+    window.__pgiBootToken = null;
+    ['pgi_student_token', 'pgi_student_email', 'pgi_student_id'].forEach(k => {
+      try { sessionStorage.removeItem(k); localStorage.removeItem(k); } catch {}
+    });
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k);
+      }
+    } catch {}
+  }
+
+  $('logout').onclick = async () => {
+    pendingPaymentRedirect = false;
+    manualAuthCompleted = false;
+    lastResult = null;
+    clearStoredAuth();
+    if (sb) await sb.auth.signOut().catch(() => {});
+    location.reload();
+  };
+
+  function setPvPaymentAlert(text = '') {
+    const box = $('pv-payment-alert');
+    const txt = $('pv-payment-alert-text');
+    if (!box || !txt) return;
+    if (!text) {
+      box.classList.add('hidden');
+      txt.textContent = '';
+    } else {
+      txt.textContent = text;
+      box.classList.remove('hidden');
+    }
+  }
+
+  async function checkCompletedAndOpenPayment() {
+    if (!token) {
+      pendingPaymentRedirect = true;
+      setAuthMode('login');
+      show('s-auth');
+      msg('auth-msg', 'Sign in with your Candidate UID/Email and Date of Birth (DD/MM/YYYY) to verify your completed assessment and go to payment.', true);
+      ($('email')?.value.trim() ? $('pw') : $('email'))?.focus();
+      return;
+    }
+
+    const navBtn = $('nav-payment-btn');
+    if (navBtn) navBtn.disabled = true;
+    setPvPaymentAlert('');
+    try {
+      const res = await api('/assessment/payment-eligibility');
+      if (res.enrolled) {
+        await boot();
+        return;
+      }
+      if (res.completed && res.result) {
+        endMonitoring();
+        lastResult = res.result;
+        lastCoupon = res.result.coupon;
+        if (res.result.coupon?.state === 'active') {
+          await showCourses();
+        } else {
+          showResult(res.result);
+        }
+        return;
+      }
+      const notice = res.message || 'No completed assessment found for your account yet. Complete Proctor Verification and submit the assessment first.';
+      setPvPaymentAlert(notice);
+      msg('inst-msg', notice, false);
+      msg('p-msg', notice, false);
+    } catch (err) {
+      const notice = err.message || 'Could not verify assessment completion status.';
+      setPvPaymentAlert(notice);
+      msg('inst-msg', notice, false);
+      msg('p-msg', notice, false);
+    } finally {
+      if (navBtn) navBtn.disabled = false;
+    }
+  }
+
+  if ($('nav-payment-btn')) $('nav-payment-btn').onclick = checkCompletedAndOpenPayment;
+  if ($('pv-payment-alert-close')) $('pv-payment-alert-close').onclick = () => setPvPaymentAlert('');
+  if ($('btn-back-result')) {
+    $('btn-back-result').onclick = () => {
+      if (lastResult) showResult(lastResult);
+    };
+  }
+
+  $('p-save').onclick = async () => {
+    try {
+      $('p-save').disabled = true;
+      await api('/profile', {
+        fullName: $('p-name').value.trim(),
+        phone: $('p-phone').value.trim()
+      });
+      await boot();
+    } catch (err) {
+      msg('p-msg', err.message);
+    } finally {
+      $('p-save').disabled = false;
+    }
+  };
+
+  // Pre-Flight Hardware & Latency Diagnostics
+  async function initPreFlightProctor(me) {
+    const candNameEl = $('pv-cand-name');
+    const candUidEl = $('pv-cand-uid');
+    const appId = me?.applicationId
+      || sessionStorage.getItem('pgi_application_id')
+      || localStorage.getItem('pgi_application_id')
+      || me?.studentId
+      || 'PGI-W26-ACTIVE';
+
+    if (appId && !appId.endsWith('-ACTIVE')) {
+      try {
+        sessionStorage.setItem('pgi_application_id', appId);
+        localStorage.setItem('pgi_application_id', appId);
+      } catch {}
+    }
+
+    if (candNameEl) candNameEl.textContent = me?.profile?.full_name || 'Candidate';
+    if (candUidEl) candUidEl.textContent = appId;
+
+    // Screen lock capability check
+    const fsOk = !!document.fullscreenEnabled;
+    if ($('pv-top-fs')) $('pv-top-fs').textContent = fsOk ? 'Enabled' : 'Browser Limited';
+    if ($('pv-pill-fs')) $('pv-pill-fs').classList.toggle('ok', fsOk);
+    if ($('diag-fs')) {
+      $('diag-fs').textContent = fsOk ? '✓ Confirmed' : 'Standard';
+      $('diag-fs').className = fsOk ? 'ok' : '';
+    }
+
+    // Measure live server latency
+    try {
+      const t0 = performance.now();
+      await fetch('/api/config', { cache: 'no-store' });
+      const ms = Math.max(1, Math.round(performance.now() - t0));
+      if ($('diag-net')) {
+        $('diag-net').textContent = `✓ ${ms}ms Low`;
+        $('diag-net').className = 'ok';
+      }
+    } catch {
+      if ($('diag-net')) {
+        $('diag-net').textContent = '⚠ Check link';
+        $('diag-net').className = 'err';
+      }
+    }
+
+    // Immediately initiate webcam & face proctor verification upon entering Proctor Check
+    updateGate();
+    if (!enrolledFace) {
+      if (await startCamera()) {
+        await verifyFace();
+      }
+    }
+  }
+
+  // Camera & Face Verification
+  async function startCamera() {
+    if (stream) return true;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      });
+      const vTrack = stream.getVideoTracks()[0];
+      vTrack.addEventListener('ended', () => isLive() && recordViolation('camera_unavailable'));
+      $('prev').srcObject = stream;
+      $('pvid').srcObject = stream;
+      $('prev').classList.remove('hidden');
+      if ($('pv-placeholder')) $('pv-placeholder').classList.add('hidden');
+
+      const settings = vTrack.getSettings ? vTrack.getSettings() : {};
+      const resLabel = settings.width && settings.height
+        ? `${settings.frameRate ? Math.round(settings.frameRate) + ' FPS · ' : ''}${settings.width}×${settings.height}`
+        : '30 FPS · HD';
+      if ($('pv-res')) $('pv-res').textContent = resLabel;
+      if ($('pv-sensor-id')) {
+        $('pv-sensor-id').textContent = (vTrack.label || 'CAM-HD').slice(0, 26);
+      }
+
+      if ($('pv-top-cam')) $('pv-top-cam').textContent = 'Connected';
+      if ($('pv-pill-cam')) $('pv-pill-cam').classList.add('ok');
+      if ($('diag-cam')) {
+        $('diag-cam').textContent = '✓ Verified';
+        $('diag-cam').className = 'ok';
+      }
+      if ($('pv-lighting')) {
+        $('pv-lighting').textContent = 'Optimal';
+        $('pv-lighting').className = 'ok';
+      }
+
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } });
+      } catch {
+        micStream = null;
+      }
+
+      if ($('pv-top-mic')) $('pv-top-mic').textContent = micStream ? 'Calibrated' : 'Muted/None';
+      if ($('pv-pill-mic')) $('pv-pill-mic').classList.toggle('ok', !!micStream);
+      if ($('diag-mic')) {
+        $('diag-mic').textContent = micStream ? '✓ Active' : 'Unavailable';
+        $('diag-mic').className = micStream ? 'ok' : '';
+      }
+
+      msg('cam-msg', 'Webcam connected.' + (micStream ? ' Microphone calibrated for integrity check.' : ''), true);
+      return true;
+    } catch {
+      if ($('pv-top-cam')) $('pv-top-cam').textContent = 'Blocked';
+      if ($('diag-cam')) {
+        $('diag-cam').textContent = '✕ Blocked';
+        $('diag-cam').className = 'err';
+      }
+      msg('cam-msg', cfg.requireCamera
+        ? 'Camera access is required for proctored assessment. Please allow permissions in your browser.'
+        : 'Camera not detected. Test will proceed with flagged integrity review.');
+      return false;
+    }
+  }
+
+  const updateGate = () => {
+    $('begin').disabled = !($('agree').checked && (enrolledFace || !cfg.requireCamera));
+  };
+
+  async function verifyFace(forceRetest = false) {
+    if (enrolledFace && !forceRetest) return;
+    if (forceRetest) {
+      enrolledFace = false;
+      updateGate();
+    }
+    $('cam-go').disabled = true;
+    if ($('pv-face-badge')) {
+      $('pv-face-badge').textContent = 'Scanning…';
+      $('pv-face-badge').className = 'warn';
+    }
+    msg('face-msg', 'Loading facial alignment model…', true);
+    try {
+      proctor ||= await (await import('/static/js/proctor.js')).createProctor($('prev'));
+      msg('face-msg', 'Center your face inside TARGET FRAME and stay steady…', true);
+      enrolledFace = await proctor.enroll(t => msg('face-msg', t, true));
+      if (enrolledFace) {
+        if ($('pv-face-badge')) {
+          $('pv-face-badge').textContent = 'Detected ✓';
+          $('pv-face-badge').className = 'ok';
+        }
+        if ($('pv-reticle')) $('pv-reticle').style.opacity = '0.35';
+        msg('face-msg', '✓ Facial alignment synchronized. Ready to start assessment.', true);
+      } else {
+        if ($('pv-face-badge')) {
+          $('pv-face-badge').textContent = 'Not Clear';
+          $('pv-face-badge').className = 'warn';
+        }
+        msg('face-msg', 'Could not detect face clearly. Adjust room lighting and click Retest Camera.', false);
+      }
+    } catch (err) {
+      if ($('pv-face-badge')) $('pv-face-badge').textContent = 'Unavailable';
+      msg('face-msg', cfg.requireCamera
+        ? 'Face verification failed (' + err.message + '). Check connection and retry.'
+        : 'Face verification unavailable; proceeding with standard monitoring.', !cfg.requireCamera);
+    }
+    $('cam-go').disabled = false;
+    updateGate();
+  }
+
+  $('cam-go').onclick = async () => {
+    if (await startCamera()) verifyFace(enrolledFace);
+  };
+  if ($('pv-quick-cam')) {
+    $('pv-quick-cam').onclick = () => $('cam-go').click();
+  }
+
+  $('agree').onchange = updateGate;
+
+  let reviewSet = new Set();
+
+  $('begin').onclick = async () => {
+    requestExamFullscreen();
+    $('begin').disabled = true;
+    const camOk = await startCamera();
+    if (!camOk && cfg.requireCamera) {
+      $('begin').disabled = false;
+      return;
+    }
+
+    try {
+      const dev = await deviceInfo();
+      const appId = sessionStorage.getItem('pgi_application_id') || localStorage.getItem('pgi_application_id') || null;
+      attempt = await api('/attempts/start', { ...dev, applicationId: appId });
+      runTest();
+      if (!camOk) recordViolation('camera_unavailable');
+    } catch (err) {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      msg('inst-msg', err.message);
+      $('begin').disabled = false;
+    }
+  };
+
+  // Run Test Setup
+  function runTest() {
+    reviewSet = new Set();
+    warnings = attempt.violations || 0;
+    updateWarnings();
+    if ($('proctor-warning-banner')) $('proctor-warning-banner').classList.add('hidden');
+    show('s-test');
+    requestExamFullscreen();
+
+    currentQIndex = 0;
+    skew = new Date(attempt.serverTime) - Date.now();
+
+    const storedAppId = sessionStorage.getItem('pgi_application_id') || localStorage.getItem('pgi_application_id') || 'PGI-W26';
+    const candName = currentUser?.profile?.full_name || 'Candidate';
+    if ($('app-id-disp')) $('app-id-disp').textContent = storedAppId;
+    if ($('feed-uid-disp')) $('feed-uid-disp').textContent = storedAppId;
+    if ($('feed-name-disp')) $('feed-name-disp').textContent = candName;
+    if ($('feed-pill-cam')) $('feed-pill-cam').textContent = stream ? '✓ Webcam: OK' : '⚠ Webcam: Off';
+    if ($('feed-pill-mic')) $('feed-pill-mic').textContent = micStream ? '✓ Mic: Sync' : '⚠ Mic: Muted';
+
+    if ($('protocol-notice-text')) {
+      const passMark = attempt.passMark || 30;
+      const totalMarks = attempt.totalMarks || 100;
+      const negLabel = attempt.negativeMarking ? `-${attempt.negativeMarking} mark per wrong answer` : 'disabled';
+      $('protocol-notice-text').textContent = `Unanswered items receive 0 marks. Passing threshold is ${passMark}/${totalMarks} (negative marking: ${negLabel}). Leaving fullscreen, switching tabs, or leaving the frame logs a strike (auto-submits after ${attempt.maxWarnings || 3} strikes).`;
+    }
+
+    if (stream && $('pvid')) {
+      if ($('pvid').srcObject !== stream) $('pvid').srcObject = stream;
+      $('pvid').play?.().catch(() => {});
+    }
+    if (proctor?.setVideo && $('pvid')) {
+      proctor.setVideo($('pvid'));
+    }
+
+    renderNavigator();
+    showQuestion(0);
+    updateProgress();
+
+    tickTimer();
+    clearInterval(timerInterval);
+    timerInterval = setInterval(tickTimer, 500);
+
+    if (proctor && enrolledFace) {
+      proctor.start(recordViolation, (statusText, isOk) => {
+        if ($('mon')) {
+          $('mon').textContent = statusText;
+          $('mon').className = 'cam-status ' + (isOk ? 'ok' : 'err');
+        }
+        if ($('feed-video-stage')) $('feed-video-stage').classList.toggle('alert', !isOk);
+        if ($('feed-pill-cam')) $('feed-pill-cam').textContent = isOk ? '✓ Webcam: OK' : '⚠ Check Frame';
+      }, micStream);
+    } else if ($('mon')) {
+      $('mon').textContent = stream ? 'Monitoring: Active' : 'Camera Required';
+      $('mon').className = 'cam-status ' + (stream ? 'ok' : 'err');
+    }
+  }
+
+  function updateProgress() {
+    const answeredCount = Object.keys(attempt.saved || {}).length;
+    const totalCount = (attempt.questions || []).length || 20;
+    const reviewCount = reviewSet.size;
+    const pendingCount = Math.max(0, totalCount - answeredCount);
+    const pct = totalCount ? Math.round((answeredCount / totalCount) * 100) : 0;
+    const pad2 = n => String(n).padStart(2, '0');
+
+    if ($('prog-badge')) $('prog-badge').textContent = `${pad2(currentQIndex + 1)} / ${pad2(totalCount)}`;
+    if ($('nav-summary')) $('nav-summary').textContent = `${answeredCount} of ${totalCount} Completed`;
+    if ($('exam-velocity-fill')) $('exam-velocity-fill').style.width = `${pct}%`;
+    if ($('exam-velocity-status')) $('exam-velocity-status').textContent = `${pct}% Answered`;
+    if ($('stat-answered')) $('stat-answered').textContent = answeredCount;
+    if ($('stat-review')) $('stat-review').textContent = reviewCount;
+    if ($('stat-pending')) $('stat-pending').textContent = pendingCount;
+    renderNavigator();
+  }
+
+  function updateWarnings() {
+    const wEl = $('wcount');
+    if (wEl) wEl.textContent = `Strike ${Math.min(warnings, 3)} of ${attempt?.maxWarnings || 3}`;
+  }
+
+  function renderNavigator() {
+    const grid = $('nav-chips-grid');
+    if (!grid || !attempt || !attempt.questions) return;
+    grid.innerHTML = '';
+    attempt.questions.forEach((q, idx) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'q-chip';
+      chip.textContent = String(idx + 1).padStart(2, '0');
+      if (attempt.saved[q.id]) chip.classList.add('answered');
+      if (reviewSet.has(q.id)) chip.classList.add('review');
+      if (idx === currentQIndex) chip.classList.add('current');
+      chip.onclick = () => showQuestion(idx);
+      grid.appendChild(chip);
+    });
+  }
+
+  function cleanHtml(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const frag = document.createDocumentFragment();
+    (function walk(n, target) {
+      n.childNodes.forEach(c => {
+        if (c.nodeType === 3) target.appendChild(document.createTextNode(c.textContent));
+        else if (['PRE', 'CODE', 'B', 'I', 'BR', 'SPAN'].includes(c.nodeName)) {
+          const el = document.createElement(c.nodeName);
+          target.appendChild(el);
+          walk(c, el);
+        } else {
+          walk(c, target);
+        }
+      });
+    })(doc.body, frag);
+    return frag;
+  }
+
+  function showQuestion(idx) {
+    if (!attempt || !attempt.questions || idx < 0 || idx >= attempt.questions.length) return;
+    currentQIndex = idx;
+    const q = attempt.questions[idx];
+    const total = attempt.questions.length;
+    const pad2 = n => String(n).padStart(2, '0');
+
+    if ($('q-num-label')) $('q-num-label').textContent = `ITEM SEQUENCE ${pad2(idx + 1)} OF ${pad2(total)}`;
+    if ($('prog-badge')) $('prog-badge').textContent = `${pad2(idx + 1)} / ${pad2(total)}`;
+    if ($('q-domain-pill')) {
+      $('q-domain-pill').textContent = q.questionSet
+        ? `DOMAIN: ${String(q.questionSet).toUpperCase()}`
+        : 'DOMAIN: WINTER COHORT BENCHMARK';
+    }
+    if ($('q-marks-label')) {
+      const negTxt = attempt.negativeMarking ? `-${attempt.negativeMarking}` : '0';
+      $('q-marks-label').textContent = `Mark: +${q.marks || 5} / ${negTxt}`;
+    }
+
+    const qBody = $('q-text-body');
+    qBody.innerHTML = '';
+    qBody.appendChild(cleanHtml(q.text));
+
+    const optionsBox = $('q-options-container');
+    optionsBox.innerHTML = '';
+
+    (q.options || []).forEach(opt => {
+      const isSelected = attempt.saved[q.id] === opt.id;
+      const label = document.createElement('label');
+      label.className = 'option-label' + (isSelected ? ' selected' : '');
+
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'question_' + q.id;
+      radio.value = opt.id;
+      radio.checked = isSelected;
+
+      radio.onchange = () => {
+        document.querySelectorAll('.option-label').forEach(l => l.classList.remove('selected'));
+        label.classList.add('selected');
+        saveAnswer(q.id, opt.id);
+      };
+
+      const leftGroup = document.createElement('span');
+      leftGroup.className = 'opt-left';
+
+      const optBadge = document.createElement('span');
+      optBadge.className = 'opt-id';
+      optBadge.textContent = opt.id.toUpperCase();
+
+      const textSpan = document.createElement('span');
+      textSpan.textContent = opt.text;
+      leftGroup.append(optBadge, textSpan);
+
+      const rightGroup = document.createElement('span');
+      rightGroup.className = 'opt-right';
+
+      const choiceTag = document.createElement('span');
+      choiceTag.className = 'opt-choice-tag';
+      choiceTag.textContent = 'ACTIVE CHOICE';
+
+      const radioMark = document.createElement('span');
+      radioMark.className = 'opt-radio-mark';
+      radioMark.innerHTML = '&#10003;';
+      rightGroup.append(choiceTag, radioMark);
+
+      label.append(radio, leftGroup, rightGroup);
+      optionsBox.appendChild(label);
+    });
+
+    const revBtn = $('btn-mark-review');
+    if (revBtn) {
+      const marked = reviewSet.has(q.id);
+      revBtn.classList.toggle('is-marked', marked);
+      const revSpan = revBtn.querySelector('span');
+      if (revSpan) revSpan.textContent = marked ? 'Marked for Review' : 'Mark for Review';
+    }
+
+    $('btn-prev-q').disabled = (idx === 0);
+    $('btn-next-q').textContent = (idx === total - 1) ? 'Review & Submit' : 'Next Question →';
+
+    renderNavigator();
+  }
+
+  $('btn-mark-review')?.addEventListener('click', () => {
+    const q = attempt?.questions?.[currentQIndex];
+    if (!q) return;
+    if (reviewSet.has(q.id)) reviewSet.delete(q.id);
+    else reviewSet.add(q.id);
+    const marked = reviewSet.has(q.id);
+    const revBtn = $('btn-mark-review');
+    if (revBtn) {
+      revBtn.classList.toggle('is-marked', marked);
+      const revSpan = revBtn.querySelector('span');
+      if (revSpan) revSpan.textContent = marked ? 'Marked for Review' : 'Mark for Review';
+    }
+    updateProgress();
+  });
+
+  $('btn-prev-q').onclick = () => {
+    if (currentQIndex > 0) showQuestion(currentQIndex - 1);
+  };
+
+  $('btn-next-q').onclick = () => {
+    if (currentQIndex < (attempt.questions || []).length - 1) {
+      showQuestion(currentQIndex + 1);
+    } else {
+      openSubmitModal();
+    }
+  };
+
+  $('btn-submit-q').onclick = () => openSubmitModal();
+
+  async function saveAnswer(qid, oid) {
+    attempt.saved[qid] = oid;
+    updateProgress();
+    const savedText = $('saved-text');
+    const savedBox = $('saved');
+    if (savedText) savedText.textContent = 'Saving to Vault…';
+    if (savedBox) savedBox.className = 'exam-bottom-right';
+
+    for (let i = 0; i < 4; i++) {
+      try {
+        await api(`/attempts/${attempt.attemptId}/answer`, { questionId: qid, optionId: oid });
+        if (savedText) savedText.textContent = 'Answers Autosaved to Vault';
+        if (savedBox) savedBox.className = 'exam-bottom-right';
+        return;
+      } catch (err) {
+        if (err.status === 410) return finishTest(true);
+        await new Promise(r => setTimeout(r, 600 * (i + 1)));
+      }
+    }
+    if (savedText) savedText.textContent = 'Sync issue (retrying)';
+    if (savedBox) savedBox.className = 'exam-bottom-right warn';
+  }
+
+  function tickTimer() {
+    if (!attempt || !attempt.expiresAt) return;
+    const totalDur = Number(attempt.durationSeconds) || 1200;
+    const remainingSeconds = Math.max(0, Math.floor((new Date(attempt.expiresAt) - (Date.now() + skew)) / 1000));
+    const mins = Math.floor(remainingSeconds / 60);
+    const secs = remainingSeconds % 60;
+    const display = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    $('timer').textContent = display;
+
+    const timerChip = $('timer-chip');
+    if (remainingSeconds <= 180) {
+      timerChip.classList.add('urgent');
+    } else {
+      timerChip.classList.remove('urgent');
+    }
+
+    const elapsed = Math.max(0, Math.min(totalDur, totalDur - remainingSeconds));
+    const eMins = Math.floor(elapsed / 60);
+    const eSecs = elapsed % 60;
+    if ($('time-consumed-label')) {
+      $('time-consumed-label').textContent = `${eMins}m ${String(eSecs).padStart(2, '0')}s consumed`;
+    }
+    if ($('time-consumed-fill')) {
+      const pct = Math.min(100, Math.round((elapsed / totalDur) * 100));
+      $('time-consumed-fill').style.width = `${pct}%`;
+    }
+
+    if (remainingSeconds === 0) {
+      finishTest(true);
+    }
+  }
+
+  // Snapshot capture for violation evidence (uses visible #pvid feed during live test)
+  const snapCanvas = document.createElement('canvas');
+  function captureSnapshot() {
+    try {
+      const v = ($('pvid')?.readyState >= 2 && $('pvid')?.videoWidth) ? $('pvid') : $('prev');
+      if (!v || v.readyState < 2 || !v.videoWidth) return null;
+      snapCanvas.width = 256;
+      snapCanvas.height = Math.round(256 * v.videoHeight / v.videoWidth);
+      snapCanvas.getContext('2d').drawImage(v, 0, 0, snapCanvas.width, snapCanvas.height);
+      return snapCanvas.toDataURL('image/jpeg', 0.55);
+    } catch {
+      return null;
+    }
+  }
+
+  let lastViolTime = {};
+  async function recordViolation(type) {
+    if (!attempt || !isLive()) return;
+    const now = Date.now();
+    if (now - (lastViolTime[type] || 0) < 3000) return;
+    lastViolTime[type] = now;
+
+    const img = captureSnapshot();
+    try {
+      const res = await api(`/attempts/${attempt.attemptId}/violation`, { type, snapshot: img });
+      if (res.advisory) return;
+      warnings = res.total;
+      updateWarnings();
+
+      if (res.autoSubmitted) {
+        finishing = true;
+        endMonitoring();
+        if ($('proctor-warning-banner')) $('proctor-warning-banner').classList.add('hidden');
+        $('viol-modal').classList.add('hidden');
+        return showResult(res.result);
+      }
+
+      if (res.counted) {
+        const label = VIOLATION_LABELS[type] || type;
+        if ($('warn-banner-title')) $('warn-banner-title').textContent = `PROCTOR WARNING: ${label.toUpperCase()}`;
+        if ($('warn-banner-body')) {
+          $('warn-banner-body').textContent = `${label}. You have ${res.warningsLeft} strike(s) remaining. Exceeding ${res.maxWarnings || 3} strikes triggers immediate assessment lock and automated submission.`;
+        }
+        if ($('proctor-warning-banner')) {
+          $('proctor-warning-banner').classList.remove('hidden');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        $('vm-title').textContent = `Proctoring Warning (${res.total} of ${res.maxWarnings})`;
+        $('vm-body').textContent = `${label}. You have ${res.warningsLeft} warning(s) remaining. Further violations will cause automatic assessment submission.`;
+      }
+    } catch {}
+  }
+
+  function resumeFromWarning() {
+    if ($('proctor-warning-banner')) $('proctor-warning-banner').classList.add('hidden');
+    $('viol-modal').classList.add('hidden');
+    requestExamFullscreen();
+  }
+  $('warn-resume-btn')?.addEventListener('click', resumeFromWarning);
+  $('vm-ok').onclick = resumeFromWarning;
+
+  // Proctoring event listeners
+  document.addEventListener('visibilitychange', () => { if (document.hidden && isLive()) recordViolation('tab_switch'); });
+  window.addEventListener('blur', () => setTimeout(() => { if (isLive() && !document.hasFocus()) recordViolation('tab_switch'); }, 700));
+  document.addEventListener('fullscreenchange', () => { if (isLive() && document.fullscreenEnabled && !document.fullscreenElement) recordViolation('fullscreen_exit'); });
+  ['copy', 'cut', 'paste'].forEach(ev => document.addEventListener(ev, e => { if (isLive()) { e.preventDefault(); recordViolation('copy_paste'); } }));
+  document.addEventListener('contextmenu', e => { if (isLive()) e.preventDefault(); });
+  document.addEventListener('keydown', e => {
+    if (!isLive()) return;
+    const k = e.key.toLowerCase(), c = e.ctrlKey || e.metaKey;
+    if (c && ['c', 'x', 'v', 'a'].includes(k)) {
+      if (!/INPUT|TEXTAREA/.test(e.target.tagName)) { e.preventDefault(); recordViolation('copy_paste'); }
+    } else if (k === 'f12' || (c && e.shiftKey && ['i', 'j', 'c'].includes(k)) || (c && ['u', 's', 'p'].includes(k)) || k === 'printscreen') {
+      e.preventDefault();
+      recordViolation('blocked_shortcut');
+    }
+  });
+
+  // Submission Flow
+  function openSubmitModal() {
+    const answeredCount = Object.keys(attempt.saved || {}).length;
+    const totalCount = (attempt.questions || []).length;
+    const unanswered = totalCount - answeredCount;
+    $('sm-body').textContent = `You have answered ${answeredCount} of ${totalCount} questions (${unanswered} unanswered).`;
+    $('submit-modal').classList.remove('hidden');
+  }
+
+  $('sm-cancel').onclick = () => $('submit-modal').classList.add('hidden');
+
+  $('sm-confirm').onclick = () => {
+    $('submit-modal').classList.add('hidden');
+    finishTest(false);
+  };
+
+  async function finishTest(isAutoTimeout = false) {
+    if (finishing) return;
+    finishing = true;
+    clearInterval(timerInterval);
+    $('btn-submit-q').disabled = true;
+    msg('t-msg', isAutoTimeout ? 'Time elapsed. Evaluating your assessment…' : 'Submitting assessment to grading server…', true);
+
+    for (let i = 0; i < 5; i++) {
+      try {
+        const res = await api(`/attempts/${attempt.attemptId}/submit`, {});
+        endMonitoring();
+        return showResult(res);
+      } catch {
+        await new Promise(r => setTimeout(r, 1200));
+      }
+    }
+    finishing = false;
+    $('btn-submit-q').disabled = false;
+    msg('t-msg', 'Submission failed. Please check connection and click submit again.');
+  }
+
+  function endMonitoring() {
+    clearInterval(timerInterval);
+    document.body.classList.remove('exam-fullscreen');
+    if (proctor) { proctor.stop(); proctor = null; }
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  }
+
+  // ===================================================================
+  // RESULT SCREEN RENDERING
+  // ===================================================================
+
+  function showResult(r) {
+    lastResult = r;
+    show('s-res');
+    endMonitoring();
+    const box = $('res-container');
+    box.innerHTML = '';
+
+    const totalQ = Number(r.total_questions ?? 25);
+    const correctQ = Number(r.correct_count ?? 0);
+    const totalMarks = Number(r.totalMarks || 100);
+    const totalScore = Number(r.totalScore ?? (correctQ * (totalMarks / Math.max(totalQ, 1))));
+    const passMark = Number(r.passMark || 30);
+    const isQual = Boolean(r.isQualified ?? (totalScore >= passMark));
+
+    const attendedQ = Math.min(totalQ, Math.max(0, Number(r.answeredCount ?? Object.keys(attempt?.answers || {}).length ?? correctQ)));
+    const wrongQ = Number(r.wrongCount ?? Math.max(0, attendedQ - correctQ));
+    const skippedQ = Number(r.unansweredCount ?? Math.max(0, totalQ - attendedQ));
+
+    const scorePct = Math.max(0, Math.min(100, Math.round(Number(r.scorePercent ?? (totalMarks > 0 ? (totalScore / totalMarks) * 100 : 0)))));
+    const attendedPct = totalQ > 0 ? Math.min(100, Math.round((attendedQ / totalQ) * 100)) : 0;
+    const accuracyPct = attendedQ > 0 ? Math.min(100, Math.round((correctQ / attendedQ) * 100)) : 0;
+
+    const ringRadius = 27;
+    const ringCircumference = 2 * Math.PI * ringRadius;
+    const ringOffset = ringCircumference * (1 - scorePct / 100);
+
+    const candName = escHtml(r.candidateName || currentUser?.user_metadata?.full_name || currentUser?.email || 'Candidate');
+    const candUid = escHtml(r.applicationId || 'PGI-W26');
+    const curAttemptId = r.attemptId || attempt?.attemptId || attempt?.id || '';
+    const attemptBadge = escHtml(String(curAttemptId || 'verified').slice(0, 18));
+    const timeFmt = escHtml(formatDuration(r.timeTakenSeconds));
+
+    const coupon = r.coupon || null;
+    lastCoupon = coupon;
+    const isFullGrant = coupon && coupon.discountPercent === 100;
+    const payableText = coupon ? (isFullGrant ? '₹0' : inr(coupon.payablePaise)) : '₹9,999';
+    const subsidyPct = coupon
+      ? Number(coupon.effectiveDiscountPercent ?? (coupon.payablePaise === 119900 ? 88 : coupon.discountPercent || 0))
+      : 0;
+
+    box.innerHTML = `
+      <div class="res-top-bar">
+        <div>
+          <div class="res-verified-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9 12l2 2 4-4"></path>
+            </svg>
+            <span>WINTER COHORT 2026 EVALUATION VERIFIED</span>
+          </div>
+          <h1 class="res-title">${isQual ? 'Institutional Assessment Qualified' : 'Institutional Assessment Completed'}</h1>
+          <p class="res-sub">
+            Candidate <strong>${candName}</strong> (UID: <span class="res-uid">${candUid}</span>)
+            &bull; Attended: <strong>${attendedQ} / ${totalQ} Questions</strong>
+            &bull; Qualifying Mark: ${passMark}/${totalMarks}
+          </p>
+        </div>
+        ${coupon ? `
+          <div class="res-offer-pill" aria-live="polite">
+            <span class="res-offer-dot" aria-hidden="true"></span>
+            <span>OFFER WINDOW:</span>
+            <span class="res-offer-time" id="res-offer-countdown">--:--:--</span>
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="res-two-col">
+        <div class="res-col-left">
+          <div class="res-card res-index-card">
+            <div class="res-index-head">
+              <div>
+                <div class="res-kicker">OVERALL ASSESSMENT SCORE</div>
+                <div class="res-big-score">
+                  <span class="res-big-score-num">${totalScore}</span>
+                  <span class="res-big-score-den">/ ${totalMarks}</span>
+                </div>
+              </div>
+              <div class="res-ring-wrap" aria-label="Score percentage ${scorePct}%">
+                <svg class="res-ring-svg" viewBox="0 0 68 68">
+                  <circle class="res-ring-track" cx="34" cy="34" r="${ringRadius}"></circle>
+                  <circle class="res-ring-fill" cx="34" cy="34" r="${ringRadius}"
+                    stroke-dasharray="${ringCircumference.toFixed(2)}"
+                    stroke-dashoffset="${ringOffset.toFixed(2)}"></circle>
+                </svg>
+                <span class="res-ring-label">${scorePct}%</span>
+              </div>
+            </div>
+
+            <div class="res-sub-stats">
+              <div class="res-stat-box">
+                <div class="res-stat-box-label">QUESTIONS ATTENDED</div>
+                <div class="res-stat-box-val is-green">${attendedQ} / ${totalQ}</div>
+                <div class="res-stat-box-sub">${skippedQ} Unanswered</div>
+              </div>
+              <div class="res-stat-box">
+                <div class="res-stat-box-label">ACCURACY &amp; TIME</div>
+                <div class="res-stat-box-val">${timeFmt}</div>
+                <div class="res-stat-box-sub">${correctQ} Correct, ${wrongQ} Wrong</div>
+              </div>
+            </div>
+
+            <div class="res-bars">
+              <div class="res-bar-item">
+                <div class="res-bar-meta"><span>Questions Attended (${attendedQ}/${totalQ})</span><strong>${attendedPct}%</strong></div>
+                <div class="res-bar-track"><div class="res-bar-fill" style="width:${attendedPct}%"></div></div>
+              </div>
+              <div class="res-bar-item">
+                <div class="res-bar-meta"><span>Total Score (${totalScore}/${totalMarks})</span><strong>${scorePct}%</strong></div>
+                <div class="res-bar-track"><div class="res-bar-fill" style="width:${scorePct}%"></div></div>
+              </div>
+              <div class="res-bar-item">
+                <div class="res-bar-meta"><span>Attempted Accuracy (${correctQ}/${Math.max(attendedQ, 1)})</span><strong>${accuracyPct}%</strong></div>
+                <div class="res-bar-track"><div class="res-bar-fill is-blue" style="width:${accuracyPct}%"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="res-card res-auth-card">
+            <div class="res-auth-seal" aria-hidden="true">PGI</div>
+            <div class="res-auth-text">
+              <h4>
+                <span>EVALUATION AUTHENTICITY</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#066E3C" stroke-width="2.5" aria-hidden="true">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+              </h4>
+              <p>Attempt: ${attemptBadge} &middot; verified by PGI Academic Engine</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="res-col-right">
+          ${coupon ? `
+            <div class="res-card res-voucher-card">
+              <div class="res-voucher-top">
+                <span class="res-kicker res-kicker-green">INSTITUTIONAL GRANT ALLOTMENT</span>
+                <span class="res-subsidy-pill">&bull; ${subsidyPct}% Fellowship Subsidy Applied</span>
+              </div>
+
+              <h2 class="res-voucher-title">Institutional Scholarship Voucher Granted</h2>
+              <p class="res-voucher-desc">
+                ${isFullGrant
+                  ? 'Full merit waiver unlocked for achieving 100/100 with clean proctoring integrity. Zero-fee enrollment is ready below.'
+                  : 'Subsidized cohort matriculation voucher unlocked for your Winter 2026 Internship assessment completion. Complete enrollment below within 24 hours.'}
+              </p>
+
+              <div class="res-fee-grid">
+                <div class="res-fee-col">
+                  <div class="res-kicker">STANDARD TUITION FEE</div>
+                  <div class="res-fee-strike">₹9,999</div>
+                </div>
+                <div class="res-fee-col">
+                  <div class="res-kicker res-kicker-green">FELLOWSHIP SUBSIDIZED RATE</div>
+                  <div class="res-fee-final">${payableText}<span class="res-fee-unit">INR (All Inclusive)</span></div>
+                </div>
+              </div>
+
+              <div class="res-token-box">
+                <div>
+                  <div class="res-kicker">GRANTED TOKEN</div>
+                  <div class="res-token-code" id="res-coupon-code">${escHtml(coupon.code)}</div>
+                </div>
+                <div class="res-token-right">
+                  <span class="res-token-valid">&#10003; Verified Valid</span>
+                  <button type="button" class="res-btn-copy" id="res-copy-coupon">Copy Code</button>
+                </div>
+              </div>
+
+              <div class="res-cta-row">
+                <div id="coupon-actions-wrap"></div>
+                <button type="button" class="res-btn-pdf" id="res-dl-pdf">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  <span>Download Score Report (PDF)</span>
+                </button>
+              </div>
+
+              <p class="res-voucher-foot-note">
+                Voucher tied exclusively to UID <strong>${candUid}</strong>. Valid strictly for 24 hours from completion.
+              </p>
+              <div class="res-share-links">
+                <button type="button" class="res-share-btn" id="res-share-wa">Share on WhatsApp</button>
+                <button type="button" class="res-share-btn" id="res-share-li">Share on LinkedIn</button>
+              </div>
+              <div id="res-rep-msg" class="msg"></div>
+            </div>
+          ` : ''}
+
+          <div class="res-benefits-row">
+            <div class="res-benefit-card">
+              <div class="res-benefit-icon">&#128187;</div>
+              <h4>30-Hour Live Lab</h4>
+              <p>Hands-on winter project modules &amp; guided practice</p>
+            </div>
+            <div class="res-benefit-card">
+              <div class="res-benefit-icon">&#127942;</div>
+              <h4>Pre-Placement</h4>
+              <p>Eligible for Winter 2026 cohort review &amp; evaluation</p>
+            </div>
+            <div class="res-benefit-card">
+              <div class="res-benefit-icon">&#128737;</div>
+              <h4>Verified Certificate</h4>
+              <p>Official Plant Green Inertia completion credential</p>
+            </div>
+            <div class="res-benefit-card">
+              <div class="res-benefit-icon">&#129309;</div>
+              <h4>1-on-1 Mentor</h4>
+              <p>Structured cohort checkpoints &amp; project feedback</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="res-card res-track-footer">
+        <div class="res-track-left">
+          <div class="res-track-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+              <path d="M2 17l10 5 10-5"></path>
+              <path d="M2 12l10 5 10-5"></path>
+            </svg>
+          </div>
+          <div>
+            <h4>Plant Green Inertia Winter Research Track</h4>
+            <p>Proceed to payment above to select your internship track and unlock your cohort dashboard.</p>
+          </div>
+        </div>
+        <div class="res-track-right">
+          <span>Batch Capacity: 40 Seats</span>
+          <span class="res-seats-pill">Enrollment Open</span>
+        </div>
+      </div>
+    `;
+
+    // Bind PDF & social share using shared helpers
+    const pdfBtn = box.querySelector('#res-dl-pdf');
+    if (pdfBtn) pdfBtn.onclick = () => downloadReportPdf(curAttemptId, pdfBtn, 'res-rep-msg');
+    const waBtn = box.querySelector('#res-share-wa');
+    if (waBtn) waBtn.onclick = () => shareAttemptResult(curAttemptId, 'whatsapp', 'res-rep-msg');
+    const liBtn = box.querySelector('#res-share-li');
+    if (liBtn) liBtn.onclick = () => shareAttemptResult(curAttemptId, 'linkedin', 'res-rep-msg');
+
+    if (coupon) {
+      const copyBtn = box.querySelector('#res-copy-coupon');
+      if (copyBtn) {
+        copyBtn.onclick = () => {
+          try {
+            navigator.clipboard.writeText(coupon.code);
+            copyBtn.textContent = 'Copied ✓';
+            setTimeout(() => { copyBtn.textContent = 'Copy Code'; }, 2000);
+          } catch {}
+        };
+      }
+
+      const timerDisp = box.querySelector('#res-offer-countdown');
+      const actionWrap = box.querySelector('#coupon-actions-wrap');
+      clearInterval(couponInterval);
+
+      const updateCouponTimer = () => {
+        const remaining = Math.floor((new Date(coupon.expiresAt) - Date.now()) / 1000);
+        if (coupon.state === 'redeemed') {
+          if (timerDisp) timerDisp.textContent = 'REDEEMED';
+          actionWrap.style.flex = '';
+          actionWrap.innerHTML = '<span class="res-subsidy-pill">Enrolled in Cohort</span>';
+          return;
+        }
+        if (remaining <= 0) {
+          if (timerDisp) {
+            timerDisp.textContent = 'EXPIRED';
+            timerDisp.style.color = '#dc2626';
+          }
+          renderExpiredState(coupon, actionWrap);
+          clearInterval(couponInterval);
+        } else {
+          const h = Math.floor(remaining / 3600);
+          const m = Math.floor((remaining % 3600) / 60);
+          const s = remaining % 60;
+          if (timerDisp) {
+            timerDisp.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+          }
+          if (!actionWrap.querySelector('#btn-choose-course')) {
+            renderActiveState(coupon, actionWrap);
+          }
+        }
+      };
+
+      updateCouponTimer();
+      couponInterval = setInterval(updateCouponTimer, 1000);
+    }
+  }
+
+  function renderActiveState(coupon, wrap) {
+    wrap.style.flex = '';
+    wrap.innerHTML = '';
+    const enrollBtn = document.createElement('button');
+    enrollBtn.type = 'button';
+    enrollBtn.id = 'btn-choose-course';
+    enrollBtn.className = 'res-btn-pay';
+    const priceLbl = coupon.discountPercent === 100 ? '₹0' : inr(coupon.payablePaise);
+    enrollBtn.innerHTML = `<span>Proceed to Subsidized Payment &bull; ${priceLbl}</span><span aria-hidden="true">&rarr;</span>`;
+    enrollBtn.onclick = showCourses;
+    wrap.appendChild(enrollBtn);
+  }
+
+  function renderExpiredState(coupon, wrap) {
+    wrap.style.flex = '1 1 100%';
+    wrap.innerHTML = '';
+    const alertBox = document.createElement('div');
+    alertBox.className = 'expired-alert';
+    const extUsed = coupon.extensionCount || 0;
+    const canExt = coupon.canExtend && extUsed < 2;
+
+    alertBox.innerHTML = `
+      <h3>Coupon Validity Ended</h3>
+      <p style="color:var(--text-muted);font-size:0.9rem;">
+        Payment checkout is locked because the 24-hour window has lapsed.
+      </p>
+      <div class="extension-box">
+        <p style="font-size:0.85rem;font-weight:600;margin-bottom:8px;">
+          Extension requests used: <strong>${extUsed} of 2 allowed</strong>
+        </p>
+        ${canExt
+          ? `<button id="btn-req-ext" class="btn btn-outline" style="border-color:var(--danger);color:var(--danger);">Request 24-Hour Extension (${2 - extUsed} remaining)</button>`
+          : `<p style="color:var(--danger);font-size:0.85rem;font-weight:700;">Maximum student extensions reached. Please contact administration for manual reissue.</p>`}
+      </div>
+      <div id="ext-msg" class="msg"></div>
+    `;
+    wrap.appendChild(alertBox);
+
+    const extBtn = alertBox.querySelector('#btn-req-ext');
+    if (extBtn) {
+      extBtn.onclick = async () => {
+        extBtn.disabled = true;
+        msg('ext-msg', 'Requesting 24-hour extension…', true);
+        try {
+          const res = await api('/coupons/request-extension', { code: coupon.code });
+          coupon.expiresAt = res.expiresAt;
+          coupon.extensionCount = res.extensionCount;
+          coupon.canExtend = (res.extensionsLeft > 0);
+          coupon.state = 'active';
+          msg('ext-msg', 'Extension granted! 24 hours added. Updated voucher emailed to you.', true);
+          setTimeout(() => location.reload(), 1500);
+        } catch (err) {
+          msg('ext-msg', err.message);
+          extBtn.disabled = false;
+        }
+      };
+    }
+  }
+
+  async function downloadReportPdf(curAttemptId, btn, msgId) {
+    if (!curAttemptId) return msg(msgId, 'Report document unavailable');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch(`/api/attempts/${curAttemptId}/report.pdf`, {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      if (!res.ok) throw new Error('Report document unavailable');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'PGI-Winter-Assessment-Report.pdf';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (err) {
+      msg(msgId, err.message);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function shareAttemptResult(curAttemptId, platform, msgId) {
+    if (!curAttemptId) return msg(msgId, 'Share link unavailable');
+    try {
+      const s = await api(`/attempts/${curAttemptId}/share`, {});
+      if (platform === 'whatsapp') {
+        const text = `${s.text}\n\n📄 My Official Assessment Report: ${s.url}`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+      } else {
+        const text = `${s.text}\n\n📄 Verification Link: ${s.url}`;
+        window.open(`https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`, '_blank');
+      }
+    } catch (err) {
+      msg(msgId, err.message);
+    }
+  }
+
+  // Report & Sharing (used in Dashboard fallback)
+  function addReport(box) {
+    const reportCard = document.createElement('div');
+    reportCard.className = 'card';
+    reportCard.style.marginTop = '24px';
+    reportCard.innerHTML = `
+      <div class="card-head" style="margin-bottom:14px;padding-bottom:10px;">
+        <h3 style="color:var(--navy);font-size:1.15rem;">Official Assessment Documentation</h3>
+        <p class="subtitle" style="font-size:0.85rem;">Download your verified Plant Green Inertia score transcript with proctoring integrity seal.</p>
+      </div>
+      <div class="report-row">
+        <button id="btn-dl-pdf" class="btn btn-outline">Download PDF Report</button>
+        <button id="btn-share-wa" class="btn btn-outline">Share on WhatsApp</button>
+        <button id="btn-share-li" class="btn btn-outline">Share on LinkedIn</button>
+      </div>
+      <div id="rep-msg" class="msg" style="text-align:center;"></div>
+    `;
+    box.appendChild(reportCard);
+
+    const curAttemptId = attempt?.attemptId || attempt?.id;
+    const dlBtn = reportCard.querySelector('#btn-dl-pdf');
+    dlBtn.onclick = () => downloadReportPdf(curAttemptId, dlBtn, 'rep-msg');
+    reportCard.querySelector('#btn-share-wa').onclick = () => shareAttemptResult(curAttemptId, 'whatsapp', 'rep-msg');
+    reportCard.querySelector('#btn-share-li').onclick = () => shareAttemptResult(curAttemptId, 'linkedin', 'rep-msg');
+  }
+
+  // ===================================================================
+  // COURSE SELECTION & CHECKOUT (STITCH REMITTANCE)
+  // ===================================================================
+
+  const RAZORPAY_METHOD_LABELS = {
+    upi: 'UPI',
+    card: 'Cards',
+    netbanking: 'Netbanking',
+    wallet: 'Wallets'
+  };
+
+  function payButtonMarkup(label) {
+    return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><span>${escHtml(label)}</span>`;
+  }
+
+  function resolveCheckoutPricing(coupon) {
+    const basePaise = DEFAULT_TUITION_PAISE;
+    if (!coupon) {
+      return { basePaise, payablePaise: basePaise, discountPaise: 0, subsidyPct: 0, isFree: false };
+    }
+    const rawPayable = Number.isFinite(coupon.payablePaise)
+      ? Number(coupon.payablePaise)
+      : (coupon.discountPercent === 100 ? 0 : coupon.discountPercent === 90 ? 99900 : 119900);
+    const payablePaise = Math.max(0, rawPayable);
+    const discountPaise = Number.isFinite(coupon.discountPaise)
+      ? Math.max(0, Number(coupon.discountPaise))
+      : Math.max(0, basePaise - payablePaise);
+    const subsidyPct = Number(
+      coupon.effectiveDiscountPercent ?? (payablePaise === 0 ? 100 : payablePaise === 99900 ? 90 : 88)
+    );
+    return { basePaise, payablePaise, discountPaise, subsidyPct, isFree: payablePaise === 0 };
+  }
+
+  function startCheckoutExpiryTimer(expiresAtIso) {
+    if (checkoutExpiryInterval) {
+      clearInterval(checkoutExpiryInterval);
+      checkoutExpiryInterval = null;
+    }
+    const wrap = $('co-expiry-wrap');
+    const timerEl = $('co-expiry-timer');
+    if (!wrap || !timerEl) return;
+
+    const endMs = expiresAtIso ? new Date(expiresAtIso).getTime() : NaN;
+    if (!Number.isFinite(endMs)) {
+      wrap.classList.add('hidden');
+      return;
+    }
+    wrap.classList.remove('hidden');
+
+    const tick = () => {
+      const rem = Math.max(0, Math.floor((endMs - Date.now()) / 1000));
+      const h = Math.floor(rem / 3600);
+      const m = Math.floor((rem % 3600) / 60);
+      const s = rem % 60;
+      timerEl.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      if (rem <= 0 && checkoutExpiryInterval) {
+        clearInterval(checkoutExpiryInterval);
+        checkoutExpiryInterval = null;
+      }
+    };
+    tick();
+    checkoutExpiryInterval = setInterval(tick, 1000);
+  }
+
+  async function showCourses() {
+    show('s-courses');
+    ensureRazorpay();
+    if ($('btn-back-result')) $('btn-back-result').classList.toggle('hidden', !lastResult);
+    const c = lastCoupon;
+    $('c-coupon').textContent = c?.code
+      ? `Voucher ${c.code} ready (${c.discountPercent === 100 ? '₹0 Free' : inr(c.payablePaise)}). Select your internship domain below — default checkout fee is ₹9,999 until you apply your coupon.`
+      : 'Standard cohort tuition is ₹9,999. Select your internship domain below to proceed to remittance.';
+    msg('c-msg', '');
+
+    const list = $('course-list');
+    list.innerHTML = '<div class="loading-card"><div class="spinner"></div><p>Loading course curricula…</p></div>';
+
+    try {
+      const courses = await api('/courses');
+      list.innerHTML = '';
+      if (!courses.length) {
+        list.innerHTML = '<p>No training tracks are currently open for registration.</p>';
+        return;
+      }
+
+      courses.forEach(k => {
+        const card = document.createElement('div');
+        card.className = 'course-card';
+
+        const voucherLine = c?.code
+          ? `<div style="font-size:0.84rem;color:var(--text-muted);margin-top:4px;">With voucher <code>${escHtml(c.code)}</code>: <strong style="color:var(--plant-green);">${c.discountPercent === 100 ? '₹0 (100% Free)' : inr(c.payablePaise)}</strong></div>`
+          : '';
+
+        card.innerHTML = `
+          <div>
+            <span class="step-chip">${escHtml(k.duration || '30 Hours')}</span>
+            <h2>${escHtml(k.title)}</h2>
+            <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:12px;">${escHtml(k.description || '')}</p>
+            ${k.skills?.length ? `<p style="font-size:0.85rem;color:var(--navy);margin-bottom:8px;"><strong>Curriculum:</strong> ${escHtml(k.skills.join(', '))}</p>` : ''}
+            <div class="course-fee">
+              Tuition Fee: <strong>₹9,999</strong>
+              ${voucherLine}
+            </div>
+          </div>
+        `;
+
+        const enrollBtn = document.createElement('button');
+        enrollBtn.type = 'button';
+        enrollBtn.className = 'btn btn-primary';
+        enrollBtn.style.width = '100%';
+        enrollBtn.textContent = 'Select Domain & Proceed to Payment →';
+        enrollBtn.onclick = () => openCheckoutModal(k);
+
+        card.appendChild(enrollBtn);
+        list.appendChild(card);
+      });
+    } catch (err) {
+      list.innerHTML = `<p class="err">${escHtml(err.message)}</p>`;
+    }
+  }
+
+  function openCheckoutModal(course) {
+    if (!$('s-checkout') || !course) return;
+    ensureRazorpay();
+    show('s-checkout');
+
+    let appliedCoupon = null;
+    let selectedMethod = 'upi';
+    let lastOrderId = null;
+
+    const candName = currentUser?.profile?.full_name
+      || currentUser?.user_metadata?.full_name
+      || lastResult?.candidateName
+      || currentUser?.email
+      || 'Candidate';
+    const candEmail = currentUser?.email || $('user-display')?.textContent || '';
+    const candUid = lastResult?.applicationId
+      || currentUser?.applicationId
+      || currentUser?.batchRegistration?.application_id
+      || 'PGI-W26';
+
+    $('co-cand-name').textContent = candName;
+    $('co-cand-uid').textContent = `UID: ${candUid}`;
+    $('cm-course-title').textContent = course.title || 'Winter Internship Track';
+    $('cm-course-duration').textContent = course.duration || '30 Hours';
+    $('co-rzp-user-info').textContent = candEmail ? `${candName} · ${candEmail}` : candName;
+
+    const couponInput = $('co-coupon-input');
+    const applyBtn = $('co-coupon-apply');
+    const removeBtn = $('co-coupon-remove');
+    const hintEl = $('co-coupon-hint');
+    const payBtn = $('cm-pay-now');
+    const methodsList = $('co-methods-list');
+
+    if (couponInput) couponInput.value = '';
+    msg('co-coupon-msg', '');
+    msg('cm-msg', '');
+    if (payBtn) payBtn.disabled = false;
+
+    if (hintEl) {
+      const hasHint = Boolean(lastCoupon?.code);
+      hintEl.classList.toggle('hidden', !hasHint);
+      hintEl.innerHTML = hasHint
+        ? `Have your scholarship coupon (<code>${escHtml(lastCoupon.code)}</code>)? Enter it above and click Apply.`
+        : '';
+    }
+
+    const methodItems = methodsList ? Array.from(methodsList.querySelectorAll('.remit-method-item')) : [];
+    const syncMethodSelection = method => {
+      selectedMethod = RAZORPAY_METHOD_LABELS[method] ? method : 'upi';
+      methodItems.forEach(item => {
+        const active = item.dataset.method === selectedMethod;
+        item.classList.toggle('is-selected', active);
+        const radio = item.querySelector('input[type="radio"]');
+        if (radio) radio.checked = active;
+      });
+      if (!lastOrderId && $('co-order-ref')) {
+        const pricing = resolveCheckoutPricing(appliedCoupon);
+        $('co-order-ref').textContent = pricing.isFree
+          ? 'Zero-fee 100% merit waiver — instant activation without gateway charge'
+          : `Gateway: Razorpay · Method: ${RAZORPAY_METHOD_LABELS[selectedMethod]}`;
+      }
+    };
+
+    methodItems.forEach(item => {
+      item.onclick = () => syncMethodSelection(item.dataset.method);
+      const radio = item.querySelector('input[type="radio"]');
+      if (radio) {
+        radio.onchange = () => syncMethodSelection(item.dataset.method);
+      }
+    });
+
+    const renderCheckoutPricing = () => {
+      const p = resolveCheckoutPricing(appliedCoupon);
+      const pill = $('co-subsidy-pill');
+      if (pill) {
+        pill.classList.toggle('is-applied', Boolean(appliedCoupon));
+        pill.textContent = appliedCoupon
+          ? `${p.subsidyPct}% Scholarship Applied`
+          : 'Standard Tuition · No Coupon Applied';
+      }
+
+      $('cm-base-price').textContent = inr(p.basePaise);
+      $('cm-base-price').classList.toggle('is-struck', Boolean(appliedCoupon));
+      $('cm-coupon-code').textContent = appliedCoupon
+        ? `(${appliedCoupon.code})`
+        : '';
+      $('cm-discount').textContent = appliedCoupon
+        ? `-${inr(p.discountPaise)}`
+        : '₹0';
+      $('cm-payable').textContent = p.isFree ? '₹0 (Free)' : inr(p.payablePaise);
+      $('co-rzp-payable').textContent = p.isFree ? '₹0.00' : inrDecimal(p.payablePaise);
+
+      if (removeBtn) removeBtn.classList.toggle('hidden', !appliedCoupon);
+      if (payBtn) {
+        const btnText = p.isFree
+          ? 'Confirm Free Enrollment (100% Scholarship)'
+          : `Pay ${inr(p.payablePaise)}`;
+        payBtn.innerHTML = payButtonMarkup(btnText);
+      }
+
+      if (!lastOrderId && $('co-order-ref')) {
+        $('co-order-ref').textContent = p.isFree
+          ? 'Zero-fee 100% merit waiver — instant activation without gateway charge'
+          : `Gateway: Razorpay · Method: ${RAZORPAY_METHOD_LABELS[selectedMethod]}`;
+      }
+
+      startCheckoutExpiryTimer(appliedCoupon?.expiresAt || lastCoupon?.expiresAt || null);
+    };
+
+    const applyCouponHandler = async () => {
+      const code = String(couponInput?.value || '').trim().toUpperCase();
+      if (!code) {
+        msg('co-coupon-msg', 'Please enter a valid scholarship coupon code.');
+        return;
+      }
+      if (applyBtn) {
+        applyBtn.disabled = true;
+        applyBtn.textContent = 'Applying…';
+      }
+      msg('co-coupon-msg', '');
+      try {
+        const res = await api('/coupons/validate', { code, email: candEmail });
+        if (!res.valid) {
+          msg('co-coupon-msg', res.reason || 'Coupon code is invalid or expired for your account.');
+          return;
+        }
+        appliedCoupon = res;
+        lastOrderId = null;
+        if (couponInput) couponInput.value = res.code || code;
+        renderCheckoutPricing();
+        const payableTxt = res.payablePaise === 0 ? '₹0 (100% Free)' : inr(res.payablePaise);
+        msg('co-coupon-msg', `Coupon ${res.code} applied! Payable fee updated to ${payableTxt}.`, true);
+      } catch (err) {
+        msg('co-coupon-msg', err.message || 'Unable to validate coupon right now.');
+      } finally {
+        if (applyBtn) {
+          applyBtn.disabled = false;
+          applyBtn.textContent = 'Apply';
+        }
+      }
+    };
+
+    if (applyBtn) applyBtn.onclick = applyCouponHandler;
+    if (couponInput) {
+      couponInput.onkeydown = e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          applyCouponHandler();
+        }
+      };
+    }
+
+    if (removeBtn) {
+      removeBtn.onclick = () => {
+        appliedCoupon = null;
+        lastOrderId = null;
+        if (couponInput) couponInput.value = '';
+        msg('co-coupon-msg', 'Coupon removed. Fee reverted to standard ₹9,999.', true);
+        renderCheckoutPricing();
+      };
+    }
+
+    $('cm-cancel').onclick = () => {
+      if (checkoutExpiryInterval) {
+        clearInterval(checkoutExpiryInterval);
+        checkoutExpiryInterval = null;
+      }
+      showCourses();
+    };
+
+    syncMethodSelection('upi');
+    renderCheckoutPricing();
+
+    payBtn.onclick = async () => {
+      payBtn.disabled = true;
+      msg('cm-msg', 'Initializing secure Razorpay gateway…', true);
+
+      try {
+        const payload = { courseId: course.id };
+        if (appliedCoupon?.code) payload.couponCode = appliedCoupon.code;
+        const ord = await api('/checkout/create', payload);
+
+        if (ord.status === 'enrolled') {
+          if (checkoutExpiryInterval) {
+            clearInterval(checkoutExpiryInterval);
+            checkoutExpiryInterval = null;
+          }
+          return boot();
+        }
+
+        lastOrderId = ord.orderId;
+        if ($('co-order-ref')) $('co-order-ref').textContent = `Order ID: ${ord.orderId}`;
+
+        if (!(await ensureRazorpay())) {
+          throw new Error('Payment gateway failed to load. Check your internet connection.');
+        }
+
+        const prefillProfile = currentUser?.profile || {};
+        const rz = new Razorpay({
+          key: ord.keyId,
+          amount: ord.amount,
+          currency: ord.currency,
+          order_id: ord.orderId,
+          name: 'Plant Green Inertia',
+          description: `Winter Internship: ${course.title}`,
+          prefill: {
+            name: prefillProfile.full_name || candName || '',
+            email: candEmail,
+            contact: prefillProfile.phone || '',
+            method: selectedMethod
+          },
+          theme: { color: '#0F1B33' },
+          handler: resp => {
+            verifyPayment(resp);
+          },
+          modal: {
+            ondismiss: () => {
+              msg('cm-msg', 'Payment window closed. You can switch method or retry below.');
+              payBtn.disabled = false;
+            }
+          }
+        });
+
+        rz.on('payment.failed', async r => {
+          const desc = r.error?.description || 'Payment failed. Please retry with another payment method.';
+          msg('cm-msg', desc);
+          payBtn.disabled = false;
+          try {
+            await api('/checkout/failed', {
+              razorpay_order_id: ord.orderId,
+              payment_id: r.error?.metadata?.payment_id,
+              error: r.error
+            });
+          } catch {}
+        });
+
+        rz.open();
+        msg('cm-msg', '');
+      } catch (err) {
+        msg('cm-msg', err.message || 'Could not start checkout.');
+        payBtn.disabled = false;
+      }
+    };
+  }
+
+  async function checkoutCourse(course) {
+    openCheckoutModal(course);
+  }
+
+  async function verifyPayment(resp) {
+    show('loading');
+    $('loading-text').textContent = 'Verifying payment with banking servers… please keep this window open.';
+    for (let i = 0; i < 10; i++) {
+      try {
+        const v = await api('/checkout/verify', resp);
+        if (v.status === 'enrolled') return boot();
+        if (v.status === 'failed') {
+          show('s-courses');
+          return msg('c-msg', 'Payment verification failed. Please contact support or retry.');
+        }
+      } catch (err) {
+        if (err.status === 400 || err.status === 404) {
+          show('s-courses');
+          return msg('c-msg', err.message);
+        }
+      }
+      await new Promise(r => setTimeout(r, 2500));
+    }
+    show('s-courses');
+    msg('c-msg', 'Payment verification queued. If debited, your enrollment will reflect shortly. Refresh to view.', true);
+  }
+
+  // Student Dashboard
+  async function showDashboard(d) {
+    show('s-dash');
+    const box = $('dash');
+    box.innerHTML = '';
+    const e = d.enrollment;
+    const studentId = e.studentId || d.studentId || 'Assigned';
+    const receiptNo = e.receiptNo || 'REC-PGI-W26';
+
+    const dashContainer = document.createElement('div');
+    dashContainer.style.maxWidth = '1180px';
+    dashContainer.style.margin = '0 auto';
+
+    dashContainer.innerHTML = `
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;border-bottom:1px solid var(--border-subtle);padding-bottom:12px;">
+          <div>
+            <span class="step-chip" style="margin-bottom:6px;">Enrolled Candidate</span>
+            <h2 style="color:var(--plant-green);font-size:1.35rem;margin:0;">✓ Enrolment Active &amp; Confirmed</h2>
+          </div>
+          <a href="dashboard.html" class="btn btn-primary" style="padding:8px 16px;font-size:0.9rem;">
+            Open 13-Module Dedicated Portal &rarr;
+          </a>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px;margin-bottom:18px;">
+          <p><strong>Candidate:</strong> ${d.profile?.full_name || 'Candidate'} (${d.email})</p>
+          <p><strong>Official Student ID:</strong> <code style="font-weight:700;color:var(--plant-green);font-size:1.05rem;">${studentId}</code></p>
+          <p><strong>Track:</strong> ${e.course.title}</p>
+          <p><strong>Cohort Duration:</strong> ${e.course.duration || '30 Hours'}</p>
+          <p><strong>Status:</strong> <span style="color:var(--plant-green);font-weight:700;">${e.status.toUpperCase()}</span> &middot; ${e.kind === 'free' ? '100% Scholarship' : 'Paid Enrollment (' + inr(e.amountPaise) + ')'}</p>
+          <p><strong>Receipt Number:</strong> <code>${receiptNo}</code></p>
+          <p><strong>Razorpay Payment Ref:</strong> <code>${e.transactionRef}</code></p>
+          <p><strong>Enrolled On:</strong> ${new Date(e.enrolledAt).toLocaleString('en-IN')}</p>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:18px;">
+          <button id="btn-receipt-pdf" class="btn btn-outline">&#128196; Download Payment Receipt (PDF)</button>
+          <button id="btn-offer-letter" class="btn btn-outline">&#127881; Download Official Offer Letter (PDF)</button>
+          <button id="btn-portal-report" class="btn btn-outline">&#128203; Download 1-Page Project Report (PDF)</button>
+          <a href="dashboard.html" class="btn btn-primary">&#128202; Access Full Student Dashboard</a>
+        </div>
+        <div id="dash-doc-msg" class="msg" style="margin-top:12px;"></div>
+      </div>
+
+      <!-- Integrated Attendance Preview (Linked by Student ID) -->
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;border-bottom:1px solid var(--border-subtle);padding-bottom:10px;">
+          <div>
+            <h3 style="font-family:var(--font-display);font-size:1.2rem;color:var(--navy);margin:0 0 4px;">Integrated Attendance Register</h3>
+            <p style="font-size:0.85rem;color:var(--text-muted);margin:0;">Linked strictly by <strong>Student ID (<code style="color:var(--plant-green);">${studentId}</code>)</strong> &middot; Real-time sync</p>
+          </div>
+          <span class="step-chip" id="portal-att-sync-badge">30-Hour Verified Clock</span>
+        </div>
+        
+        <div class="telemetry-grid" style="margin-bottom:16px;">
+          <div class="telemetry-tile">
+            <span class="tile-title">Attendance Ratio</span>
+            <span class="tile-val" id="portal-att-pct" style="color:var(--plant-green);">100%</span>
+            <span class="tile-sub">Min 75% required</span>
+          </div>
+          <div class="telemetry-tile">
+            <span class="tile-title">Completed Hours</span>
+            <span class="tile-val" id="portal-att-hours">0 / 30 hrs</span>
+            <span class="tile-sub">Authoritative DB clock</span>
+          </div>
+          <div class="telemetry-tile">
+            <span class="tile-title">Present Days</span>
+            <span class="tile-val" id="portal-att-present" style="color:var(--plant-green);">0 Days</span>
+            <span class="tile-sub">Biometric verified</span>
+          </div>
+          <div class="telemetry-tile">
+            <span class="tile-title">Absent Days</span>
+            <span class="tile-val" id="portal-att-absent" style="color:var(--danger);">0 Days</span>
+            <span class="tile-sub">Total records</span>
+          </div>
+        </div>
+
+        <div class="attendance-table-wrap">
+          <table class="attendance-table">
+            <thead>
+              <tr>
+                <th>Day #</th>
+                <th>Date</th>
+                <th>Session Title</th>
+                <th>Mode</th>
+                <th>Hours</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="portal-att-table-body">
+              <tr><td colspan="6" style="text-align:center;padding:16px;">Loading verified attendance records…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    box.appendChild(dashContainer);
+
+    // Event listeners
+    dashContainer.querySelector('#btn-receipt-pdf').onclick = async () => {
+      const btn = dashContainer.querySelector('#btn-receipt-pdf');
+      btn.disabled = true;
+      msg('dash-doc-msg', 'Generating official payment receipt PDF…', true);
+      try {
+        const res = await fetch(`/api/enrollments/${e.id}/receipt.pdf`, {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Receipt document unavailable');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `PGI-Payment-Receipt-${receiptNo}.pdf`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        msg('dash-doc-msg', 'Receipt downloaded successfully.', true);
+      } catch (err) {
+        msg('dash-doc-msg', err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    dashContainer.querySelector('#btn-offer-letter').onclick = async () => {
+      const res = await fetch('/api/offer-letter', { headers: { Authorization: 'Bearer ' + token } });
+      if (!res.ok) return alert('Offer letter document unavailable');
+      const blob = await res.blob();
+      const u = URL.createObjectURL(blob);
+      window.open(u);
+    };
+
+    dashContainer.querySelector('#btn-portal-report').onclick = async () => {
+      const btn = dashContainer.querySelector('#btn-portal-report');
+      btn.disabled = true;
+      msg('dash-doc-msg', 'Generating complimentary 1-page project report…', true);
+      try {
+        const res = await fetch('/api/student/project-report.pdf', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Report generation failed');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `PGI-Project-Report-${studentId}.pdf`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        msg('dash-doc-msg', '1-Page Project Report downloaded successfully.', true);
+      } catch (err) {
+        msg('dash-doc-msg', err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    // Load Attendance into table
+    try {
+      const attRes = await fetch('/api/student/attendance', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      if (attRes.ok) {
+        const attData = await attRes.json();
+        const stats = attData.stats || {};
+        $('portal-att-pct').textContent = `${stats.attendancePercentage || 100}%`;
+        $('portal-att-hours').textContent = `${stats.completedHours || 0} / 30 hrs`;
+        $('portal-att-present').textContent = `${stats.presentDays || 0} Days`;
+        $('portal-att-absent').textContent = `${stats.absentDays || 0} Days`;
+
+        const rows = (attData.records || []).map(r => `
+          <tr>
+            <td><strong>Day ${r.day_number || 1}</strong></td>
+            <td>${r.date || '—'}</td>
+            <td>${r.session_title || 'Internship Training Lab'}</td>
+            <td>${r.mode || 'Online'}</td>
+            <td><strong>${r.hours_logged || 3} hrs</strong></td>
+            <td><span class="att-pill ${r.status === 'present' ? 'present' : 'absent'}">${(r.status || 'present').toUpperCase()}</span></td>
+          </tr>
+        `).join('');
+
+        const tBody = $('portal-att-table-body');
+        if (tBody) tBody.innerHTML = rows || '<tr><td colspan="6" style="text-align:center;">No records.</td></tr>';
+      }
+    } catch (err) {
+      console.warn('[Portal Attendance Load]', err);
+    }
+
+    if (d.attempt) addReport(box);
+  }
+
+  // ===================================================================
+  // BOOTSTRAPPER
+  // ===================================================================
+
+  async function boot() {
+    const qParams = new URLSearchParams(window.location.search);
+    const qEmail = qParams.get('email');
+    const qAppId = qParams.get('appId');
+    const qRef = qParams.get('ref');
+
+    if (qRef) {
+      sessionStorage.setItem('pgi_referral', qRef);
+      localStorage.setItem('pgi_referral', qRef);
+    }
+    if (!manualAuthCompleted) {
+      if ((qEmail || qAppId) && $('email') && !$('email').value) {
+        $('email').value = qEmail || qAppId;
+      }
+      if (qAppId) {
+        sessionStorage.setItem('pgi_application_id', qAppId);
+        localStorage.setItem('pgi_application_id', qAppId);
+      }
+    }
+
+    let activeSession = null;
+    let bootData = null;
+
+    if (!manualAuthCompleted && window.__pgiBootPromise && window.__pgiBootToken) {
+      token = window.__pgiBootToken;
+      activeSession = { access_token: window.__pgiBootToken, user: { email: window.__pgiBootEmail || '' } };
+      $('logout').classList.remove('hidden');
+      if (activeSession.user.email) $('user-display').textContent = activeSession.user.email;
+      try {
+        bootData = await window.__pgiBootPromise;
+      } catch (statusOrErr) {
+        window.__pgiBootPromise = null;
+        window.__pgiBootToken = null;
+        activeSession = null;
+        token = null;
+        if (statusOrErr === 401) clearStoredAuth();
+      }
+    }
+
+    if (!activeSession) {
+      const storedToken = sessionStorage.getItem('pgi_student_token') || localStorage.getItem('pgi_student_token');
+      const storedEmail = (sessionStorage.getItem('pgi_student_email') || localStorage.getItem('pgi_student_email') || '').toLowerCase();
+      if (storedToken && (manualAuthCompleted || !qEmail || storedEmail === qEmail.trim().toLowerCase())) {
+        activeSession = { access_token: storedToken, user: { email: storedEmail } };
+      }
+    }
+
+    if (!activeSession) {
+      const client = await ensureSb();
+      if (client) {
+        const { data } = await client.auth.getSession();
+        activeSession = data.session;
+        if (!manualAuthCompleted && activeSession && qEmail && activeSession.user?.email?.toLowerCase() !== qEmail.trim().toLowerCase()) {
+          clearStoredAuth();
+          await client.auth.signOut().catch(() => {});
+          activeSession = null;
+        }
+      }
+    }
+
+    if (!activeSession) {
+      $('logout').classList.add('hidden');
+      $('user-display').textContent = '';
+      const preferRegister = qParams.get('mode') === 'register';
+      setAuthMode(preferRegister ? 'register' : 'login');
+      if (!preferRegister && (qAppId || qEmail)) {
+        msg('auth-msg', 'Enter your Date of Birth (DD/MM/YYYY) to verify and proceed to Proctor Check.', true);
+      }
+      return show('s-auth');
+    }
+
+    token = activeSession.access_token;
+    $('logout').classList.remove('hidden');
+    if (activeSession.user?.email) $('user-display').textContent = activeSession.user.email;
+
+    try {
+      const { me, dashboard: d, completedResult } = bootData || await api('/portal/boot');
+      currentUser = me;
+      if (me.email) $('user-display').textContent = me.email;
+      if (!me.profile?.full_name || !me.profile?.phone) {
+        const pp = JSON.parse(localStorage.getItem('pendingProfile') || 'null');
+        if (pp) {
+          try {
+            await api('/profile', { fullName: pp.name, phone: pp.phone });
+            localStorage.removeItem('pendingProfile');
+            window.__pgiBootPromise = null;
+            return boot();
+          } catch {}
+        }
+        $('p-name').value = me.profile?.full_name || '';
+        return show('s-profile');
+      }
+
+      if (d.enrollment) {
+        pendingPaymentRedirect = false;
+        return showDashboard(d);
+      }
+
+      if (pendingPaymentRedirect) {
+        pendingPaymentRedirect = false;
+        if (completedResult) {
+          endMonitoring();
+          lastResult = completedResult;
+          lastCoupon = completedResult.coupon;
+          if (completedResult.coupon?.state === 'active') return showCourses();
+          return showResult(completedResult);
+        }
+        const payRes = await api('/assessment/payment-eligibility');
+        if (payRes.completed && payRes.result) {
+          endMonitoring();
+          lastResult = payRes.result;
+          lastCoupon = payRes.result.coupon;
+          if (payRes.result.coupon?.state === 'active') return showCourses();
+          return showResult(payRes.result);
+        }
+        show('s-inst');
+        initPreFlightProctor(me);
+        const notice = payRes.message || 'No completed assessment found for your account yet. Complete Proctor Verification and submit the assessment first.';
+        setPvPaymentAlert(notice);
+        msg('inst-msg', notice, false);
+        return;
+      }
+
+      if (me.attempt && me.attempt.status !== 'in_progress' && !me.canRetry) {
+        return showResult(completedResult || await api(`/attempts/${me.attempt.id}/result`));
+      }
+
+      setPvPaymentAlert('');
+      show('s-inst');
+      initPreFlightProctor(me);
+      if (me.canRetry) {
+        msg('inst-msg', 'Your cohort retry period is now open — you may attempt the assessment.', true);
+      } else if (me.attempt && me.attempt.status === 'in_progress') {
+        msg('inst-msg', 'You have an active assessment in progress. Verify your camera and click start to resume.', true);
+      }
+    } catch (err) {
+      if (err.status === 401) {
+        clearStoredAuth();
+        if (sb) await sb.auth.signOut().catch(() => {});
+        return boot();
+      }
+      $('loading-text').textContent = err.message;
+      show('loading');
+    }
+  }
+
+  if (hasCachedSession) {
     await boot();
-  } catch (e) { msg('auth-msg', e.message); } finally { $('auth-go').disabled = false; }
-};
-$('logout').onclick = async () => { await sb.auth.signOut(); location.reload(); };
-$('p-save').onclick = async () => { try { $('p-save').disabled = true; await api('/profile', { fullName: $('p-name').value.trim(), phone: $('p-phone').value.trim() }); await boot(); } catch (e) { msg('p-msg', e.message); } finally { $('p-save').disabled = false; } };
-async function startCamera() {
-  if (stream) return true;
-  try { stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false }); stream.getVideoTracks()[0].addEventListener('ended', () => live() && violation('camera_unavailable')); $('prev').srcObject = stream; $('pvid').srcObject = stream; $('prev').classList.remove('hidden'); try { micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true } }); } catch { micStream = null; }
-    msg('cam-msg', 'Camera is working.' + (micStream ? ' Microphone is on (used only to detect voices or loud noise; nothing is recorded).' : ' Microphone not available, so the voice check is off.'), true); return true; }
-  catch { msg('cam-msg', cfg.requireCamera ? 'Camera access is required for this test. Allow camera permission in your browser settings, then click the button again.' : 'Camera unavailable. You may continue, but this will be logged and reviewed by admins.'); return false; }
-}
-const gate = () => $('begin').disabled = !($('agree').checked && (enrolled || !cfg.requireCamera));
-async function verifyFace() { if (enrolled) return; $('cam-go').disabled = true; msg('face-msg', 'Loading face verification…', true);
-  try { proctor ||= await (await import('/static/js/proctor.js')).createProctor($('prev')); msg('face-msg', 'Look straight at the camera and stay still…', true);
-    enrolled = await proctor.enroll(t => msg('face-msg', t, true)); msg('face-msg', enrolled ? 'Face verified ✓ You can start the test.' : 'Could not verify your face. Improve the lighting and try again.', enrolled);
-  } catch (e) { msg('face-msg', cfg.requireCamera ? 'Face verification could not start (' + e.message + ') Check your connection and try again.' : 'Face detection is unavailable; the test will continue with limited monitoring.', !cfg.requireCamera); }
-  $('cam-go').disabled = false; gate(); }
-$('cam-go').onclick = async () => { if (await startCamera()) verifyFace(); };
-$('agree').onchange = gate;
-$('begin').onclick = async () => {
-  try { document.fullscreenEnabled && document.documentElement.requestFullscreen().catch(() => {}); } catch {} // needs the click gesture, so before any await
-  $('begin').disabled = true; const ok = await startCamera(); if (!ok && cfg.requireCamera) { $('begin').disabled = false; return; }
-  try { attempt = await api('/attempts/start', await deviceInfo()); runTest(); if (!ok) violation('camera_unavailable'); }
-  catch (e) { msg('inst-msg', e.message); $('begin').disabled = false; }
-};
-function clean(html) { const d = new DOMParser().parseFromString(html, 'text/html'), out = document.createDocumentFragment();
-  (function walk(n, to) { n.childNodes.forEach(c => { if (c.nodeType === 3) to.appendChild(document.createTextNode(c.textContent)); else if (['PRE', 'CODE', 'B', 'I', 'BR'].includes(c.nodeName)) { const e = document.createElement(c.nodeName); to.appendChild(e); walk(c, e); } else walk(c, to); }); })(d.body, out); return out; }
-function runTest() {
-  attemptId = attempt.attemptId; warnings = attempt.violations || 0; updWarn(); show('s-test'); $('pvid').classList.remove('hidden'); skew = new Date(attempt.serverTime) - Date.now();
-  bk.startTest();
-  updProg(); tick(); timerH = setInterval(tick, 500);
-  if (proctor && enrolled) proctor.start(violation, (t, ok) => { $('mon').textContent = t; $('mon').className = ok ? 'ok' : 'err'; }, micStream);
-}
-
-// ---- Book UI: every assessment step is a page. Presentation only; existing handlers/logic are untouched. ----
-let bk = null;
-const BOOK = { 's-auth': 'auth', 's-profile': 'profile', 's-inst': 'rules', 's-res': 'res' };
-function initBook() {
-  const E = (t, c, p) => { const e = document.createElement(t); if (c) e.className = c; if (p) p.appendChild(e); return e; };
-  const root = E('div', 'hidden'); root.id = 'bookroot'; $('s-test').after(root);
-  const wrap = E('div', 'book-wrap', root), stage = E('div', 'book', wrap), nav = E('div', 'book-nav', wrap);
-  const prev = E('button', 'alt', nav), info = E('span', 'book-info', nav), next = E('button', '', nav);
-  nav.insertBefore($('pvid'), next); prev.textContent = '‹ Previous'; next.textContent = 'Next ›'; info.setAttribute('aria-live', 'polite');
-  const q = E('span'); q.id = 'qpos'; $('prog').before(q);
-  const lb = E('div', 'lbase', stage); lb.innerHTML = '<div class="verso"><div class="orn">❖ ✦ ❖</div><div class="vt">Diwali<br>Scholarship Assessment</div><div class="orn">❖ ✦ ❖</div></div>'; E('div', 'spine', stage);
-  const two = matchMedia('(min-width:900px)'), sync = () => stage.classList.toggle('spread', two.matches);
-  const rmq = matchMedia('(prefers-reduced-motion: reduce)'), B = bk = { L: [], cur: 0, busy: false, drag: null, shown: false, N: 0 };
-  const mk = (key, title, nodes) => { const el = E('div', 'leaf off', stage), f = E('div', 'face front', el); el.dataset.key = key; const bf = E('div', 'face back', el); bf.innerHTML = '<div class="verso"><div class="orn">❖</div><div class="vt"></div><div class="orn">✦ ✦ ✦</div></div>'; E('div', 'shade', bf); const shade = E('div', 'shade', f);
-    const pg = E('div', 'pg', f), foot = E('div', 'folio', f); nodes.forEach(n => pg.appendChild(n)); return { key, title, el, pg, foot, shade, avail: false }; };
-  const sec = id => { const e = $(id); e.className = 'bpage'; return [e]; };
-  const si = $('s-inst'), h1 = si.querySelector('h1'), ul = si.querySelector('ul'), rest = [...si.children].filter(c => c !== h1 && c !== ul), ch = E('h2'); ch.textContent = 'Camera & face verification';
-  const rv = E('div'); rv.innerHTML = '<h2>Review &amp; submit</h2><p id="bk-rev"></p><div class="chips" id="bk-chips"></div>'; rv.append($('submit'), $('t-msg'));
-  B.L = [mk('auth', 'Registration', sec('s-auth')), mk('profile', 'Student profile', sec('s-profile')), mk('rules', 'Instructions', [h1, ul]), mk('camera', 'Camera & verification', [ch, ...rest]), mk('review', 'Review & submit', [rv]), mk('res', 'Result', sec('s-res'))];
-  const ang = (l, a, d) => { l.el.style.transform = a ? `rotateY(${-a}deg)` : 'none'; l.shade.style.opacity = d ? Math.sin(a / 180 * Math.PI) * .5 : ''; };
-  const pvOf = i => { for (let j = i - 1; j >= 0; j--) if (B.L[j].avail) return j; return -1; };
-  const T = () => B.L.length, idx = k => B.L.findIndex(l => l.key === k);
-  const nb = d => { for (let i = B.cur + d; i >= 0 && i < T(); i += d) if (B.L[i].avail) return i; return -1; };
-  B.ui = () => { const l = B.L[B.cur], n = B.N, isq = l.key === 'q'; prev.disabled = nb(-1) < 0; next.disabled = nb(1) < 0;
-    info.textContent = isq ? `Question ${l.qi + 1} of ${n}` : l.title; $('qpos').textContent = isq ? `Q ${l.qi + 1}/${n}` : ''; B.L.forEach((x, i) => { x.el.toggleAttribute('inert', i !== B.cur); x.el.setAttribute('aria-hidden', i !== B.cur); x.el.querySelector('.vt').textContent = x.key === 'q' ? `Question ${x.qi + 1}` : x.title; x.foot.textContent = x.key === 'q' ? `Question ${x.qi + 1} of ${n}` : '✦'; }); };
-  B.settle = () => { const pv = two.matches ? nb(-1) : -1; B.L.forEach((l, i) => { const e = l.el; e.classList.remove('turning', 'hold', 'drag', 'rise', 'sink'); e.style.transitionDelay = e.style.transitionDuration = ''; e.style.zIndex = i < B.cur ? i + 1 : T() - i; e.classList.toggle('off', !l.avail || (i < B.cur && i !== pv)); ang(l, i < B.cur ? 180 : 0); }); B.busy = false; B.ui(); };
-  B.go = (t, o = {}) => { if (t === B.cur || t < 0 || t >= T()) return; const from = B.cur, fwd = t > from, fast = rmq.matches, flip = [];
-    for (let i = fwd ? from : t; i < (fwd ? t : from); i++) if (B.L[i].avail || i === from || i === t) flip.push(i);
-    if (!fwd) flip.reverse(); B.cur = t; B.busy = true; const dur = fast ? 0 : o.dur || 1.05; if (!fwd && two.matches && pvOf(t) >= 0) B.L[pvOf(t)].el.classList.add('hold');
-    flip.forEach((i, k) => { const e = B.L[i].el; e.classList.remove('drag'); e.classList.add('turning'); e.style.zIndex = 1000 - k; e.style.transitionDuration = dur + 's'; e.style.setProperty('--dur', dur + 's'); e.style.transitionDelay = fast ? '' : Math.min(k, 3) * .09 + 's'; });
-    B.L[fwd ? t : from].el.classList.add(fwd ? 'rise' : 'sink', 'hold'); void stage.offsetWidth;
-    B.L.forEach((l, i) => ang(l, i < t ? 180 : 0)); B.ui(); setTimeout(B.settle, fast ? 0 : dur * 1000 + Math.min(flip.length - 1, 3) * 90 + 60); };
-  B.step = id => { const key = BOOK[id], keys = key === 'rules' ? ['rules', 'camera'] : [key]; B.L.forEach(l => l.avail = keys.includes(l.key)); const t = idx(key);
-    if (B.shown) return B.go(t); B.shown = true; B.cur = t; B.settle();
-    noticeGate(wrap, () => { if (!rmq.matches && CSS.supports('transform-style', 'preserve-3d')) bookIntro(wrap); else unlock(wrap); }); };
-  B.startTest = () => { B.L = B.L.filter(l => l.key !== 'q'); const qs = attempt.questions; B.N = qs.length; const ri = idx('review');
-    const ql = qs.map((qq, i) => { const d = E('div', 'q'), h = E('div', 'qtext', d); h.append(`${i + 1}. `, clean(qq.text));
-      qq.options.forEach(o => { const l = E('label', 'opt', d), r = document.createElement('input'); r.type = 'radio'; r.name = qq.id; r.checked = attempt.saved[qq.id] === o.id; r.onchange = () => save(qq.id, o.id); l.append(r, ' ', o.text); });
-      const L = mk('q', '', [d]); L.qi = i; L.el.dataset.qi = i; return L; });
-    B.L.splice(ri, 0, ...ql); B.L.forEach(l => l.avail = l.key === 'q' || l.key === 'review');
-    const f = qs.findIndex(x => !attempt.saved[x.id]); B.L.forEach((l, i) => { l.el.style.zIndex = T() - i; });
-    B.go(idx('review') > 0 ? (Object.keys(attempt.saved).length ? (f < 0 ? idx('review') : idx('q') + f) : idx('q')) : 0); };
-  B.review = () => { if (!B.N || !attempt) return; const miss = attempt.questions.map((x, i) => attempt.saved[x.id] ? 0 : i + 1).filter(Boolean);
-    $('bk-rev').textContent = miss.length ? `Unanswered: ${miss.length} of ${B.N}. Tap a number to go back to it.` : 'All questions answered. You may submit.';
-    const c = $('bk-chips'); c.innerHTML = ''; attempt.questions.forEach((x, i) => { const b = document.createElement('button'); b.textContent = i + 1; b.className = 'chip' + (attempt.saved[x.id] ? ' done' : ''); b.onclick = () => !B.busy && B.go(idx('q') + i); c.appendChild(b); }); };
-  prev.onclick = () => { if (!B.busy && nb(-1) >= 0) B.go(nb(-1)); }; next.onclick = () => { if (!B.busy && nb(1) >= 0) B.go(nb(1)); };
-  // drag / swipe
-  let sx = 0, sy = 0, st = 0, pid = null, swallow = false;
-  stage.addEventListener('pointerdown', e => { if (e.button > 0 || pid !== null || B.busy || /INPUT|TEXTAREA|SELECT|VIDEO/.test(e.target.tagName) && e.target.type !== 'radio') return; pid = e.pointerId; sx = e.clientX; sy = e.clientY; st = e.timeStamp; B.drag = null; });
-  stage.addEventListener('pointermove', e => { if (e.pointerId !== pid) return; const dx = e.clientX - sx, dy = e.clientY - sy;
-    if (!B.drag) { if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy) * 1.2) return; const fwd = dx < 0, n = nb(fwd ? 1 : -1); if (n < 0) return; const l = B.L[fwd ? B.cur : n]; B.drag = { fwd, n, l, p: 0 };
-      l.el.classList.add('drag', 'turning'); l.el.style.zIndex = 1000; if (!fwd && two.matches && pvOf(n) >= 0) B.L[pvOf(n)].el.classList.add('hold'); B.L[fwd ? n : B.cur].el.classList.add('hold'); try { stage.setPointerCapture(pid); } catch {} }
-    const p = Math.min(1, Math.max(0, (B.drag.fwd ? -dx : dx) / (B.L[B.cur].el.clientWidth * .9))); B.drag.p = p; B.drag.v = (B.drag.fwd ? -dx : dx) / Math.max(1, e.timeStamp - st); ang(B.drag.l, B.drag.fwd ? p * 180 : 180 - p * 180, true); });
-  const end = (e, ok) => { if (e.pointerId !== pid) return; pid = null; const d = B.drag; if (!d) return; B.drag = null; swallow = true; setTimeout(() => swallow = false, 0);
-    if (ok && (d.p > .25 || d.v > .5 && d.p > .06)) { d.l.el.classList.remove('drag'); B.go(d.n, { dur: Math.max(.4, 1.05 * (1 - d.p)) }); }
-    else { B.busy = true; const e2 = d.l.el; e2.classList.remove('drag'); e2.style.transitionDuration = '.35s'; ang(d.l, d.fwd ? 0 : 180); setTimeout(B.settle, 400); } };
-  stage.addEventListener('pointerup', e => end(e, true)); stage.addEventListener('pointercancel', e => end(e, false));
-  stage.addEventListener('click', e => { if (swallow) { e.preventDefault(); e.stopPropagation(); } }, true);
-  let acc = 0; stage.addEventListener('wheel', e => { if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) { const sc = e.target.closest && e.target.closest('.pg'); if (sc && sc.scrollHeight > sc.clientHeight) { sc.scrollTop += e.deltaY * (e.deltaMode === 1 ? 16 : 1); e.preventDefault(); } return; } if (!e.deltaX) return; e.preventDefault(); if (B.busy) return; acc += e.deltaX;
-    if (Math.abs(acc) > 70) { const n = nb(acc > 0 ? 1 : -1); acc = 0; if (n >= 0) B.go(n); } }, { passive: false });
-  two.addEventListener('change', () => { sync(); B.shown && B.settle(); }); sync();
-}
-// Notification block shown when the assessment opens, before the book appears.
-function unlock(wrap) { wrap.classList.remove('bk-intro'); wrap.querySelectorAll('.book,.book-nav').forEach(e => e.removeAttribute('inert')); }
-function noticeGate(wrap, go) {
-  wrap.classList.add('bk-intro'); wrap.querySelectorAll('.book,.book-nav').forEach(e => e.setAttribute('inert', ''));
-  const m = document.createElement('div'); m.className = 'nt-modal'; m.setAttribute('role', 'alertdialog'); m.setAttribute('aria-modal', 'true'); m.setAttribute('aria-labelledby', 'nt-h');
-  const items = ['Please use a <b>LAPTOP or DESKTOP</b> computer with a working webcam to attend this assessment', 'Use the latest Google Chrome or Microsoft Edge', 'Sit in a well-lit, quiet room and keep your face clearly visible', 'Keep mobile phones away from the camera', 'Make sure you have a stable internet connection and a charged device'];
-  m.innerHTML = `<div class="nt-card"><h2 id="nt-h">Before you begin</h2><ul>${items.map(i => `<li>${i}</li>`).join('')}</ul><button type="button" class="nt-ok">I understand, continue</button></div>`;
-  document.body.appendChild(m); const ok = m.querySelector('.nt-ok'); ok.focus();
-  ok.onclick = () => { ok.disabled = true; m.classList.add('out'); setTimeout(() => { m.remove(); go(); }, 350); };
-}
-// 3D book-opening intro: cover hinges on the spine, pages fan open, then the real assessment book is revealed/enabled.
-function bookIntro(wrap) {
-  const stage = wrap.querySelector('.book'), nav = wrap.querySelector('.book-nav'), box = [stage, nav];
-  if (wrap.querySelector('.bk-scene')) return;
-  const petals = (n, rx, ry, cy, w) => Array.from({ length: n }, (_, i) => `<ellipse cx="0" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(${i * 360 / n})" stroke-width="${w}"/>`).join('');
-  const dots = (n, r) => Array.from({ length: n }, (_, i) => { const a = i * 2 * Math.PI / n; return `<circle cx="${(Math.cos(a) * r).toFixed(1)}" cy="${(Math.sin(a) * r).toFixed(1)}" r="1.6" fill="url(#bkg)" stroke="none"/>`; }).join('');
-  const cor = '<path d="M0 0H30M0 0V30M7 7H22M7 7V22" /><circle cx="13" cy="13" r="2.5" fill="url(#bkg)"/>';
-  const art = `<svg class="bk-art" viewBox="0 0 300 420" aria-hidden="true"><defs><linearGradient id="bkg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbe9a0"/><stop offset=".45" stop-color="#d9a920"/><stop offset=".7" stop-color="#f3d36b"/><stop offset="1" stop-color="#8a6410"/></linearGradient><radialGradient id="bkf" cx=".5" cy=".8" r=".6"><stop offset="0" stop-color="#fff6c0"/><stop offset=".5" stop-color="#ffb52e"/><stop offset="1" stop-color="#e2561a"/></radialGradient></defs>
-<g fill="none" stroke="url(#bkg)"><rect x="30" y="14" width="256" height="392" rx="5" stroke-width="2.6"/><rect x="38" y="22" width="240" height="376" rx="3" stroke-width="1"/>
-<g stroke-width="1.4"><g transform="translate(40 24)">${cor}</g><g transform="translate(276 24) scale(-1 1)">${cor}</g><g transform="translate(40 396) scale(1 -1)">${cor}</g><g transform="translate(276 396) scale(-1 -1)">${cor}</g></g>
-<g transform="translate(158 96)"><circle r="52" stroke-width="1"/><circle r="46" stroke-width=".6" stroke-dasharray="1 4"/>${petals(16, 5, 16, -36, 1)}${petals(12, 6, 20, -22, 1.3)}${petals(8, 4, 13, -9, 1)}<circle r="4" fill="url(#bkg)"/>${dots(24, 58)}</g>
-<g stroke-width="1.2"><path d="M70 270H146M170 270H246"/><path d="M158 264l6 6-6 6-6-6z" fill="url(#bkg)"/><path d="M70 278H146M170 278H246" stroke-width=".5"/></g>
-<g transform="translate(158 322)" stroke-width="1">${petals(8, 3.5, 10, -12, .9)}<circle r="2" fill="url(#bkg)"/></g></g>
-<g transform="translate(158 372)"><ellipse cx="0" cy="-6" rx="30" ry="22" fill="#ffb52e" opacity=".18"/><path d="M0 -8C-9 -20 -3 -26 0 -36C3 -26 9 -20 0 -8Z" fill="url(#bkf)"/><path d="M-24 -4H24Q22 14 0 14Q-22 14 -24 -4Z" fill="url(#bkg)"/><path d="M-24 -4H24" stroke="#6b4a08" stroke-width="1"/></g></svg>`;
-  const N = 4, pages = Array.from({ length: N }, (_, i) => `<div class="bk-page${i === N - 1 ? ' last' : ''}" style="--i:${i}"><i class="pf"></i><i class="pb">${i === N - 1 ? '<div class="verso"><div class="orn">❖ ✦ ❖</div><div class="vt">Diwali<br>Scholarship Assessment</div><div class="orn">❖ ✦ ❖</div></div>' : ''}</i></div>`).join('');
-  const sc = document.createElement('div'); sc.className = 'bk-scene'; sc.setAttribute('role', 'img'); sc.setAttribute('aria-label', 'Opening the Diwali Internship Scholarship Assessment book');
-  sc.innerHTML = `<div class="bk-floor"></div><div class="bk-move"><div class="bk-frame"></div><div class="bk-back"></div><div class="bk-lblock"></div><div class="bk-block"></div>${pages}<div class="bk-gutter"></div><div class="bk-cover"><div class="bk-front">${art}<div class="bk-title"><b>DIWALI INTERNSHIP</b><b>SCHOLARSHIP ASSESSMENT</b></div><div class="bk-shade"></div></div><div class="bk-inside"></div></div></div>`;
-  const skip = document.createElement('button'); skip.className = 'alt bk-skip'; skip.type = 'button'; skip.textContent = 'Skip'; sc.appendChild(skip);
-  wrap.classList.add('bk-intro'); box.forEach(e => e && e.setAttribute('inert', '')); wrap.appendChild(sc);
-  // size the intro book to the real assessment book so the open spread lands exactly on it
-  const w = Math.floor((stage.clientWidth - 12) / 2), h = Math.min(stage.clientHeight - 12, w * 1.6);
-  sc.style.setProperty('--w', w + 'px'); sc.style.setProperty('--h', h + 'px');
-  let done = false; const finish = () => { if (done) return; done = true; clearTimeout(t); box.forEach(e => e && e.removeAttribute('inert')); wrap.classList.remove('bk-intro'); wrap.classList.add('bk-reveal'); void sc.offsetWidth; sc.classList.add('out'); setTimeout(() => { sc.remove(); wrap.classList.remove('bk-reveal'); }, 1600); };
-  const t = setTimeout(finish, 5200); skip.onclick = finish;
-}
-initBook();
-const updProg = () => { $('prog').textContent = `Answered ${Object.keys(attempt.saved).length}/${attempt.questions.length}`; bk && bk.review && bk.review(); };
-async function save(qid, oid) {
-  attempt.saved[qid] = oid; updProg(); $('saved').textContent = 'Saving…';
-  for (let i = 0; i < 4; i++) { try { await api(`/attempts/${attempt.attemptId}/answer`, { questionId: qid, optionId: oid }); $('saved').textContent = 'Saved ✓'; return; }
-    catch (e) { if (e.status === 410) return finish(); await new Promise(r => setTimeout(r, 800 * (i + 1))); } }
-  $('saved').textContent = ''; msg('t-msg', 'Could not save your last answer. Check your connection; it will retry when you pick again.');
-}
-function tick() { const left = Math.max(0, Math.floor((new Date(attempt.expiresAt) - (Date.now() + skew)) / 1000));
-  $('timer').textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`; if (left === 0) finish(); }
-const updWarn = () => $('wcount').textContent = `Warnings ${Math.min(warnings, 3)}/3`;
-// Small still frame (about 10 KB) sent with a flagged event so admins can review it. Only kept for the program team; never shown to other students.
-const snapCv = document.createElement('canvas');
-function snap() { try { const v = $('prev'); if (!v || v.readyState < 2 || !v.videoWidth) return null; snapCv.width = 256; snapCv.height = Math.round(256 * v.videoHeight / v.videoWidth); snapCv.getContext('2d').drawImage(v, 0, 0, snapCv.width, snapCv.height); return snapCv.toDataURL('image/jpeg', 0.55); } catch { return null; } }
-let modalTok = 0; const ADVISORY = ['looking_down', 'noise_detected'];
-async function violation(type) { if (!attempt || !live()) return; const now = Date.now(); if (now - (lastViol[type] || 0) < 3000) return; lastViol[type] = now;
-  // Show the warning straight away; the server (which does the counting) then fills in "Warning N of 3". A duplicate or error removes it again.
-  const quick = !ADVISORY.includes(type) && $('viol-modal').classList.contains('hidden'), tok = quick ? ++modalTok : 0, undo = () => { if (quick && tok === modalTok) $('viol-modal').classList.add('hidden'); };
-  if (quick) { $('vm-title').textContent = 'Warning'; $('vm-body').textContent = `${LABEL[type] || type}. Recording this violation…`; $('viol-modal').classList.remove('hidden'); }
-  const img = snap(); // grab the frame now, at the moment of the violation
-  try { const r = await api(`/attempts/${attempt.attemptId}/violation`, { type, snapshot: img }); if (r.advisory) return undo(); warnings = r.total; updWarn();
-    if (r.autoSubmitted) { finishing = true; endTest(); $('viol-modal').classList.add('hidden'); return showResult(r.result); }
-    if (r.counted) warnModal(type, r); else undo(); } catch { undo(); } }
-function warnModal(type, r) { $('vm-title').textContent = `Warning ${r.total} of ${r.maxWarnings}`;
-  $('vm-body').textContent = `${LABEL[type] || type}. ` + (r.warningsLeft ? `You have ${r.warningsLeft} warning${r.warningsLeft > 1 ? 's' : ''} left. ` : 'This was your last warning. ') + 'The next violation will submit your test automatically.';
-  $('viol-modal').classList.remove('hidden'); }
-$('vm-ok').onclick = () => { $('viol-modal').classList.add('hidden'); if (document.fullscreenEnabled && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {}); };
-document.addEventListener('visibilitychange', () => { if (document.hidden && live()) violation('tab_switch'); });
-window.addEventListener('blur', () => setTimeout(() => { if (live() && !document.hasFocus()) violation('tab_switch'); }, 700));
-document.addEventListener('fullscreenchange', () => { if (live() && document.fullscreenEnabled && !document.fullscreenElement) violation('fullscreen_exit'); });
-['copy', 'cut', 'paste'].forEach(ev => document.addEventListener(ev, e => { if (live()) { e.preventDefault(); violation('copy_paste'); } }));
-document.addEventListener('contextmenu', e => { if (live()) e.preventDefault(); });
-document.addEventListener('keydown', e => { if (!live()) return; const k = e.key.toLowerCase(), c = e.ctrlKey || e.metaKey;
-  if (c && ['c', 'x', 'v', 'a'].includes(k)) { if (!/INPUT|TEXTAREA/.test(e.target.tagName)) { e.preventDefault(); violation('copy_paste'); } }
-  else if (k === 'f12' || (c && e.shiftKey && ['i', 'j', 'c'].includes(k)) || (c && ['u', 's', 'p'].includes(k)) || k === 'printscreen') { e.preventDefault(); violation('blocked_shortcut'); } });
-document.addEventListener('keyup', e => { if (live() && e.key === 'PrintScreen') { try { navigator.clipboard.writeText(''); } catch {} violation('blocked_shortcut'); } });
-['dragstart', 'selectstart'].forEach(ev => document.addEventListener(ev, e => { if (live() && !/INPUT|TEXTAREA/.test(e.target.tagName || e.target.parentElement?.tagName)) e.preventDefault(); }));
-let finishing = false;
-async function finish() { if (finishing) return; finishing = true; clearInterval(timerH); $('submit').disabled = true; msg('t-msg', 'Submitting…', true);
-  for (let i = 0; i < 5; i++) { try { const r = await api(`/attempts/${attempt.attemptId}/submit`, {}); endTest(); return showResult(r); } catch { await new Promise(r => setTimeout(r, 1500)); } }
-  finishing = false; $('submit').disabled = false; msg('t-msg', 'Submission failed. Check your connection and press Submit again.'); }
-$('submit').onclick = () => { if (confirm('Submit your test now? You cannot change answers afterwards.')) finish(); };
-const stopCam = () => { stream && stream.getTracks().forEach(t => t.stop()); stream = null; micStream && micStream.getTracks().forEach(t => t.stop()); micStream = null; $('pvid').classList.add('hidden'); };
-function endTest() { clearInterval(timerH); proctor && proctor.stop(); proctor = null; enrolled = false; stopCam(); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }
-function showResult(r) { show('s-res'); const c = r.coupon, box = $('res'); box.innerHTML = '';
-  const p = t => { const e = document.createElement('p'); e.textContent = t; box.appendChild(e); return e; };
-  p(`Score: ${r.correct_count}/${r.total_questions} (${r.score_percent}%)` + (r.status === 'timed_out' ? ' — auto-submitted at timeout' : r.status === 'auto_submitted' ? ' — auto-submitted: violation limit exceeded' : ''));
-  addReport(box);
-  if (!c) return p('Your coupon is being generated. Please refresh in a moment.');
-  const code = p(c.code); code.className = 'code';
-  p(`Scholarship: ${c.discountPercent}% off the ₹9,999 internship fee`); p(`Payable amount: ${inr(c.payablePaise)}`);
-  const cd = p(''); const t = () => { const s = Math.floor((new Date(c.expiresAt) - Date.now()) / 1000); cd.textContent = c.state === 'redeemed' ? 'Coupon already redeemed.' : s <= 0 ? 'This coupon has expired.' : `Expires in ${Math.floor(s / 3600)}h ${Math.floor(s % 3600 / 60)}m ${s % 60}s`; }; t(); setInterval(t, 1000);
-  lastCoupon = c;
-  if (c.state === 'active' && new Date(c.expiresAt) > Date.now()) { const b = document.createElement('button'); b.textContent = 'Choose internship course'; b.onclick = showCourses; box.appendChild(b); }
-  else p('This coupon can no longer be used for a new payment.'); }
-function addReport(box) { const w = el(box, 'div', null, 'rep'); el(w, 'h2', 'Assessment report'); const row = el(w, 'div', null, 'btnrow');
-  const dl = el(row, 'button', 'Download report (PDF)'), wa = el(row, 'button', 'Share on WhatsApp', 'alt'), li = el(row, 'button', 'Share on LinkedIn', 'alt'), m = el(w, 'div', null, 'msg');
-  el(w, 'p', 'Sharing attaches a one-page image of your report (and a public link) showing only your name, score and result. Your contact details and coupon are not included.', 'small');
-  const bad = e => { m.textContent = e.message; m.className = 'msg err'; };
-  dl.onclick = async () => { dl.disabled = true; m.textContent = '';
-    try { const r = await fetch(`/api/attempts/${attemptId}/report.pdf`, { headers: { Authorization: 'Bearer ' + token } }); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Report unavailable (HTTP ' + r.status + ')');
-      const u = URL.createObjectURL(await r.blob()), a = document.createElement('a'); a.href = u; a.download = 'Assessment-Report.pdf'; a.click(); setTimeout(() => URL.revokeObjectURL(u), 10000); } catch (e) { bad(e); } dl.disabled = false; };
-  // Share = image of the one-page report + post text. Phones: native share sheet attaches the image (pick WhatsApp / LinkedIn).
-  // Desktop fallback: image is downloaded, text copied, and the app opened so the image can be attached.
-  const share = async target => { m.textContent = ''; m.className = 'msg';
-    try { const s = await api(`/attempts/${attemptId}/share`, {});
-      const ir = await fetch(`/api/attempts/${attemptId}/report.png`, { headers: { Authorization: 'Bearer ' + token } }); if (!ir.ok) throw new Error('Report image unavailable (HTTP ' + ir.status + ')');
-      const blob = await ir.blob(), file = new File([blob], 'Assessment-Report.png', { type: 'image/png' }), parts = s.text.split('\n\n#'), tags = '#' + parts[1];
-      const text = target === 'wa' ? parts[0] + '\n\n\u{1F4C4} Full report (PDF): ' + s.pdf + '\n\n' + tags : parts[0] + '\n\n\u{1F4C4} My assessment report: ' + s.url + '\n\n' + tags;
-      if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
-      const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = 'Assessment-Report.png'; a.click(); setTimeout(() => URL.revokeObjectURL(u), 10000);
-      try { await navigator.clipboard.writeText(text); } catch {}
-      m.textContent = 'Report image downloaded and post text copied. Attach the image' + (target === 'wa' ? ' in the WhatsApp chat (text is pre-filled).' : ' and paste the text in the LinkedIn post.'); m.className = 'msg';
-      window.open(target === 'wa' ? 'https://wa.me/?text=' + encodeURIComponent(text) : 'https://www.linkedin.com/feed/?shareActive=true&text=' + encodeURIComponent(text), '_blank');
-    } catch (e) { bad(e); } };
-  wa.onclick = () => share('wa');
-  // LinkedIn cannot receive an attached file from a web link. The post text carries the public report link; LinkedIn unfurls it into a card showing the report image (og:image).
-  li.onclick = async () => { const win = window.open('about:blank', '_blank'); m.textContent = ''; m.className = 'msg';
-    try { const s = await api(`/attempts/${attemptId}/share`, {}), parts = s.text.split('\n\n#'), text = parts[0] + '\n\n\u{1F4C4} My assessment report: ' + s.url + '\n\n#' + parts[1];
-      try { await navigator.clipboard.writeText(text); } catch {}
-      const u = 'https://www.linkedin.com/feed/?shareActive=true&text=' + encodeURIComponent(text); win ? (win.location.href = u) : (location.href = u);
-      m.textContent = 'Opening LinkedIn with your post ready. The report image appears as the link preview (text is also copied in case you need to paste it).';
-    } catch (e) { win && win.close(); bad(e); } }; }
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-const payable = (base, d) => Math.floor((base * (100 - d) + 50) / 100); // display only; the server is authoritative
-function el(parent, tag, text, cls) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; parent.appendChild(e); return e; }
-async function showCourses() {
-  show('s-courses'); const c = lastCoupon; $('c-coupon').textContent = `Coupon ${c.code}: ${c.discountPercent}% scholarship applied automatically at checkout.`; msg('c-msg', '');
-  const list = $('course-list'); list.innerHTML = 'Loading courses…';
-  try { const cs = await api('/courses'); list.innerHTML = ''; if (!cs.length) list.textContent = 'No courses are open right now.';
-    cs.forEach(k => { const d = el(list, 'div', null, 'card'); el(d, 'h2', k.title); if (k.description) el(d, 'p', k.description); if (k.duration) el(d, 'p', 'Duration: ' + k.duration);
-      if (k.skills?.length) el(d, 'p', 'Skills: ' + k.skills.join(', ')); (k.benefits || []).forEach(x => el(d, 'p', '• ' + x));
-      const pay = payable(k.base_price_paise, c.discountPercent); el(d, 'p', `Fee: ${inr(k.base_price_paise)} → you pay ${inr(pay)}`);
-      const b = el(d, 'button', pay === 0 ? 'Enroll for free' : `Pay ${inr(pay)} & enroll`); b.onclick = () => checkout(k, b); });
-  } catch (e) { list.textContent = e.message; } }
-async function checkout(k, btn) {
-  btn.disabled = true; msg('c-msg', 'Preparing your order…', true);
-  try { const o = await api('/checkout/create', { courseId: k.id }); if (o.status === 'enrolled') return boot();
-    if (typeof Razorpay === 'undefined') await new Promise(r => { const sc = document.createElement('script'); sc.src = 'https://checkout.razorpay.com/v1/checkout.js'; sc.onload = sc.onerror = r; document.head.appendChild(sc); }); // loaded only when paying
-    if (typeof Razorpay === 'undefined') throw new Error('Payment window could not load. Check your connection and retry.');
-    const rz = new Razorpay({ key: o.keyId, amount: o.amount, currency: o.currency, order_id: o.orderId, name: 'Diwali Internship Fair', description: k.title,
-      handler: resp => verifyPayment(resp), modal: { ondismiss: () => { msg('c-msg', 'Payment cancelled. You can retry; you will not be charged twice.'); btn.disabled = false; } } });
-    rz.on('payment.failed', r => { msg('c-msg', 'Payment failed: ' + (r.error?.description || 'please try again') + '. You can retry.'); btn.disabled = false; });
-    rz.open(); msg('c-msg', '');
-  } catch (e) { msg('c-msg', e.message); btn.disabled = false; } }
-async function verifyPayment(resp) {
-  msg('c-msg', 'Verifying your payment… please do not close this page.', true);
-  for (let i = 0; i < 10; i++) { try { const v = await api('/checkout/verify', resp); if (v.status === 'enrolled') return boot(); if (v.status === 'failed') return msg('c-msg', 'Payment failed. Please retry.'); }
-    catch (e) { if (e.status === 400 || e.status === 404) return msg('c-msg', e.message); } await sleep(3000); }
-  msg('c-msg', 'Your payment is still being confirmed. If you were charged, your enrollment will appear on this page automatically within a few minutes — refresh to check.', true); }
-function showDash(d) { show('s-dash'); const b = $('dash'); b.innerHTML = ''; const e = d.enrollment, row = (l, v) => { const p = el(b, 'p'); el(p, 'b', l + ': '); p.append(String(v)); };
-  row('Student', `${d.profile.full_name} (${d.email}, ${d.profile.phone})`);
-  if (d.attempt) row('Assessment', `${d.attempt.correct_count}/${d.attempt.total_questions} (${d.attempt.score_percent}%) — ${d.attempt.status}`);
-  if (d.coupon) row('Coupon', `${d.coupon.code}, ${d.coupon.discountPercent}% off, ${d.coupon.state}, expires ${new Date(d.coupon.expiresAt).toLocaleString()}`);
-  if (d.attempt) addReport(b);
-  el(b, 'h2', 'Your internship'); row('Course', `${e.course.title}${e.course.duration ? ' (' + e.course.duration + ')' : ''}`);
-  row('Enrollment', `${e.status} — ${e.kind === 'free' ? 'free (100% scholarship)' : 'paid ' + inr(e.amountPaise)}`); row('Transaction reference', e.transactionRef); row('Enrolled on', new Date(e.enrolledAt).toLocaleString());
-  const lb = el(b, 'button', 'Offer letter'); lb.onclick = async () => { const r = await fetch('/api/offer-letter', { headers: { Authorization: 'Bearer ' + token } }); if (!r.ok) return alert('Offer letter unavailable'); const u = URL.createObjectURL(await r.blob()); window.open(u); };
-  if (e.course.accessUrl) { const a = el(b, 'a', 'Open course access'); a.href = e.course.accessUrl; a.target = '_blank'; a.rel = 'noopener'; a.style.cssText = 'display:inline-block;margin-left:12px;color:#138a3d;font-weight:700'; }
-  else el(b, 'p', 'Course access details will be shared by the program team.');
-  el(b, 'h2', 'Next steps'); el(b, 'p', 'Keep your transaction reference and offer letter safe. The program team will contact you on your registered email or mobile number.'); }
-async function boot() {
-  const { data } = await sb.auth.getSession(); if (!data.session) { $('logout').classList.add('hidden'); authMode('register'); return show('s-auth'); }
-  token = data.session.access_token; $('logout').classList.remove('hidden');
-  try { const me = await api('/me'); attemptId = me.attempt?.id || null;
-    if (!me.profile.full_name || !me.profile.phone) { const pp = JSON.parse(localStorage.getItem('pendingProfile') || 'null');
-      if (pp) { try { await api('/profile', { fullName: pp.name, phone: pp.phone }); localStorage.removeItem('pendingProfile'); return boot(); } catch {} }
-      $('p-name').value = me.profile.full_name || ''; return show('s-profile'); }
-    const d = await api('/dashboard'); if (d.enrollment) return showDash(d);
-    if (me.attempt && me.attempt.status !== 'in_progress' && !me.canRetry) return showResult(await api(`/attempts/${me.attempt.id}/result`));
-    show('s-inst'); if (me.canRetry) msg('inst-msg', 'Your 6-month wait is over — you can attempt the assessment again.', true); else if (me.attempt) msg('inst-msg', 'You have a test in progress. Start the camera and click Start test to resume — the timer kept running.', true);
-  } catch (e) { if (e.status === 401) { await sb.auth.signOut(); return boot(); } $('loading').textContent = e.message; show('loading'); }
-}
-await boot();
+  }
 })();

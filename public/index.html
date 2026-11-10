@@ -1,182 +1,568 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Diwali Special Internship and Training Program</title>
-<meta name="description" content="A 10-day hands-on training and internship program at Plant Green Inertia Pvt. Ltd., 8–18 November 2026. Take the scholarship test to qualify.">
-<meta name="theme-color" content="#073d22">
-<link rel="icon" type="image/svg+xml" href="static/images/favicon.svg">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Diwali Special Internship and Training Program">
-<meta property="og:description" content="Celebrate Diwali. Illuminate Your Future. 8–18 November 2026.">
-<meta property="og:image" content="static/images/og.svg">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Playfair+Display:wght@800;900&family=Caveat+Brush&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="static/css/style.css">
-<link rel="stylesheet" href="static/css/diwali.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Winter Internship &amp; Training Program | Plant Green Inertia Portal</title>
+  <meta name="description" content="Accelerate your career with the Winter Internship &amp; Training Program at Plant Green Inertia Pvt. Ltd. 30 hours of intensive training, online &amp; offline cohorts, and up to 100% merit scholarship.">
+  <meta name="theme-color" content="#101D35">
+  <link rel="icon" type="image/svg+xml" href="static/images/favicon.svg">
+
+  <!-- Open Graph / Meta -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Winter Internship &amp; Training Program | Plant Green Inertia">
+  <meta property="og:description" content="Welcome to PGI Portal. Your Winter Internship Journey Starts Here. 30-hour program, online/offline, and pre-placement opportunities.">
+  <meta property="og:image" content="static/images/og.svg">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Google Fonts: Plus Jakarta Sans & Playfair Display -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Winter Theme Stylesheet -->
+  <link rel="stylesheet" href="static/css/theme-winter.css">
 </head>
 <body>
-<script src="static/js/intro-diwali.js"></script>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="rangoli" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="2"><path d="M60 8 112 60 60 112 8 60Z"/><path d="M60 24 96 60 60 96 24 60Z"/><circle cx="60" cy="60" r="14"/><g fill="currentColor"><circle cx="60" cy="8" r="3"/><circle cx="112" cy="60" r="3"/><circle cx="60" cy="112" r="3"/><circle cx="8" cy="60" r="3"/><circle cx="60" cy="36" r="3"/><circle cx="84" cy="60" r="3"/><circle cx="60" cy="84" r="3"/><circle cx="36" cy="60" r="3"/></g><path d="M60 46c10 0 14 14 0 14s-10 14 0 14"/></symbol>
-</svg>
+  <!-- Ambient Subtle Snowfall Canvas -->
+  <canvas id="snowCanvas" aria-hidden="true"></canvas>
 
-<header class="nav">
-  <a href="#top" class="brand" aria-label="Plant Green Inertia Pvt. Ltd. - home">
-    <img class="logo" src="static/images/pgi-logo.jpg" alt="Plant Green Inertia Pvt. Ltd. logo" height="44" onerror="this.onerror=null;this.hidden=true;this.nextElementSibling.hidden=false">
-    <span class="logo-fb" hidden>Plant Green Inertia</span>
-    <span class="nav-title">Diwali Special Internship and Training Program</span>
-  </a>
-  <button class="burger" aria-expanded="false" aria-label="Toggle menu"><span></span><span></span><span></span></button>
-  <nav><a href="#details">Program</a><a href="#timings">Timings</a><a href="#how">How it works</a></nav>
-</header>
+  <div class="site-content">
+    <!-- Corporate Header Navigation -->
+    <header class="nav-header">
+      <a href="#top" class="brand-link" aria-label="Plant Green Inertia Pvt. Ltd.">
+        <img class="brand-logo" src="static/images/Plant Green Inertia Logo.png" alt="Plant Green Inertia logo" onerror="this.src='static/images/pgi-logo.jpg'">
+        <div class="brand-meta">
+          <span class="brand-name">Plant Green Inertia</span>
+          <span class="brand-tag">Winter Internship Portal</span>
+        </div>
+      </a>
 
-<main id="top">
-  <section class="dh">
-    <video class="diwali-hero-video" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1">
-      <source src="/static/videos/diwali_new_hero_animated.mp4" type="video/mp4" />
-    </video>
-    <div class="dh-bokeh" aria-hidden="true"></div>
-    <svg class="dh-rangoli" aria-hidden="true"><use href="#rangoli"/></svg>
-    <div class="dh-sparks" aria-hidden="true"></div>
-    <div class="dh-in">
-      <p class="dh-eye">Diwali Special Internship &amp; Training Program</p>
-      <h1>Celebrate Diwali. Illuminate Your Future.</h1>
-      <p class="dh-sub">This Diwali, take the next step towards your dream career.</p>
-      <p class="dh-support">A 10-day practical training and internship program at Plant Green Inertia Pvt. Ltd., from 8 to 18 November 2026. Test your skills, unlock scholarship opportunities and take the scholarship test to qualify.</p>
-      <div class="dh-cta"><a class="btn" data-start href="#" aria-label="Start the scholarship test">TAKE SCHOLARSHIP TEST</a><a class="btn ghost" href="#details">EXPLORE PROGRAM</a></div>
-      <div class="dh-diyas" aria-hidden="true"><svg class="diya" viewBox="0 0 80 70" aria-hidden="true"><ellipse class="halo" cx="40" cy="22" rx="30" ry="22" fill="#ffc928" opacity=".3"/><path class="fl" d="M40 2c7 12 12 16 12 24a12 12 0 0 1-24 0c0-8 5-12 12-24z" fill="#ffd36b"/><path class="fl" d="M40 14c3 6 6 9 6 13a6 6 0 0 1-12 0c0-4 3-7 6-13z" fill="#fff3c4"/><path d="M6 38h68c0 16-14 28-34 28S6 54 6 38z" fill="#b4531a" stroke="#ffc928" stroke-width="2"/><path d="M14 44h52" stroke="#ffc928" stroke-width="2" stroke-dasharray="3 4"/></svg><svg class="diya" viewBox="0 0 80 70" aria-hidden="true"><ellipse class="halo" cx="40" cy="22" rx="30" ry="22" fill="#ffc928" opacity=".3"/><path class="fl" d="M40 2c7 12 12 16 12 24a12 12 0 0 1-24 0c0-8 5-12 12-24z" fill="#ffd36b"/><path class="fl" d="M40 14c3 6 6 9 6 13a6 6 0 0 1-12 0c0-4 3-7 6-13z" fill="#fff3c4"/><path d="M6 38h68c0 16-14 28-34 28S6 54 6 38z" fill="#b4531a" stroke="#ffc928" stroke-width="2"/><path d="M14 44h52" stroke="#ffc928" stroke-width="2" stroke-dasharray="3 4"/></svg><svg class="diya" viewBox="0 0 80 70" aria-hidden="true"><ellipse class="halo" cx="40" cy="22" rx="30" ry="22" fill="#ffc928" opacity=".3"/><path class="fl" d="M40 2c7 12 12 16 12 24a12 12 0 0 1-24 0c0-8 5-12 12-24z" fill="#ffd36b"/><path class="fl" d="M40 14c3 6 6 9 6 13a6 6 0 0 1-12 0c0-4 3-7 6-13z" fill="#fff3c4"/><path d="M6 38h68c0 16-14 28-34 28S6 54 6 38z" fill="#b4531a" stroke="#ffc928" stroke-width="2"/><path d="M14 44h52" stroke="#ffc928" stroke-width="2" stroke-dasharray="3 4"/></svg></div>
-    </div>
-  </section>
+      <button class="burger" aria-expanded="false" aria-label="Toggle navigation menu">
+        <span></span><span></span><span></span>
+      </button>
 
-  <section id="scholarship" class="sec schol">
-    <h2>Scholarship test: your score, your scholarship</h2>
-    <p class="lead">Take one 15-minute online test and unlock up to 100% off the internship fee.</p>
-    <div class="price-row" aria-label="Internship fee ₹9,999, free with a perfect score">
-      <span class="strike">₹9,999</span><span class="arrow" aria-hidden="true">&rarr;</span><span class="free">FREE*</span>
-    </div>
-    <p class="price-note">*with a perfect score (100%) on the scholarship test</p>
-    <div class="grid3 tiers">
-      <article class="card tier"><span class="range">Score 0%&ndash;49%</span><div class="off">85% OFF</div><div class="pl"><span class="strike">₹9,999</span><span class="new">₹1,499.85</span></div><p class="valid">Coupon valid for 24 hours</p></article>
-      <article class="card tier"><span class="range">Score 50%&ndash;99%</span><div class="off">90% OFF</div><div class="pl"><span class="strike">₹9,999</span><span class="new">₹999.90</span></div><p class="valid">Coupon valid for 24 hours</p></article>
-      <article class="card tier best"><span class="range">Score 100%</span><div class="off">FREE</div><div class="pl"><span class="strike">₹9,999</span><span class="new">₹0</span></div><p class="valid">Coupon valid for 24 hours</p></article>
-    </div>
-    <p class="fine">Every participant who takes the test receives a scholarship. Your unique coupon is issued right after the test and must be used within 24 hours.</p>
-    <p style="text-align:center"><a class="btn" data-start href="#" aria-label="Start the scholarship test">START SCHOLARSHIP TEST</a></p>
-  </section>
-  <div class="divider" aria-hidden="true"><span></span><svg class="dv"><use href="#rangoli"/></svg><span></span></div>
+      <nav class="nav-menu" aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a class="nav-link" href="#scholarship">Scholarship</a></li>
+          <li><a class="nav-link" href="#benefits">Benefits</a></li>
+          <li><a class="nav-link" href="#program">Program &amp; Syllabus</a></li>
+          <li><a class="nav-link" href="#timings">Timings</a></li>
+          <li><a class="nav-link" href="#certificate">Certificate</a></li>
+        </ul>
+        <div class="nav-actions">
+          <a class="btn btn-outline" href="login.html">Student Login</a>
+          <a class="btn btn-primary" data-start href="apply.html?promises=1">Apply Now</a>
+        </div>
+      </nav>
+    </header>
 
-  <section id="details" class="sec">
-    <h2>Program details</h2>
-    <p class="lead">A selection-based, hands-on program that begins on 8 November 2026.</p>
-    <div class="grid3 grid-center">
-      <article class="card"><h3>Dates</h3><p>8 November 2026 to 18 November 2026.</p></article>
-      <article class="card"><h3>Online and offline training</h3><p>Practical, hands-on sessions every day, in offline, full-time offline and online batches.</p></article>
-      <article class="card"><h3>Fully sponsored</h3><p>Sponsored by Mr. Laven Lokesh Barani for selected candidates who qualify.</p></article>
-      <article class="card"><h3>Scholarship test</h3><p>Participants must clear the scholarship test to join. Please take it seriously, as this is a selection-based opportunity.</p></article>
-      <article class="card"><h3>Career opportunity</h3><p>The best performers may get an opportunity to join our company, based on performance and available openings.</p></article>
-    </div>
-  </section>
-  <div class="divider" aria-hidden="true"><span></span><svg class="dv"><use href="#rangoli"/></svg><span></span></div>
+    <main id="top">
+      <!-- ====================================================================
+           Hero Section
+           ==================================================================== -->
+      <section class="hero-section">
+        <div class="hero-glow-1" aria-hidden="true"></div>
+        <div class="hero-glow-2" aria-hidden="true"></div>
+        
+        <div class="hero-container">
+          <div class="badge-eyebrow">
+            <span class="dot"></span>
+            <span>WELCOME TO PGI PORTAL</span>
+          </div>
 
-  <section id="syllabus" class="sec">
-    <h2>Syllabus</h2>
-    <p class="lead">Two 10-day, 30-hour tracks. Download the complete day-by-day course outline.</p>
-    <div class="syl-grid">
-      <article class="card syl"><h3>Web Development</h3><p class="syl-meta">10 days &middot; 30 hours</p><p>Learn how websites are structured, styled, made interactive, tested and published online.</p><p class="syl-tools">HTML, CSS, JavaScript, GitHub and GitHub Pages</p></article>
-      <article class="card syl"><h3>App Development</h3><p class="syl-meta">10 days &middot; 30 hours</p><p>Learn mobile app design, user interactions, app logic, data storage, testing and basic Android app building.</p><p class="syl-tools">MIT App Inventor</p></article>
-    </div>
-    <p style="text-align:center;margin-top:1.5rem"><a class="btn" href="/static/pdf/Diwali web development and mobile app development syllabus .pdf" download="PGI_Diwali_Internship_Syllabus.pdf" aria-label="Download the internship syllabus (PDF)">DOWNLOAD SYLLABUS</a></p>
-  </section>
-  <div class="divider" aria-hidden="true"><span></span><svg class="dv"><use href="#rangoli"/></svg><span></span></div>
+          <h1>Winter Internship &amp; Training Program</h1>
+          <p class="hero-subheading">Your Winter Internship Journey Starts Here.</p>
+          
+          <p class="hero-description">
+            Master industry skills through a 30-hour hands-on curriculum at Plant Green Inertia. Build real projects and unlock merit-backed scholarships.
+          </p>
 
-  <section id="timings" class="sec">
-    <h2>Training timings</h2>
-    <p class="lead">Choose from offline, full-time offline and online batches. Your batch is assigned by the company.</p>
-    <div class="grid3">
-      <article class="card tm"><h3>Offline batch</h3><p class="time">10:00 AM – 1:00 PM</p></article>
-      <article class="card tm"><h3>Full-time offline batch</h3><p class="time">9:00 AM – 6:00 PM</p></article>
-      <article class="card tm"><h3>Online batch</h3><p class="time">4:00 PM – 6:00 PM</p></article>
-    </div>
-    <p class="lead note">Special requests may be considered in exceptional cases, but the final decision rests with the company.</p>
-  </section>
-  <div class="divider" aria-hidden="true"><span></span><svg class="dv"><use href="#rangoli"/></svg><span></span></div>
-  <section id="perks" class="sec perks">
-    <h2>Perks of the internship</h2>
-    <p class="lead">More than a scholarship: here is what you gain by joining the program.</p>
-    <div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
-      <article class="card perk"><h3>Certificate of completion</h3><p>Receive an official internship certificate from Plant Green Inertia on successfully completing the program.</p></article>
-      <article class="card perk"><h3>Full-time job opportunity</h3><p>Outstanding performers may be offered a full-time role at Plant Green Inertia.</p></article>
-      <article class="card perk"><h3>Real project experience</h3><p>Build a real application during the program and add it to your portfolio and resume.</p></article>
-      <article class="card perk"><h3>Mentorship</h3><p>Learn from experienced professionals who review your work and answer your questions.</p></article>
-    </div>
-  </section>
-  <div class="divider" aria-hidden="true"><span></span><svg class="dv"><use href="#rangoli"/></svg><span></span></div>
-  <section id="how" class="sec">
-    <h2>How it works</h2>
-    <ol class="steps">
-      <li><span class="num">1</span><div><h3>Start the scholarship test</h3><p>Click START SCHOLARSHIP TEST, register, and take the proctored assessment.</p></div></li>
-      <li><span class="num">2</span><div><h3>Clear the scholarship test</h3><p>If you do not qualify, you can try again after six months or explore other scholarship opportunities.</p></div></li>
-      <li><span class="num">3</span><div><h3>Join the program</h3><p>Training runs from 8 to 18 November 2026. Your batch is assigned by the company.</p></div></li>
-    </ol>
-    <p class="lead note">Please check your email regularly for updates. For questions or feedback, reply to our email.</p>
-  </section>
+          <!-- 4 Highlight Chips -->
+          <div class="highlight-chips" aria-label="Program Highlights">
+            <div class="chip">
+              <span class="chip-icon">&#8377;</span>
+              <span>&#8377;10,000 Scholarship</span>
+            </div>
+            <div class="chip">
+              <span class="chip-icon">&#9201;</span>
+              <span>30-Hour Internship</span>
+            </div>
+            <div class="chip">
+              <span class="chip-icon">&#9729;</span>
+              <span>Online &amp; Offline Modes</span>
+            </div>
+            <div class="chip">
+              <span class="chip-icon">&#128188;</span>
+              <span>Pre-Placement for Offline</span>
+            </div>
+          </div>
 
-  <section id="certificate" class="cert-sec">
-    <div class="cert-wrap">
-      <div class="cert-prev"><div class="cert" role="img" aria-label="Sample Certificate of Internship, Plant Green Inertia">
-  <i class="cert-side l"></i><i class="cert-side r"></i><div class="cert-b1"></div><div class="cert-b2"></div>
-  <svg class="cc tl" viewBox="0 0 60 60" aria-hidden="true"><path d="M1 59A58 58 0 0 1 59 1" fill="none" stroke="#b8860b" stroke-width="2.4"/><path d="M9 59A50 50 0 0 1 59 9" fill="none" stroke="#1b6b2f" stroke-width="1.4"/></svg><svg class="cc tr" viewBox="0 0 60 60" aria-hidden="true"><path d="M1 59A58 58 0 0 1 59 1" fill="none" stroke="#b8860b" stroke-width="2.4"/><path d="M9 59A50 50 0 0 1 59 9" fill="none" stroke="#1b6b2f" stroke-width="1.4"/></svg><svg class="cc bl" viewBox="0 0 60 60" aria-hidden="true"><path d="M1 59A58 58 0 0 1 59 1" fill="none" stroke="#b8860b" stroke-width="2.4"/><path d="M9 59A50 50 0 0 1 59 9" fill="none" stroke="#1b6b2f" stroke-width="1.4"/></svg><svg class="cc br" viewBox="0 0 60 60" aria-hidden="true"><path d="M1 59A58 58 0 0 1 59 1" fill="none" stroke="#b8860b" stroke-width="2.4"/><path d="M9 59A50 50 0 0 1 59 9" fill="none" stroke="#1b6b2f" stroke-width="1.4"/></svg>
-  <div class="cert-wm" aria-hidden="true">SAMPLE COPY</div>
-  <div class="cert-in">
-    <div class="cert-stars" aria-hidden="true"><span>★</span><span>★</span><b>★</b><span>★</span><span>★</span></div>
-    <img class="cert-logo" src="/static/images/pgi-logo.jpg" alt="Plant Green Inertia logo">
-    <h3 class="cert-h">Certificate<br>of Internship</h3>
-    <p class="cert-t">This certificate is given to</p>
-    <div class="cert-dv" aria-hidden="true"><i></i></div>
-    <p class="cert-name">Student Name</p>
-    <p class="cert-d">has successfully completed the 10-day Diwali Special Internship and Training Program with Plant Green Inertia. We appreciate their dedication and wish them success in all future endeavours.</p>
-    <div class="cert-row"><span>Certificate No: PGI-DIW-SAMPLE</span><span>From: 8 Nov 2026</span><span>To: 18 Nov 2026</span></div>
-    <div class="cert-foot">
-      <div class="cert-seal" aria-hidden="true"><span>PLANT<br>GREEN<br>INERTIA</span></div>
-      <div class="cert-sig"><img src="/static/images/founder-signature.png" alt="Founder signature"><b>Founder</b><small>Plant Green Inertia</small></div>
-    </div>
-  </div>
-</div></div>
-      <div class="cert-txt">
-        <p class="cert-pill"><i></i>Sample Certificate</p>
-        <h2>Your Achievement Deserves Recognition</h2>
-        <p>Complete your internship journey and earn a certificate recognizing your learning and achievement. This is a sample preview with placeholder details.</p>
-        <button type="button" class="btn" id="certOpen" aria-haspopup="dialog">View Certificate Sample</button>
+          <!-- Hero CTAs -->
+          <div class="hero-actions">
+            <a class="btn btn-accent btn-large" data-start href="apply.html?promises=1" aria-label="Apply for winter internship">
+              APPLY FOR WINTER INTERNSHIP
+            </a>
+            <a class="btn btn-outline btn-large" href="#program" aria-label="Explore the internship program">
+              EXPLORE THE PROGRAM
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           Scholarship Section
+           ==================================================================== -->
+      <section id="scholarship" class="section-pad scholarship-section">
+        <div class="section-header">
+          <span class="section-eyebrow">Merit Sponsorship</span>
+          <h2 class="section-title">Winter Scholarship Assessment</h2>
+          <p class="section-lead">
+            Complete our 100-mark assessment to unlock up to 100% merit sponsorship.
+          </p>
+        </div>
+
+        <!-- 3 Scholarship Tiers -->
+        <div class="tier-grid">
+          <!-- Tier 1 -->
+          <article class="tier-card">
+            <div class="tier-header">
+              <h3 class="tier-name">Foundation Scholarship</h3>
+              <p class="tier-score">0 to 3 Correct Answers (0% &ndash; 12%)</p>
+            </div>
+            <div class="tier-discount">88% OFF</div>
+            <div class="tier-pricing">
+              <span class="tier-orig">&#8377;9,999</span>
+              <span class="tier-final">&#8377;1,199</span>
+            </div>
+            <p class="benefit-desc">Guaranteed subsidized cohort admission voucher upon assessment completion.</p>
+            <div class="tier-validity">
+              <span>&#9202;</span> Valid for 24 hours
+            </div>
+          </article>
+
+          <!-- Tier 2 (Featured / Student Contribution ₹999) -->
+          <article class="tier-card featured">
+            <span class="tier-badge">Popular Choice</span>
+            <div class="tier-header">
+              <h3 class="tier-name">Merit Scholarship</h3>
+              <p class="tier-score">4 to 24 Correct Answers (16% &ndash; 96%)</p>
+            </div>
+            <div class="tier-discount" style="color:var(--plant-green);">90% OFF</div>
+            <div class="tier-pricing">
+              <span class="tier-orig">&#8377;9,999</span>
+              <span class="tier-final">&#8377;999</span>
+            </div>
+            <p class="benefit-desc">&#8377;999 student contribution unlocking the full 30-hour program &amp; certificate.</p>
+            <div class="tier-validity">
+              <span>&#9202;</span> Valid for 24 hours
+            </div>
+          </article>
+
+          <!-- Tier 3 (100% Free) -->
+          <article class="tier-card top">
+            <span class="tier-badge" style="background:var(--midnight-navy);">Top Score</span>
+            <div class="tier-header">
+              <h3 class="tier-name">Excellence Sponsorship</h3>
+              <p class="tier-score">25 Correct Answers (100%)</p>
+            </div>
+            <div class="tier-discount">100% FREE</div>
+            <div class="tier-pricing">
+              <span class="tier-orig">&#8377;9,999</span>
+              <span class="tier-final" style="color:var(--midnight-navy);">&#8377;0 (Free)</span>
+            </div>
+            <p class="benefit-desc">Full 100% tuition waiver for perfect 25/25 top scorers.</p>
+            <div class="tier-validity">
+              <span>&#9202;</span> Valid for 24 hours
+            </div>
+          </article>
+        </div>
+
+        <div style="text-align:center;">
+          <a class="btn btn-accent btn-large" data-start href="apply.html?promises=1">
+            TAKE SCHOLARSHIP ASSESSMENT
+          </a>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           Benefits Section
+           ==================================================================== -->
+      <section id="benefits" class="section-pad">
+        <div class="section-header">
+          <span class="section-eyebrow">Why Choose PGI</span>
+          <h2 class="section-title">Program Benefits</h2>
+          <p class="section-lead">
+            Practical training, real project deliverables, and direct career pathways.
+          </p>
+        </div>
+
+        <div class="benefits-grid">
+          <!-- 1. 30-Hour Program -->
+          <article class="frosted-card benefit-card">
+            <div class="benefit-icon-box">&#9201;</div>
+            <h3 class="benefit-title">30-Hour Intensive Program</h3>
+            <p class="benefit-desc">
+              Focused 10-day structure (3 hours daily) dedicated to practical engineering workflows.
+            </p>
+          </article>
+
+          <!-- 2. Online & Offline Modes -->
+          <article class="frosted-card benefit-card">
+            <div class="benefit-icon-box">&#127760;</div>
+            <h3 class="benefit-title">Online &amp; Offline Modes</h3>
+            <p class="benefit-desc">
+              Join live remote cohorts or attend full-day immersive sessions at our Chennai office.
+            </p>
+          </article>
+
+          <!-- 3. Pre-Placement Offer (Offline) -->
+          <article class="frosted-card benefit-card">
+            <div class="benefit-icon-box">&#128188;</div>
+            <h3 class="benefit-title">Pre-Placement for Offline</h3>
+            <p class="benefit-desc">
+              Top offline performers are evaluated directly for Pre-Placement Offers (PPOs).
+            </p>
+          </article>
+
+          <!-- 4. Real-World Projects -->
+          <article class="frosted-card benefit-card">
+            <div class="benefit-icon-box">&#128187;</div>
+            <h3 class="benefit-title">Real-World Projects</h3>
+            <p class="benefit-desc">
+              Build and deploy live production applications for your portfolio and GitHub.
+            </p>
+          </article>
+
+          <!-- 5. Complimentary 1-Page Project Report -->
+          <article class="frosted-card benefit-card">
+            <div class="benefit-icon-box">&#128196;</div>
+            <h3 class="benefit-title">Free 1-Page Project Report</h3>
+            <p class="benefit-desc">
+              Receive a formal 1-page report documenting your architecture and tech stack.
+            </p>
+          </article>
+
+          <!-- 6. Completion Certificate -->
+          <article class="frosted-card benefit-card">
+            <div class="benefit-icon-box">&#127942;</div>
+            <h3 class="benefit-title">Completion Certificate</h3>
+            <p class="benefit-desc">
+              Earn an official verifiable Certificate of Internship from Plant Green Inertia.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           Program & Syllabus Section (Dynamic DB + Tech & Non-Tech Tracks)
+           ==================================================================== -->
+      <section id="program" class="section-pad" style="background:var(--ice-white);">
+        <div class="section-header">
+          <span class="section-eyebrow">Curriculum</span>
+          <h2 class="section-title">Specialization Tracks &amp; Syllabus</h2>
+          <p class="section-lead">
+            Practical technical and operational tracks aligned with industry standards.
+          </p>
+        </div>
+
+        <!-- Track Switcher -->
+        <div class="track-switcher">
+          <button class="track-btn active" data-filter="all">All Tracks</button>
+          <button class="track-btn" data-filter="technical">Technical Tracks</button>
+          <button class="track-btn" data-filter="non-technical">Non-Technical Tracks</button>
+        </div>
+
+        <!-- Syllabus Cards Grid -->
+        <div class="syllabus-grid" id="syllabusContainer">
+          <!-- Track 1: Web Development -->
+          <article class="frosted-card syllabus-card" data-track="technical">
+            <span class="syllabus-track-badge badge-tech">Technical Track</span>
+            <h3>Web Development</h3>
+            <p class="syllabus-duration">10 Days &middot; 30 Hours</p>
+            <p class="syllabus-desc">
+              Build, style, test, and deploy modern responsive websites and web applications.
+            </p>
+            <ul class="syllabus-skills-list">
+              <li class="syllabus-skill">HTML5 Semantic Markup</li>
+              <li class="syllabus-skill">Modern CSS3 Flexbox &amp; Grid</li>
+              <li class="syllabus-skill">JavaScript (ES6+)</li>
+              <li class="syllabus-skill">DOM Manipulation</li>
+              <li class="syllabus-skill">GitHub &amp; Git Version Control</li>
+              <li class="syllabus-skill">GitHub Pages Deployment</li>
+            </ul>
+          </article>
+
+          <!-- Track 2: App Development -->
+          <article class="frosted-card syllabus-card" data-track="technical">
+            <span class="syllabus-track-badge badge-tech">Technical Track</span>
+            <h3>App Development</h3>
+            <p class="syllabus-duration">10 Days &middot; 30 Hours</p>
+            <p class="syllabus-desc">
+              Design mobile UI, logic workflows, cloud data storage, and compile Android APKs.
+            </p>
+            <ul class="syllabus-skills-list">
+              <li class="syllabus-skill">MIT App Inventor</li>
+              <li class="syllabus-skill">Mobile UI/UX Layouts</li>
+              <li class="syllabus-skill">Event-Driven Block Logic</li>
+              <li class="syllabus-skill">CloudDB &amp; Local Storage</li>
+              <li class="syllabus-skill">Device Sensor Integration</li>
+              <li class="syllabus-skill">Android APK Compilation</li>
+            </ul>
+          </article>
+
+          <!-- Track 3: Digital Operations & Project Management -->
+          <article class="frosted-card syllabus-card" data-track="non-technical">
+            <span class="syllabus-track-badge badge-nontech">Non-Technical Track</span>
+            <h3>Digital Operations &amp; Project Management</h3>
+            <p class="syllabus-duration">10 Days &middot; 30 Hours</p>
+            <p class="syllabus-desc">
+              Plan sprints, track workflows, and ship software using Agile practices.
+            </p>
+            <ul class="syllabus-skills-list">
+              <li class="syllabus-skill">Agile &amp; Scrum Frameworks</li>
+              <li class="syllabus-skill">Sprint Planning &amp; Estimation</li>
+              <li class="syllabus-skill">Jira / Trello Workflows</li>
+              <li class="syllabus-skill">Process Quality Assurance</li>
+              <li class="syllabus-skill">Risk Management</li>
+              <li class="syllabus-skill">Cross-Team Coordination</li>
+            </ul>
+          </article>
+
+          <!-- Track 4: Business Analysis & Tech Communication -->
+          <article class="frosted-card syllabus-card" data-track="non-technical">
+            <span class="syllabus-track-badge badge-nontech">Non-Technical Track</span>
+            <h3>Business Analysis &amp; Tech Communication</h3>
+            <p class="syllabus-duration">10 Days &middot; 30 Hours</p>
+            <p class="syllabus-desc">
+              Draft requirements, map workflows, and present executive data insights.
+            </p>
+            <ul class="syllabus-skills-list">
+              <li class="syllabus-skill">Requirements Gathering (BRD)</li>
+              <li class="syllabus-skill">Business Process Mapping</li>
+              <li class="syllabus-skill">Data Synthesis in Excel</li>
+              <li class="syllabus-skill">Wireframing Essentials</li>
+              <li class="syllabus-skill">Executive Reporting</li>
+              <li class="syllabus-skill">Stakeholder Presentations</li>
+            </ul>
+          </article>
+        </div>
+
+        <!-- Container for dynamically injected database courses if any -->
+        <div id="dynamicDbCourses" class="syllabus-grid" style="margin-top:-0.5rem;"></div>
+
+        <div style="text-align:center; margin-top:1.5rem;">
+          <a class="btn btn-secondary" href="static/pdf/PGI_Winter_Internship_Syllabus.pdf" download="PGI_Winter_Internship_Syllabus.pdf" aria-label="Download the Winter Internship Syllabus PDF">
+            &#128190; DOWNLOAD WINTER SYLLABUS (PDF)
+          </a>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           Timings & Batch Dates Section (Database-Configurable)
+           ==================================================================== -->
+      <section id="timings" class="section-pad">
+        <div class="section-header">
+          <span class="section-eyebrow">Cohort Schedules</span>
+          <h2 class="section-title">Training Timings &amp; Batch Dates</h2>
+          <p class="section-lead">
+            Flexible online and offline schedules with dedicated mentor guidance.
+          </p>
+        </div>
+
+        <div class="timings-container">
+          <!-- Online Cohort -->
+          <article class="frosted-card timing-card">
+            <span class="timing-mode">Remote Track</span>
+            <h3 class="timing-title">Online Batch</h3>
+            <div class="timing-hours">4:00 PM – 6:00 PM IST</div>
+            <p class="timing-desc">
+              Live sessions, code reviews, Q&amp;A, and cloud labs from anywhere.
+            </p>
+          </article>
+
+          <!-- Offline Cohort -->
+          <article class="frosted-card timing-card offline">
+            <span class="timing-mode">In-Person Track</span>
+            <h3 class="timing-title">Offline Full-Day Batch</h3>
+            <div class="timing-hours">9:00 AM – 6:00 PM IST</div>
+            <p class="timing-desc">
+              Hands-on labs at our Chennai office with direct mentorship and PPO evaluation.
+            </p>
+          </article>
+        </div>
+
+        <!-- Database-Configurable Batch Dates Banner -->
+        <div class="dates-banner" id="batchDatesBanner">
+          <div>
+            <h4 id="dynamicBatchName">Active Winter Cohort Schedule</h4>
+            <p>Dates synced live from our admissions portal.</p>
+          </div>
+          <div class="dates-tag" id="dynamicBatchDates">
+            Upcoming Winter Cohort
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           Certificate Sample (Winter Corporate Redesign)
+           ==================================================================== -->
+      <section id="certificate" class="cert-section">
+        <div class="cert-grid-layout">
+          <!-- Live HTML/CSS Sample Certificate Render -->
+          <div class="cert-winter-card" role="img" aria-label="Sample Winter Internship Certificate, Plant Green Inertia Pvt. Ltd.">
+            <div class="cert-inner-border"></div>
+            <div class="cert-corner-frost tl"></div>
+            <div class="cert-corner-frost tr"></div>
+            <div class="cert-corner-frost bl"></div>
+            <div class="cert-corner-frost br"></div>
+            <div class="cert-watermark" aria-hidden="true">SAMPLE</div>
+
+            <div class="cert-head">
+              <img class="cert-org-logo" src="static/images/Plant Green Inertia Logo.png" alt="Plant Green Inertia logo" onerror="this.src='static/images/pgi-logo.jpg'">
+              <span class="cert-serial">ID: PGI-WIN-2026-SAMPLE</span>
+            </div>
+
+            <div>
+              <h3 class="cert-main-title">Certificate of Internship</h3>
+              <p class="cert-subtitle">Plant Green Inertia Pvt. Ltd.</p>
+              <p style="font-size:0.75rem; color:var(--slate-muted); text-transform:uppercase; letter-spacing:0.12em;">This is proudly presented to</p>
+              <div class="cert-recipient">Student Candidate Name</div>
+              <p class="cert-body-text">
+                has successfully completed the 30-Hour Winter Internship &amp; Training Program with commendable technical aptitude.
+              </p>
+            </div>
+
+            <div class="cert-footer-row">
+              <div class="cert-seal-badge" aria-hidden="true">
+                <span>PGI<br>VERIFIED<br>EXCELLENCE</span>
+              </div>
+              <div class="cert-signature-block">
+                <img class="cert-sig-img" src="static/images/founder-signature.png" alt="Authorized founder signature">
+                <div class="cert-signer-title">Authorized Signatory</div>
+                <div class="cert-signer-company">Plant Green Inertia Pvt. Ltd.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description & Preview CTA -->
+          <div class="cert-info-panel">
+            <div class="badge-eyebrow">
+              <span class="dot"></span>
+              <span>OFFICIAL ACCREDITATION</span>
+            </div>
+            <h2 class="section-title" style="text-align:left; margin-bottom:1rem;">Verified Program Credential</h2>
+            <p style="color:var(--slate-text); font-size:1.05rem; line-height:1.7; margin-bottom:1.5rem;">
+              Earn an official Internship Certificate backed by a unique verification ID and digital signature for LinkedIn and college credits.
+            </p>
+            <button type="button" class="btn btn-primary btn-large" id="certOpen" aria-haspopup="dialog">
+              View Certificate Sample
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Certificate Modal Dialog -->
+      <div class="cert-modal" id="certModal" role="dialog" aria-modal="true" aria-label="Sample certificate preview" hidden>
+        <div class="cert-modal-box">
+          <div id="certModalRender" style="width:100%; display:flex; justify-content:center;"></div>
+          <button type="button" class="btn btn-outline" id="certClose" style="background:#ffffff; color:var(--midnight-navy);">
+            Close Preview
+          </button>
+        </div>
       </div>
-    </div>
-  </section>
-  <div class="cert-modal" id="certModal" role="dialog" aria-modal="true" aria-label="Sample certificate preview" hidden>
-    <div class="cert-mbox"><div id="certBig"></div><button type="button" class="btn ghost" id="certClose">Close Preview</button></div>
+
+      <!-- ====================================================================
+           Final Call to Action
+           ==================================================================== -->
+      <section class="section-pad" style="text-align:center; background:linear-gradient(180deg, var(--frost-blue), var(--ice-white)); border-top:1px solid var(--glass-border);">
+        <div class="badge-eyebrow">
+          <span class="dot"></span>
+          <span>GET STARTED</span>
+        </div>
+        <h2 class="section-title">Begin Your Winter Internship Journey</h2>
+        <p class="section-lead" style="max-width:600px; margin:0 auto 2rem;">
+          Apply in minutes, complete the 100-mark assessment, and unlock your scholarship.
+        </p>
+        <div style="display:flex; justify-content:center; gap:1rem; flex-wrap:wrap;">
+          <a class="btn btn-accent btn-large" data-start href="apply.html?promises=1">
+            APPLY FOR WINTER INTERNSHIP
+          </a>
+          <a class="btn btn-outline btn-large" href="portal.html">
+            STUDENT PORTAL
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <!-- ====================================================================
+         Corporate Footer
+         ==================================================================== -->
+    <footer class="site-footer">
+      <div class="footer-top">
+        <!-- Brand & About -->
+        <div class="footer-brand">
+          <h4>Plant Green Inertia Pvt. Ltd.</h4>
+          <p>
+            Software engineering solutions and specialized practical internship programs.
+          </p>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="footer-col">
+          <h5>Program</h5>
+          <ul class="footer-links">
+            <li><a href="#scholarship">Merit Scholarship</a></li>
+            <li><a href="#benefits">Internship Benefits</a></li>
+            <li><a href="#program">Syllabus &amp; Tracks</a></li>
+            <li><a href="#timings">Cohort Timings</a></li>
+            <li><a href="#certificate">Sample Certificate</a></li>
+          </ul>
+        </div>
+
+        <!-- Portals & Accounts -->
+        <div class="footer-col">
+          <h5>Portals &amp; Policies</h5>
+          <ul class="footer-links">
+            <li><a href="login.html">Student Login</a></li>
+            <li><a href="dashboard.html">Internship Dashboard</a></li>
+            <li><a href="portal.html">Assessment Portal</a></li>
+            <li><a href="admin.html">Admin Dashboard</a></li>
+            <li><a href="terms.html">Terms &amp; Conditions</a></li>
+            <li><a href="privacy.html">Privacy Policy</a></li>
+            <li><a href="refund.html">Refund &amp; Cancellation</a></li>
+            <li><a href="contact.html">Contact Us</a></li>
+          </ul>
+        </div>
+
+        <!-- Contact Details -->
+        <div class="footer-col">
+          <h5>Contact Us</h5>
+          <div class="footer-contact-item">
+            <span>&#128205;</span>
+            <span>No:4, 1st Floor, Alapakkam Main Road, Maduravoyal, Chennai - 600095</span>
+          </div>
+          <div class="footer-contact-item">
+            <span>&#9993;</span>
+            <a href="mailto:plantgreeninertia@gmail.com" style="color:#475569;">plantgreeninertia@gmail.com</a>
+          </div>
+          <div class="footer-contact-item">
+            <span>&#128222;</span>
+            <a href="tel:+918220699083" style="color:#475569;">+91 82206 99083</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; <span id="yr">2026</span> Plant Green Inertia Pvt. Ltd. All rights reserved.</p>
+        <p>Winter Internship &amp; Training Program &middot; Built for Aspiring Engineers</p>
+      </div>
+    </footer>
   </div>
 
-  <section class="cta">
-    <div class="sparkles" aria-hidden="true"></div>
-    
-    <h2>Begin your journey this Diwali</h2><p>Your first step is a single test.</p>
-    <a class="btn" data-start href="#" aria-label="Start the scholarship test">START SCHOLARSHIP TEST</a>
-  </section>
-</main>
-
-<footer class="foot">
-  
-  <p class="fn">Diwali Special Internship and Training Program</p>
-  <p>Presented by Plant Green Inertia Pvt. Ltd.</p>
-  <p class="fl" id="contacts"></p>
-  <p class="fl"><a href="terms.html">Terms &amp; Conditions</a><a href="privacy.html">Privacy Policy</a><a href="refund.html">Refund &amp; Cancellation</a><a href="contact.html">Contact Us</a></p>
-  <p class="small">© <span id="yr"></span> Plant Green Inertia Pvt. Ltd.</p>
-</footer>
-
-<script src="static/js/config.js"></script>
-<script src="static/js/main.js"></script>
-<script>document.getElementById("yr").textContent = new Date().getFullYear();</script>
+  <!-- Scripts -->
+  <script src="static/js/config.js"></script>
+  <script src="static/js/winter-snow.js"></script>
+  <script src="static/js/winter-main.js"></script>
 </body>
 </html>

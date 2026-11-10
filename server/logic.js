@@ -1,20 +1,46 @@
 import crypto from 'node:crypto';
-export const BASE_PRICE_PAISE = 999900;
+export const BASE_PRICE_PAISE = 999900; // Legacy base price (Diwali)
+export const WINTER_PRICE_PAISE = 1000000; // ₹10,000 for Winter Internship Program
+
 // Integer-only tier calc. correct/total compared via cross-multiplication (no floats).
 export function tierFor(correct, total) {
   if (!Number.isInteger(correct) || !Number.isInteger(total) || total <= 0 || correct < 0 || correct > total) throw new Error('invalid score');
   if (correct === total) return 100;
   return correct * 100 >= total * 50 ? 90 : 85;
 }
+
 export function payablePaise(basePaise, discountPercent) {
-  if (![85, 90, 100].includes(discountPercent)) throw new Error('invalid tier');
+  if (![0, 85, 88, 90, 100].includes(discountPercent)) throw new Error('invalid tier');
   if (!Number.isInteger(basePaise) || basePaise < 0) throw new Error('invalid price');
-  // integer half-up rounding; for the 999900 base this is exact (149985 / 99990 / 0)
+  if (discountPercent === 100) return 0;
+  if (discountPercent === 0) return basePaise;
+  // Winter Internship: ₹9,999/₹10,000 base -> 88% tier = ₹1,199, 90% tier = ₹999
+  if (discountPercent === 88 && (basePaise === 999900 || basePaise === 1000000)) return 119900;
+  if (basePaise === 1000000 && discountPercent === 90) return 99900;
+  // integer half-up rounding; for legacy 999900 base this is exact (149985 / 99990 / 0)
   return Math.floor((basePaise * (100 - discountPercent) + 50) / 100);
 }
+
+// Winter Cohort tiers: 0–3 correct out of 25 (0%–12%) -> ₹1,199 (88% grant); 4–24 (16%–96%) -> ₹999 (90% grant); 25 (100%) -> ₹0 Free.
+export function winterTierFor(correct, total) {
+  if (!Number.isInteger(correct) || !Number.isInteger(total) || total <= 0 || correct < 0 || correct > total) throw new Error('invalid score');
+  if (correct === total) return 100;
+  return correct * 100 <= total * 12 ? 88 : 90;
+}
+
+export function winterPayablePaise(coupon) {
+  if (!coupon) return BASE_PRICE_PAISE; // ₹9,999 (999900 paise) default when no coupon is applied
+  const disc = Number(coupon.discount_percent ?? coupon.discountPercent);
+  if (disc === 100) return 0;
+  if (disc === 90) return 99900;
+  if (disc === 88 || disc === 85) return 119900;
+  return BASE_PRICE_PAISE;
+}
+
 export const formatINR = p => '₹' + (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function scorePercent(correct, total) { return Math.round((correct * 10000) / total) / 100; }
 export function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
 // Draw `count` distinct questions for ONE student, mixing all question sets at random.
 // Each pick chooses a random set (never the same set twice in a row while another set has questions left),
 // then a random unused question from it. Questions the student saw in earlier attempts are skipped when enough unseen remain.
@@ -29,6 +55,7 @@ function mixSets(list, count) { // random set per pick, never the same set twice
   }
   return out;
 }
+
 // Questions are unique by id AND by wording (the same text stored twice counts once). Questions the student saw before
 // (by id or wording) are used last, only when too few unseen questions remain.
 export function pickQuestions(pool, count, seen = new Set()) {
@@ -39,13 +66,75 @@ export function pickQuestions(pool, count, seen = new Set()) {
   if (out.length < count) out.push(...mixSets(uniq.filter(q => !out.includes(q)), count - out.length));
   return out;
 }
-export function makeCouponCode() { return 'DIW-' + crypto.randomBytes(6).toString('hex').toUpperCase(); }
+
+export function makeCouponCode(prefix = 'WIN-') {
+  return prefix + crypto.randomBytes(3).toString('hex').toUpperCase();
+}
+
 export function couponState(c, now = new Date()) {
+  if (!c) return 'none';
   if (c.status === 'redeemed') return 'redeemed';
   return new Date(c.expires_at) <= now ? 'expired' : 'active';
 }
+
+export function canRequestExtension(c, maxExtensions = 2) {
+  if (!c) return false;
+  if (c.status === 'redeemed') return false;
+  return (Number(c.extension_count) || 0) < maxExtensions;
+}
+
 export function validateAnswer(b) {
   if (!b || typeof b.questionId !== 'string' || typeof b.optionId !== 'string' || b.optionId.length > 64) throw new Error('bad input');
+}
+
+/**
+ * Server-side score calculator
+ * Supports total_marks 100, pass_mark 30 (default), optional negative marking,
+ * and individual question marks.
+ */
+export function calculateAssessmentScore({
+  responses = [],
+  questions = [],
+  marksPerQuestion = 5,
+  negativeMarking = 0,
+  totalMarks = 100,
+  passMark = 30
+}) {
+  const key = new Map(questions.map(q => [q.id, {
+    correct: q.correct_option_id,
+    marks: Number(q.marks) || marksPerQuestion
+  }]));
+
+  let rawScore = 0;
+  let correctCount = 0;
+  let wrongCount = 0;
+
+  for (const r of responses) {
+    const qInfo = key.get(r.question_id);
+    if (!qInfo) continue;
+    if (r.selected_option_id === qInfo.correct) {
+      rawScore += qInfo.marks;
+      correctCount++;
+    } else if (r.selected_option_id) {
+      rawScore -= (Number(negativeMarking) || 0);
+      wrongCount++;
+    }
+  }
+
+  const finalScore = Math.max(0, Math.min(totalMarks, Math.round(rawScore * 100) / 100));
+  const scorePct = totalMarks > 0 ? Math.round((finalScore / totalMarks) * 10000) / 100 : 0;
+  const isQualified = finalScore >= passMark;
+
+  return {
+    score: finalScore,
+    totalMarks,
+    passMark,
+    correctCount,
+    wrongCount,
+    totalQuestions: questions.length,
+    scorePercent: scorePct,
+    isQualified
+  };
 }
 
 // ---- Proctoring policy: 3 warnings, the 4th counted violation auto-submits ----
@@ -67,3 +156,52 @@ export function violationDecision(countedSoFar, lastCountedAt, now = Date.now())
   return { counted, total, warningsLeft: Math.max(0, MAX_WARNINGS - total), autoSubmit: total > MAX_WARNINGS };
 }
 export const STATUS_TEXT = { submitted: 'Submitted by candidate', timed_out: 'Auto-submitted: time elapsed', auto_submitted: 'Auto-submitted: proctoring violation limit exceeded', in_progress: 'In progress' };
+
+/**
+ * Normalizes a Date of Birth string (YYYY-MM-DD or DD-MM-YYYY) to ISO YYYY-MM-DD
+ * and derives the 8-character assessment login password in DDMMYYYY format.
+ */
+export function parseDobCredentials(rawDob) {
+  const s = String(rawDob || '').trim();
+  let year, month, day;
+
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) {
+    year = Number(m[1]); month = Number(m[2]); day = Number(m[3]);
+  } else {
+    m = s.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+    if (m) {
+      day = Number(m[1]); month = Number(m[2]); year = Number(m[3]);
+    }
+  }
+
+  if (!year || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  if (year < 1960 || year > new Date().getFullYear() - 12) return null;
+
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() + 1 !== month || check.getUTCDate() !== day) {
+    return null;
+  }
+
+  const mm = String(month).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  return {
+    dobIso: `${year}-${mm}-${dd}`,
+    password: `${dd}${mm}${year}`
+  };
+}
+
+/**
+ * Normalizes a DOB-formatted login key (e.g. "15/08/2004", "15 / 08 / 2004", "15-08-2004")
+ * to 8-character DDMMYYYY while preserving arbitrary non-DOB passwords untouched.
+ */
+export function normalizeLoginPassword(rawPw) {
+  const raw = String(rawPw || '');
+  const m = raw.trim().match(/^(\d{2})\s*[/-]\s*(\d{2})\s*[/-]\s*(\d{4})$/);
+  if (!m) return raw;
+  const day = Number(m[1]);
+  const month = Number(m[2]);
+  const year = Number(m[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return raw;
+  return `${m[1]}${m[2]}${m[3]}`;
+}

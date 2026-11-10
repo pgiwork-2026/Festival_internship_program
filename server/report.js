@@ -46,8 +46,8 @@ export function buildReportPDF(r, pub = false) {
       doc.font('B').text('Date: ', x, y, { lineBreak: false }); doc.font('R').text(d, x + wl, y, { lineBreak: false }); doc.y = y + 12; doc.x = LEFT; } gap(3);
     if (!pub) { T('To: ' + [r.profile.full_name, r.email, r.profile.phone].filter(Boolean).join('  |  '), { b: 1 }); gap(3); }
     else { T('Candidate: ' + r.profile.full_name, { b: 1 }); gap(4); }
-    T('Subject: Scholarship Assessment Report \u2013 Diwali Special Internship and Training Program', { b: 1 }); gap(4);
-    T(`${pub ? 'This report records' : 'Thank you for attending'} the Scholarship Assessment by Plant Green Inertia Pvt. Ltd. (Diwali Special Internship and Training Program). ${pub ? 'The outcome is' : 'Your report is'} below.`);
+    T('Subject: Scholarship Assessment Report \u2013 Winter Internship and Training Program', { b: 1 }); gap(4);
+    T(`${pub ? 'This report records' : 'Thank you for attending'} the Scholarship Assessment by Plant Green Inertia Pvt. Ltd. (Winter Internship and Training Program). ${pub ? 'The outcome is' : 'Your report is'} below.`);
 
     H('Assessment Summary');
     const wrong = r.answered - a.correct_count;

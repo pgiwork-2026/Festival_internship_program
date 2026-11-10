@@ -1,99 +1,1738 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>PGI Admin</title>
-<style>
-:root{--g:#0b4d2c;--g2:#138a3d;--y:#ffc928;--bg:#f3faf4;--line:#dcebe0;--mut:#51675a}*{box-sizing:border-box}body{margin:0;font:14px/1.45 'Segoe UI',system-ui,sans-serif;background:var(--bg);color:#052e19}.hidden{display:none!important}
-#login{max-width:380px;margin:12vh auto;background:#fff;border-radius:16px;padding:28px;box-shadow:0 10px 40px rgba(7,61,34,.15);border-top:5px solid var(--y)}#login h2{margin:0 0 14px;color:var(--g)}
-input{width:100%;padding:10px 12px;margin:6px 0 12px;border:1px solid #bfdcc8;border-radius:8px;font:inherit;background:#fff}input:focus{outline:2px solid var(--y);border-color:var(--y)}
-button{font:inherit;cursor:pointer}button.p{background:var(--y);border:0;color:#1b1b1b;font-weight:700;padding:10px 18px;border-radius:8px;width:100%}.err{color:#b3261e;margin-top:8px}
-#app{display:flex;min-height:100vh}aside{width:230px;background:linear-gradient(180deg,#073d22,#0b4d2c);color:#fff;display:flex;flex-direction:column;padding:18px 12px;position:sticky;top:0;height:100vh}
-.brand{font-size:20px;font-weight:800;padding:4px 10px 18px;letter-spacing:.5px}.brand small{display:block;font-size:11px;font-weight:600;color:var(--y);letter-spacing:2px;text-transform:uppercase}
-nav{display:flex;flex-direction:column;gap:4px;flex:1}nav button{background:none;border:0;color:#dcebe0;text-align:left;padding:10px 12px;border-radius:8px;display:flex;gap:10px;align-items:center}nav button:hover{background:rgba(255,255,255,.1)}nav button.on{background:var(--y);color:#1b1b1b;font-weight:700}
-.user{font-size:12px;color:#a8d0b5;padding:10px;border-top:1px solid rgba(255,255,255,.15);word-break:break-all}.user button{margin-top:8px;width:100%;background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:6px;padding:7px}
-.content{flex:1;min-width:0}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:18px 26px;background:#fff;border-bottom:1px solid var(--line)}.top h1{margin:0;font-size:20px;color:var(--g)}
-.tools{display:flex;gap:8px}.tools input{margin:0;width:240px}.tools button{background:#fff;border:1px solid var(--g);color:var(--g);border-radius:8px;padding:8px 14px;font-weight:600}.tools button:hover{background:var(--g);color:#fff}
-main{padding:22px 26px}.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;gap:12px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-.kpi i{color:var(--g);font-style:normal;font-size:22px;width:44px;height:44px;border-radius:12px;background:#eef6f0;display:grid;place-items:center}.kpi b{display:block;font-size:22px;color:var(--g);line-height:1.1}.kpi span{color:var(--mut);font-size:12px}
-.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:18px}.panel h3{margin:0 0 12px;color:var(--g);font-size:15px}.fr{display:grid;grid-template-columns:140px 1fr 50px;gap:10px;align-items:center;margin:9px 0}.fr div.t{background:#eaf3ec;border-radius:8px;height:18px;overflow:hidden}.fr div.t div{height:100%;background:linear-gradient(90deg,var(--g2),var(--y));border-radius:8px}
-.count{color:var(--mut);margin-bottom:8px;font-size:13px}.wrap{overflow:auto;background:#fff;border:1px solid var(--line);border-radius:12px;max-height:calc(100vh - 190px)}table{border-collapse:collapse;width:100%}th,td{padding:10px 14px;text-align:left;white-space:nowrap;border-bottom:1px solid #eaf3ec}
-th{background:#eef6f0;color:var(--g);font-size:12px;text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0}tbody tr:hover{background:#fbfcf6}
-.b{font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;background:#e6f0e9;color:#444}.b.ok{background:#e3efe6;color:#0b4d2c}.b.bad{background:#fadcd9;color:#8c1d18}.b.warn{background:#fff0c2;color:#7a5a00}
-td button{background:#fff;border:1px solid var(--g);color:var(--g);border-radius:6px;padding:4px 10px;margin-right:4px;font-size:12px}td button:hover{background:var(--g);color:#fff}
-@media(max-width:800px){#app{flex-direction:column}aside{width:100%;height:auto;position:static;padding:10px}nav{flex-direction:row;overflow:auto}.tools input{width:100%}.top,main{padding:14px}}
-svg.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}#tabs button{display:flex;align-items:center;gap:10px}#tabs button svg{width:18px;height:18px}
-.bt{background:#fff;border:1px solid var(--g);color:var(--g);border-radius:999px;padding:8px 16px;font-weight:600;line-height:1.2;transition:background .15s,color .15s,box-shadow .15s,transform .15s}.bt:hover{background:var(--g);color:#fff;transform:translateY(-1px);box-shadow:0 4px 10px rgba(11,77,44,.2)}.bt:active{transform:none;box-shadow:none}.bt:focus-visible{outline:2px solid var(--y);outline-offset:2px}.bt.on{background:var(--y);border-color:var(--y);color:#1b1b1b;font-weight:700}.bt.back{background:#eef6f0;border-color:var(--line)}.bt.back:hover{background:var(--g);border-color:var(--g)}.bt.pri{background:var(--g);color:#fff}.bt.pri:hover{background:var(--g2);border-color:var(--g2)}.bt:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
-</style></head><body>
-<section id="login"><h2 style="margin-top:0;color:var(--g)">PGI Admin Login</h2><label>Email<input id="em" type="email" autocomplete="username"></label><label>Password<input id="pw" type="password" autocomplete="current-password"></label><label style="display:flex;gap:6px;align-items:center;margin:-4px 0 10px"><input id="sp" type="checkbox" style="width:auto;margin:0"> Show password</label><button class="p" id="go">Sign in</button><div class="err" id="le"></div></section>
-<div id="app" class="hidden"><aside><div class="brand">Plant Green Inertia<small>Admin Console</small></div><nav id="tabs"></nav><div class="user"><div id="who"></div><button id="out">Sign out</button></div></aside>
-<div class="content"><div class="top"><h1 id="ttl">Overview</h1><label id="bw" style="font-size:13px;color:var(--mut)">Batch <select id="bs" style="width:auto;margin:0 0 0 6px;padding:7px 10px"></select></label><div class="tools hidden" id="tools"><input id="q" placeholder="Search…"><button id="csv">Export CSV</button><button id="ref">Refresh</button></div></div><div id="bnav" class="hidden" style="padding:12px 26px 0;display:flex;gap:6px;flex-wrap:wrap"></div><main id="view"></main></div></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script>
-const $ = i => document.getElementById(i); let sb, token, tab = 'overview', data = [], cols = [], bsel = 'all', bid = null, sub = 'overview', batches = [];
-const inr = p => '\u20B9' + (p / 100).toLocaleString('en-IN'), dt = d => d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '-';
-const badge = (t, ok) => { const s = document.createElement('span'); s.className = 'b ' + (ok === true ? 'ok' : ok === false ? 'bad' : ok === 'warn' ? 'warn' : ''); s.textContent = t; return s; };
-async function api(p, body) { const r = await fetch('/api/admin' + p, { method: body ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok) throw Object.assign(new Error(j.error || 'Request failed (HTTP ' + r.status + ')'), { status: r.status }); return j; }
-async function evidence(id) { const w = window.open('', '_blank'); if (!w) return alert('Allow pop-ups to view the evidence.'); const d = w.document; d.title = 'Proctoring evidence'; d.body.textContent = 'Loading…';
-  try { const r = await fetch(`/api/admin/attempts/${id}/evidence`, { headers: { Authorization: 'Bearer ' + token } }); if (!r.ok) throw new Error('HTTP ' + r.status); const list = await r.json();
-    d.body.textContent = ''; d.body.style.cssText = 'font-family:Segoe UI,system-ui,sans-serif;margin:20px;background:#f9f5ee';
-    const h = d.createElement('h2'); h.textContent = `Proctoring evidence: ${list.length} flagged event${list.length === 1 ? '' : 's'}`; d.body.appendChild(h);
-    list.forEach(v => { const c = d.createElement('div'); c.style.cssText = 'display:inline-block;vertical-align:top;margin:8px;padding:10px;background:#fff;border:1px solid #eab8c1;border-radius:10px;width:280px';
-      const t = d.createElement('b'); t.textContent = v.label; c.appendChild(t); const m = d.createElement('div'); m.style.cssText = 'font-size:12px;color:#51675a;margin:4px 0'; m.textContent = new Date(v.at).toLocaleString() + (v.counted ? '' : ' (logged only, not counted)'); c.appendChild(m);
-      if (v.snapshot) { const i = d.createElement('img'); i.src = v.snapshot; i.style.cssText = 'width:100%;border-radius:6px'; c.appendChild(i); } else { const n = d.createElement('div'); n.style.cssText = 'font-size:12px;color:#999'; n.textContent = 'No snapshot saved for this event'; c.appendChild(n); }
-      d.body.appendChild(c); });
-  } catch (e) { d.body.textContent = 'Could not load evidence: ' + e.message; } }
-async function pdf(id) { try { const r = await fetch(`/api/admin/attempts/${id}/report.pdf`, { headers: { Authorization: 'Bearer ' + token } }); if (!r.ok) throw new Error('Report unavailable (HTTP ' + r.status + ')'); window.open(URL.createObjectURL(await r.blob()), '_blank'); } catch (e) { alert(e.message); } }
-const btn = (t, f) => { const b = document.createElement('button'); b.textContent = t; b.onclick = f; return b; };
-const act = (...bs) => { const s = document.createElement('span'); bs.forEach(b => s.appendChild(b)); return s; };
-const TABS = {
-  students: ['Students & registrations', [['Name', r => r.name], ['Email', r => r.email], ['Phone', r => r.phone], ['Registered', r => dt(r.registered)], ['Test', r => r.status || 'Not attempted'], ['Score %', r => r.score ?? '-'], ['Coupon', r => r.coupon || '-'], ['Enrolled', r => r.enrolled ? badge(r.enrolled, r.enrolled === 'active') : '-']]],
-  attempts: ['Test reports', [['Candidate', r => r.name], ['Email', r => r.email], ['Started', r => dt(r.started_at)], ['Status', r => r.status], ['Correct', r => r.status === 'in_progress' ? '-' : `${r.correct_count ?? 0}/${r.total_questions ?? 0}`], ['Score %', r => r.score_percent ?? '-'], ['Violations', r => badge(r.violations, r.violations ? false : true)],
-    ['Actions', r => r.status === 'in_progress' ? '' : act(btn('PDF report', () => pdf(r.id)), btn('Evidence', () => evidence(r.id)), ...(r.hasCoupon ? [btn('Extend coupon +24h', async () => { try { const x = await api('/coupons/' + r.id + '/extend', { hours: 24 }); alert('Coupon now valid until ' + dt(x.expiresAt)); } catch (e) { alert(e.message); } })] : []))]]],
-  payments: ['Payments', [['Date', r => dt(r.created)], ['Student', r => r.name], ['Email', r => r.email], ['Course', r => r.course], ['Amount', r => inr(r.amountPaise)], ['Status', r => badge(r.status, r.status === 'paid' ? true : r.status === 'created' ? 'warn' : false)], ['Order ID', r => r.orderId], ['Payment ID', r => r.paymentId || '-'], ['Paid at', r => dt(r.paidAt)]]],
-  enrollments: ['Enrollments', [['Enrolled', r => dt(r.enrolled)], ['Student', r => r.name], ['Email', r => r.email], ['Phone', r => r.phone], ['Course', r => r.course], ['Type', r => r.kind], ['Amount', r => inr(r.amountPaise)], ['Txn ref', r => r.ref], ['Status', r => badge(r.status, r.status === 'active')],
-    ['Actions', r => btn(r.status === 'active' ? 'Cancel' : 'Re-activate', async () => { if (!confirm('Change enrollment status?')) return; try { await api('/enrollments/' + r.id + '/status', { status: r.status === 'active' ? 'cancelled' : 'active' }); load(); } catch (e) { alert(e.message); } })]]] };
-const cur = () => bid ? sub : tab, sc = p => p + (p.includes('?') ? '&' : '?') + 'batch=' + encodeURIComponent(bid || bsel), bname = () => (batches.find(b => b.id === (bid || bsel)) || {}).name || 'All Batches';
-TABS.coupons = ['Coupons', [['Student', r => r.name], ['Email', r => r.email], ['Code', r => r.code], ['Discount %', r => r.discount], ['Score %', r => r.score], ['Issued', r => dt(r.issued)], ['Expires', r => dt(r.expires)], ['Status', r => badge(r.status, r.status === 'redeemed')]]];
-const text = (r, f) => { const v = f(r); return v instanceof Node ? v.textContent : String(v ?? ''); };
-function draw() { const q = $('q').value.toLowerCase(), [, cs] = TABS[cur()], v = $('view'); v.textContent = '';
-  const rows = data.filter(r => !q || cs.some(([, f]) => text(r, f).toLowerCase().includes(q))); const t = document.createElement('table'), h = t.createTHead().insertRow(); cs.forEach(([l]) => { const th = document.createElement('th'); th.textContent = l; h.appendChild(th); });
-  const tb = t.createTBody(); rows.forEach(r => { const tr = tb.insertRow(); cs.forEach(([, f]) => { const td = tr.insertCell(), x = f(r); x instanceof Node ? td.appendChild(x) : td.textContent = x ?? ''; }); });
-  const w = document.createElement('div'); w.className = 'wrap'; w.appendChild(t); const c = document.createElement('div'); c.className = 'count'; c.textContent = rows.length + ' record(s)'; v.append(c, w); }
-async function load() { $('view').textContent = 'Loading…'; $('bnav').classList.toggle('hidden', !(tab === 'batches' && bid)); $('bw').classList.toggle('hidden', tab === 'batches'); try {
-  if (tab === 'batches') { await loadBatches(); return bid ? batchDetail() : batchesView(); }
-  if (tab === 'overview') { $('tools').classList.add('hidden'); const o = await api(sc('/overview')), k = [['Registered students', o.students], ['Tests started', o.attempts], ['Tests completed', o.submitted], ['Tests in progress', o.running], ['Coupons issued', o.coupons], ['Active enrollments', o.enrolled], ['Payments received', o.paidOrders], ['Revenue', inr(o.revenuePaise)], ['Pending orders', o.pending], ['Needs refund', o.refund], ['Proctoring violations', o.violations]];
-    const ic = ['user', 'doc', 'check', 'hourglass', 'ticket', 'cap', 'card', 'rupee', 'clock', 'undo', 'alert'], g = document.createElement('div'); g.className = 'kpis';
-    k.forEach(([l, n], x) => { const d = document.createElement('div'); d.className = 'kpi'; const i = document.createElement('i'); i.appendChild(icon(ic[x])); const w = document.createElement('div'), b = document.createElement('b'), sp = document.createElement('span'); b.textContent = n; sp.textContent = l; w.append(b, sp); d.append(i, w); g.appendChild(d); });
-    const p = document.createElement('div'); p.className = 'panel'; p.innerHTML = '<h3>Conversion funnel</h3>'; const top = Math.max(o.students, 1);
-    [['Registered', o.students], ['Test started', o.attempts], ['Test completed', o.submitted], ['Coupons issued', o.coupons], ['Enrolled', o.enrolled]].forEach(([l, n]) => { const r = document.createElement('div'); r.className = 'fr'; const a = document.createElement('span'), t = document.createElement('div'), f = document.createElement('div'), c = document.createElement('b'); a.textContent = l; t.className = 't'; f.style.width = Math.min(100, n / top * 100) + '%'; t.appendChild(f); c.textContent = n; r.append(a, t, c); p.appendChild(r); });
-    $('view').textContent = ''; $('view').append(g, p); return; }
-  $('tools').classList.remove('hidden'); data = await api(sc('/' + tab)); draw(); } catch (e) { if (e.status === 403 || e.status === 401) return signOut(e.message); $('view').textContent = e.message; } }
-const SVG = {"user": "<circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1\"/>", "doc": "<path d=\"M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z\"/><path d=\"M14 3v6h6M8 13h8M8 17h5\"/>", "check": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"m8 12 3 3 5-6\"/>", "hourglass": "<path d=\"M6 3h12M6 21h12M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9\"/>", "ticket": "<path d=\"M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4z\"/><path d=\"M14 7v10\" stroke-dasharray=\"2 2\"/>", "cap": "<path d=\"m2 9 10-5 10 5-10 5z\"/><path d=\"M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5\"/>", "card": "<rect x=\"2\" y=\"5\" width=\"20\" height=\"14\" rx=\"2\"/><path d=\"M2 10h20M6 15h4\"/>", "rupee": "<path d=\"M7 5h10M7 9h10M7 5c5 0 7 2 7 4s-2 4-7 4l7 6\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>", "undo": "<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/>", "alert": "<path d=\"M12 3 2 20h20z\"/><path d=\"M12 10v4M12 17.5v.01\"/>", "chart": "<path d=\"M3 20h18M6 20v-8M11 20V5M16 20v-11\"/>", "users": "<circle cx=\"9\" cy=\"8\" r=\"3.5\"/><path d=\"M2 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1M16 4.5a3.5 3.5 0 0 1 0 7M22 20v-1a5 5 0 0 0-3-4.5\"/>", "clip": "<rect x=\"5\" y=\"4\" width=\"14\" height=\"17\" rx=\"2\"/><path d=\"M9 4h6v3H9zM9 12h6M9 16h4\"/>"};
-const icon = n => { const e = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); e.setAttribute('viewBox', '0 0 24 24'); e.setAttribute('class', 'ic'); e.setAttribute('aria-hidden', 'true'); e.innerHTML = SVG[n]; return e; };
-const ICON = { batches: 'doc', coupons: 'ticket', overview: 'chart', students: 'users', attempts: 'clip', payments: 'card', enrollments: 'cap' };
-function tabs() { const n = $('tabs'); n.textContent = ''; [['overview', 'Overview'], ['batches', 'Batches'], ...Object.entries(TABS).map(([k, v]) => [k, v[0]])].forEach(([k, l]) => { const b = btn(l, () => { tab = k; bid = null; sub = 'overview'; $('q').value = ''; tabs(); load(); }); b.prepend(icon(ICON[k])); if (k === tab) { b.className = 'on'; $('ttl').textContent = l; } n.appendChild(b); }); }
-const mk = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
-async function loadBatches(first) { batches = await api('/batches'); const s = $('bs'); s.textContent = ''; [['all', 'All Batches'], ...batches.map(b => [b.id, b.name])].forEach(([v, l]) => { const o = mk('option', '', l); o.value = v; s.appendChild(o); });
-  if (first) bsel = (batches.find(b => b.status === 'active') || {}).id || 'all'; if (bsel !== 'all' && !batches.some(b => b.id === bsel)) bsel = 'all'; s.value = bsel; }
-const STAT = { active: true, completed: null, upcoming: 'warn', inactive: false }, dr = b => b.starts_on || b.ends_on ? (b.starts_on || '?') + ' \u2192 ' + (b.ends_on || '?') : 'Dates not set';
-function batchesView() { const v = $('view'); v.textContent = ''; $('tools').classList.add('hidden'); $('ttl').textContent = 'Batches'; const bar = mk('div', 'count'), nb = btn('+ New batch', () => { v.textContent = ''; v.append(batchForm(null)); }); nb.style.width = 'auto'; nb.className = 'bt pri'; bar.appendChild(nb);
-  const g = mk('div', 'kpis'); batches.forEach(b => { const c = mk('div', 'panel'); c.style.margin = '0'; c.append(mk('h3', '', b.name), badge(b.status[0].toUpperCase() + b.status.slice(1), STAT[b.status]), mk('p', 'count', dr(b)), Object.assign(btn('View Details', () => { bid = b.id; sub = 'overview'; load(); }), { className: 'bt' })); g.appendChild(c); });
-  v.append(bar, g); }
-function batchForm(b) { const f = mk('div', 'panel'), fld = (l, id, t, val) => { const w = mk('label', '', l), i = mk('input'); i.id = id; i.type = t; i.value = val || ''; w.appendChild(i); f.appendChild(w); return i; };
-  f.appendChild(mk('h3', '', b ? 'Batch settings' : 'New batch')); const n = fld('Name', 'bn', 'text', b?.name), s = fld('Start date', 'bs1', 'date', b?.starts_on), e = fld('End date', 'bs2', 'date', b?.ends_on), d = fld('Description', 'bd', 'text', b?.description), er = mk('div', 'err');
-  const sv = btn(b ? 'Save changes' : 'Create batch', async () => { try { await api('/batches' + (b ? '/' + b.id : ''), { name: n.value, starts_on: s.value, ends_on: e.value, description: d.value }); bid = null; load(); } catch (x) { er.textContent = x.message; } }); sv.className = 'p'; sv.style.width = 'auto'; f.append(sv);
-  if (b) [['active', 'Activate'], ['inactive', 'Deactivate'], ['completed', 'Mark completed']].filter(([k]) => k !== b.status).forEach(([k, l]) => { const x = btn(l, async () => { if (!confirm(l + ' ' + b.name + '? This changes which batch students register for.')) return; try { await api('/batches/' + b.id + '/status', { status: k }); load(); } catch (y) { er.textContent = y.message; } }); x.style.marginLeft = '8px'; f.appendChild(x); });
-  f.appendChild(er); return f; }
-async function xlsx() { try { const r = await fetch('/api/admin/batches/' + bid + '/export.xlsx', { headers: { Authorization: 'Bearer ' + token } }); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Export failed'); const a = mk('a'); a.href = URL.createObjectURL(await r.blob()); a.download = bname() + '-report.xlsx'; a.click(); } catch (e) { alert(e.message); } }
-async function batchDetail() { const b = batches.find(x => x.id === bid); if (!b) { bid = null; return batchesView(); } $('ttl').textContent = b.name + ' batch'; const nav = $('bnav'); nav.textContent = '';
-  nav.appendChild(Object.assign(btn('\u2190 All batches', () => { bid = null; load(); }), { className: 'bt back' })); [['overview', 'Overview'], ['students', 'Registrations'], ['attempts', 'Assessments'], ['coupons', 'Coupons'], ['payments', 'Payments'], ['enrollments', 'Enrollments'], ['settings', 'Settings']].forEach(([k, l]) => { const x = btn(l, () => { sub = k; load(); }); x.className = 'bt' + (k === sub ? ' on' : ''); nav.appendChild(x); });
-  const v = $('view'); v.textContent = '';
-  if (sub === 'settings') { $('tools').classList.add('hidden'); return v.append(batchForm(b)); }
-  if (sub !== 'overview') { $('tools').classList.remove('hidden'); data = await api(sc('/' + sub)); return draw(); }
-  $('tools').classList.add('hidden'); const o = await api('/batches/' + bid + '/summary'), g = mk('div', 'kpis');
-  [['Total registrations', o.students, 'users'], ['Assessment participants', o.participants, 'doc'], ['Assessments completed', o.submitted, 'check'], ['Successful payments', o.paidOrders, 'card'], ['Pending payments', o.pending, 'clock'], ['Failed / cancelled', o.failed, 'alert'], ['Money collected', inr(o.revenuePaise), 'rupee'], ['Coupons generated', o.coupons, 'ticket'], ['Coupons redeemed', o.redeemed, 'ticket'], ['Course enrollments', o.enrollTotal, 'cap']].forEach(([l, n, ic]) => { const d = mk('div', 'kpi'), i = mk('i'), w = mk('div'); i.appendChild(icon(ic)); w.append(mk('b', '', n), mk('span', '', l)); d.append(i, w); g.appendChild(d); });
-  const p = mk('div', 'panel'); p.append(mk('h3', '', 'Revenue report'), mk('p', 'count', 'Money collected counts only verified successful payments in this batch. Pending and cancelled orders are not revenue.'), Object.assign(btn('Download Excel report', xlsx), { className: 'bt pri' })); v.append(g, p); }
-async function signOut(m) { await sb.auth.signOut(); token = null; $('app').classList.add('hidden'); $('login').classList.remove('hidden'); $('le').textContent = m || ''; }
-async function enter(session) { token = session.access_token; $('who').textContent = session.user.email; try { await api('/overview?batch=all'); await loadBatches(true); } catch (e) { return signOut(e.status === 403 ? 'This account is not an admin.' : e.message); } $('login').classList.add('hidden'); $('app').classList.remove('hidden'); tabs(); load(); }
-$('go').onclick = async () => { $('le').textContent = ''; const { data: d, error } = await sb.auth.signInWithPassword({ email: $('em').value.trim(), password: $('pw').value }); error ? $('le').textContent = error.message : enter(d.session); };
-$('pw').addEventListener('keydown', e => { if (e.key === 'Enter') $('go').click(); }); $('sp').onchange = e => { $('pw').type = e.target.checked ? 'text' : 'password'; }; $('out').onclick = () => signOut(); $('q').oninput = draw; $('bs').onchange = e => { bsel = e.target.value; load(); }; $('ref').onclick = load;
-$('csv').onclick = () => { const cs = TABS[cur()][1].filter(([l]) => l !== 'Actions'), q = v => '"' + String(v).replace(/"/g, '""') + '"'; const lines = [cs.map(([l]) => q(l)).join(',')].concat(data.map(r => cs.map(([, f]) => q(text(r, f))).join(','))); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' })); a.download = (bid || tab === 'batches' ? bname() + '-' : '') + cur() + '.csv'; a.click(); };
-(async () => { const c = await (await fetch('/api/config')).json(); sb = supabase.createClient(c.supabaseUrl, c.supabaseAnonKey); const { data: d } = await sb.auth.getSession(); if (d.session) enter(d.session); })();
-</script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Plant Green Inertia | Secure Admin Console</title>
+  <link rel="icon" href="static/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="static/css/theme-winter.css">
+  <style>
+    :root {
+      --admin-navy: #101D35;
+      --admin-green: #2A6636;
+      --admin-blue: #2563EB;
+      --admin-bg: #F8FAFC;
+      --admin-line: #E2E8F0;
+      --admin-mut: #64748B;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.5 'Plus Jakarta Sans', system-ui, sans-serif;
+      background: var(--admin-bg);
+      color: #0F172A;
+    }
+    .hidden { display: none !important; }
+    
+    /* Login Box */
+    #login-box {
+      max-width: 420px;
+      margin: 12vh auto;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 20px 60px rgba(16, 29, 53, 0.12);
+      border: 1px solid var(--admin-line);
+      border-top: 5px solid var(--admin-navy);
+    }
+    #login-box h2 {
+      margin: 0 0 6px;
+      font-family: 'Space Grotesk', sans-serif;
+      color: var(--admin-navy);
+      font-size: 1.5rem;
+    }
+    #login-box p {
+      color: var(--admin-mut);
+      font-size: 0.88rem;
+      margin: 0 0 20px;
+    }
+    
+    /* Form controls */
+    label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.82rem;
+      color: var(--admin-navy);
+      margin-bottom: 4px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 9px 12px;
+      margin-bottom: 14px;
+      border: 1px solid #CBD5E1;
+      border-radius: 8px;
+      font: inherit;
+      background: #ffffff;
+      color: #0F172A;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--admin-blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+    
+    /* Buttons */
+    button { font: inherit; cursor: pointer; transition: all 0.15s; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+    .btn-primary {
+      background: var(--admin-navy);
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: #1A2E50;
+    }
+    .btn-green {
+      background: var(--admin-green);
+      color: #ffffff;
+    }
+    .btn-green:hover {
+      background: #23522C;
+    }
+    .btn-outline {
+      background: #ffffff;
+      border-color: #CBD5E1;
+      color: var(--admin-navy);
+    }
+    .btn-outline:hover {
+      background: #F1F5F9;
+      border-color: #94A3B8;
+    }
+    .btn-sm { padding: 4px 10px; font-size: 0.78rem; border-radius: 6px; }
+    .btn-danger { background: #DC2626; color: #fff; }
+    .btn-danger:hover { background: #B91C1C; }
+    
+    /* App Layout */
+    #app-container {
+      display: flex;
+      min-height: 100vh;
+    }
+    aside {
+      width: 250px;
+      background: #101D35;
+      color: #F8FAFC;
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      border-right: 1px solid #1E293B;
+      flex-shrink: 0;
+    }
+    .aside-brand {
+      padding: 22px 18px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .aside-brand h3 {
+      margin: 0;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.15rem;
+      color: #ffffff;
+      letter-spacing: -0.01em;
+    }
+    .aside-brand small {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--winter-blue);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 2px;
+    }
+    nav#admin-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    nav#admin-nav button {
+      background: transparent;
+      border: none;
+      color: #94A3B8;
+      text-align: left;
+      padding: 9px 12px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      width: 100%;
+    }
+    nav#admin-nav button:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #F8FAFC;
+    }
+    nav#admin-nav button.active {
+      background: var(--admin-green);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(42, 102, 54, 0.3);
+    }
+    .aside-user {
+      padding: 14px 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.8rem;
+    }
+    .user-pill {
+      color: var(--winter-blue);
+      font-weight: 600;
+      word-break: break-all;
+      margin-bottom: 8px;
+    }
+    
+    /* Workspace Content */
+    .admin-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .admin-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 28px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--admin-line);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .admin-topbar h1 {
+      margin: 0;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.35rem;
+      color: var(--admin-navy);
+    }
+    .topbar-tools {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    main#admin-view {
+      padding: 24px 28px;
+      flex: 1;
+    }
+    
+    /* KPI Tiles Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: #ffffff;
+      border: 1px solid var(--admin-line);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+    .kpi-card .kpi-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--admin-mut);
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+    .kpi-card .kpi-val {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: var(--admin-navy);
+      line-height: 1.1;
+    }
+    .kpi-card .kpi-sub {
+      font-size: 0.8rem;
+      color: var(--admin-mut);
+      margin-top: 6px;
+    }
+    
+    /* Panel Cards */
+    .admin-panel {
+      background: #ffffff;
+      border: 1px solid var(--admin-line);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--admin-line);
+      padding-bottom: 12px;
+    }
+    .panel-head h3 {
+      margin: 0;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.1rem;
+      color: var(--admin-navy);
+    }
+    
+    /* Tables */
+    .table-wrap {
+      overflow-x: auto;
+      background: #ffffff;
+      border: 1px solid var(--admin-line);
+      border-radius: 10px;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+    table.data-table th {
+      background: #F8FAFC;
+      padding: 10px 14px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--admin-navy);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--admin-line);
+      white-space: nowrap;
+    }
+    table.data-table td {
+      padding: 11px 14px;
+      border-bottom: 1px solid #F1F5F9;
+      color: #334155;
+      white-space: nowrap;
+    }
+    table.data-table tbody tr:hover {
+      background: #F8FAFC;
+    }
+    
+    /* Status Badges */
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .pill.green { background: #DCFCE7; color: #166534; }
+    .pill.blue { background: #DBEAFE; color: #1E40AF; }
+    .pill.yellow { background: #FEF3C7; color: #92400E; }
+    .pill.red { background: #FEE2E2; color: #991B1B; }
+    .pill.gray { background: #F1F5F9; color: #475569; }
+    
+    /* Filter Bar */
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    .filter-bar input, .filter-bar select {
+      margin-bottom: 0;
+      width: auto;
+      min-width: 160px;
+      padding: 7px 10px;
+      font-size: 0.85rem;
+    }
+    
+    /* Modal Backdrop & Drawer */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(3px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-box {
+      background: #ffffff;
+      border-radius: 14px;
+      max-width: 760px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 28px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+    
+    /* Responsive Mobile Layouts */
+    @media (max-width: 860px) {
+      #app-container {
+        flex-direction: column;
+      }
+      aside {
+        width: 100%;
+        height: auto;
+        position: static;
+        border-right: none;
+        border-bottom: 1px solid #1E293B;
+      }
+      nav#admin-nav {
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 8px 10px;
+        gap: 6px;
+      }
+      nav#admin-nav button {
+        white-space: nowrap;
+        padding: 7px 10px;
+        font-size: 0.8rem;
+      }
+      .admin-topbar {
+        padding: 12px 16px;
+      }
+      main#admin-view {
+        padding: 16px 14px;
+      }
+      input, select, textarea {
+        font-size: 16px; /* Prevents iOS auto-zoom on input focus */
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Admin Login Screen -->
+  <section id="login-box">
+    <h2>Plant Green Inertia</h2>
+    <p>Sign in with your Administrator credentials.</p>
+    <form onsubmit="event.preventDefault(); doAdminLogin();">
+      <label for="admin-email">Admin Email Address</label>
+      <input id="admin-email" type="email" autocomplete="username" placeholder="admin@plantgreeninertia.com" required>
+      <label for="admin-password">Password</label>
+      <input id="admin-password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+      <label style="display:flex;align-items:center;gap:6px;font-weight:normal;margin-bottom:16px;">
+        <input type="checkbox" id="show-pw" style="width:auto;margin:0;" onchange="togglePw()"> Show password
+      </label>
+      <button type="submit" class="btn btn-primary" id="btn-login" style="width:100%;padding:11px;">
+        Sign In to Admin Console &rarr;
+      </button>
+      <div id="login-err" style="color:#DC2626;font-size:0.85rem;margin-top:12px;text-align:center;"></div>
+    </form>
+  </section>
+
+  <!-- Admin Main Application -->
+  <div id="app-container" class="hidden">
+    <!-- Sidebar -->
+    <aside>
+      <div class="aside-brand">
+        <h3>Plant Green Inertia</h3>
+        <small>Secure Admin Console</small>
+      </div>
+
+      <nav id="admin-nav">
+        <button class="active" onclick="showTab('analytics')">&#128202; Analytics</button>
+        <button onclick="showTab('students')">&#128101; Students &amp; Interns</button>
+        <button onclick="showTab('assessments')">&#128221; Assessments &amp; MCQs</button>
+        <button onclick="showTab('payments')">&#128179; Payments &amp; Orders</button>
+        <button onclick="showTab('coupons')">&#127915; Coupons</button>
+        <button onclick="showTab('batches')">&#128197; Programs &amp; Batches</button>
+        <button onclick="showTab('mentors')">&#128104;&#8205;&#127979; Mentors</button>
+        <button onclick="showTab('certificates')">&#127891; Certificates</button>
+        <button onclick="showTab('notifications')">&#128276; Notifications</button>
+        <button onclick="showTab('audit')">&#128737;&#65039; Audit Logs</button>
+      </nav>
+
+      <div class="aside-user">
+        <div class="user-pill" id="admin-user-disp">admin@example.com</div>
+        <button onclick="doAdminLogout()" class="btn btn-outline btn-sm" style="width:100%;color:#fff;background:rgba(255,255,255,0.1);border-color:transparent;">
+          Sign Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <div class="admin-content">
+      <div class="admin-topbar">
+        <h1 id="topbar-title">Analytics &amp; Program Telemetry</h1>
+        <div class="topbar-tools">
+          <button class="btn btn-outline btn-sm" id="btn-refresh" onclick="refreshCurrentTab()">&#8635; Refresh</button>
+          <button class="btn btn-outline btn-sm" id="btn-export-csv" onclick="exportActiveCsv()">&#128196; Export CSV</button>
+        </div>
+      </div>
+
+      <main id="admin-view">
+        <!-- Rendered dynamically by script -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Shared Modal Container -->
+  <div id="modal-container" class="modal-overlay hidden">
+    <div class="modal-box" id="modal-inner-content"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script>
+    let sb = null;
+    let token = null;
+    let activeTab = 'analytics';
+    let currentData = [];
+
+    const inr = paise => '₹' + (Number(paise || 0) / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    const fmtDate = d => d ? new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '—';
+
+    function togglePw() {
+      const p = document.getElementById('admin-password');
+      p.type = document.getElementById('show-pw').checked ? 'text' : 'password';
+    }
+
+    async function api(path, method = 'GET', body = null) {
+      const res = await fetch('/api/admin' + path, {
+        method,
+        headers: {
+          Authorization: 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(json.error || `HTTP error ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
+      return json;
+    }
+
+    // Auth bootstrap
+    async function initAuth() {
+      const cfg = await (await fetch('/api/config')).json();
+      sb = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+
+      const { data } = await sb.auth.getSession();
+      if (data?.session) {
+        enterSession(data.session);
+      }
+    }
+
+    async function doAdminLogin() {
+      const email = document.getElementById('admin-email').value.trim();
+      const password = document.getElementById('admin-password').value;
+      const errEl = document.getElementById('login-err');
+      const btn = document.getElementById('btn-login');
+
+      btn.disabled = true;
+      errEl.textContent = 'Verifying administrative access…';
+
+      try {
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        await enterSession(data.session);
+      } catch (err) {
+        errEl.textContent = err.message || 'Login failed';
+        btn.disabled = false;
+      }
+    }
+
+    async function enterSession(session) {
+      token = session.access_token;
+      document.getElementById('admin-user-disp').textContent = session.user.email;
+
+      // Verify admin role via server test
+      try {
+        await api('/overview');
+      } catch (err) {
+        if (err.status === 403) {
+          alert('Access denied: Your account does not have Administrator permissions.');
+          return doAdminLogout();
+        }
+      }
+
+      document.getElementById('login-box').classList.add('hidden');
+      document.getElementById('app-container').classList.remove('hidden');
+      showTab('analytics');
+    }
+
+    async function doAdminLogout() {
+      if (sb) await sb.auth.signOut();
+      token = null;
+      document.getElementById('app-container').classList.add('hidden');
+      document.getElementById('login-box').classList.remove('hidden');
+      document.getElementById('login-err').textContent = '';
+      document.getElementById('btn-login').disabled = false;
+    }
+
+    function showTab(t) {
+      activeTab = t;
+      document.querySelectorAll('#admin-nav button').forEach(b => b.classList.remove('active'));
+      const activeBtn = Array.from(document.querySelectorAll('#admin-nav button')).find(b => b.getAttribute('onclick')?.includes(t));
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const titles = {
+        analytics: 'Analytics & Program Telemetry',
+        students: 'Students & Interns Management',
+        assessments: 'Assessment Engine & MCQs',
+        payments: 'Payments & Transactions',
+        coupons: 'Scholarship Coupons',
+        batches: 'Programs & Cohort Batches',
+        mentors: 'Academic Mentors Directory',
+        certificates: 'Official Certificates & Verification',
+        notifications: 'Cohort Broadcast Notifications',
+        audit: 'System Audit Logs'
+      };
+      document.getElementById('topbar-title').textContent = titles[t] || 'Admin Console';
+      refreshCurrentTab();
+    }
+
+    function refreshCurrentTab() {
+      if (activeTab === 'analytics') loadAnalytics();
+      else if (activeTab === 'students') loadStudents();
+      else if (activeTab === 'assessments') loadAssessments();
+      else if (activeTab === 'payments') loadPayments();
+      else if (activeTab === 'coupons') loadCoupons();
+      else if (activeTab === 'batches') loadBatches();
+      else if (activeTab === 'mentors') loadMentors();
+      else if (activeTab === 'certificates') loadCertificates();
+      else if (activeTab === 'notifications') loadNotifications();
+      else if (activeTab === 'audit') loadAuditLogs();
+    }
+
+    // ===================================================================
+    // 1. ANALYTICS
+    // ===================================================================
+    async function loadAnalytics() {
+      const view = document.getElementById('admin-view');
+      view.innerHTML = '<p>Loading analytics from live database…</p>';
+
+      try {
+        const a = await api('/analytics');
+        const apps = a.applications || {};
+        const test = a.assessments || {};
+        const pay = a.payments || {};
+        const intern = a.interns || {};
+        const coup = a.coupons || {};
+
+        view.innerHTML = `
+          <!-- Primary Telemetry KPIs -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <span class="kpi-title">Total Applications</span>
+              <span class="kpi-val">${apps.total || 0}</span>
+              <span class="kpi-sub">Online: ${apps.online || 0} &middot; Offline: ${apps.offline || 0}</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-title">Assessments Completed</span>
+              <span class="kpi-val">${test.completed || 0}</span>
+              <span class="kpi-sub">${test.inProgress || 0} in progress</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-title">Eligible Candidates</span>
+              <span class="kpi-val" style="color:var(--admin-green);">${test.eligible || 0}</span>
+              <span class="kpi-sub">${test.passRate || 0}% pass rate (&ge; ${test.passMark || 30} marks)</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-title">Verified Paid Revenue</span>
+              <span class="kpi-val" style="color:var(--admin-navy);">${inr(pay.revenuePaise)}</span>
+              <span class="kpi-sub">${pay.completedCount || 0} paid &middot; ${pay.pendingCount || 0} pending</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-title">Active Interns</span>
+              <span class="kpi-val" style="color:var(--admin-green);">${intern.active || 0}</span>
+              <span class="kpi-sub">Online: ${intern.online || 0} &middot; Offline: ${intern.offline || 0}</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-title">Completed (30 Hours)</span>
+              <span class="kpi-val">${intern.completed || 0}</span>
+              <span class="kpi-sub">Certified graduates</span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-title">Scholarship Coupons</span>
+              <span class="kpi-val">${coup.issued || 0}</span>
+              <span class="kpi-sub">Used: ${coup.used || 0} &middot; Active: ${coup.active || 0} &middot; Expired: ${coup.expired || 0}</span>
+            </div>
+          </div>
+
+          <!-- Referral Breakdown & Conversion Card -->
+          <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:20px;margin-bottom:24px;">
+            <div class="admin-panel" style="margin:0;">
+              <div class="panel-head">
+                <h3>Applications Per Referral Link</h3>
+                <span class="pill blue">${(apps.referrals || []).length} active sources</span>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Referral Link / Code</th>
+                      <th>Applications</th>
+                      <th>Share %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${(apps.referrals || []).map(r => `
+                      <tr>
+                        <td><strong>${r.code === 'direct' ? 'Direct (No ref code)' : `?ref=${r.code}`}</strong></td>
+                        <td><strong>${r.count}</strong> candidates</td>
+                        <td>
+                          <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="background:#E2E8F0;height:8px;width:80px;border-radius:999px;overflow:hidden;">
+                              <div style="background:var(--admin-green);height:100%;width:${r.percentage}%;"></div>
+                            </div>
+                            <span>${r.percentage}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Conversion Funnel -->
+            <div class="admin-panel" style="margin:0;">
+              <div class="panel-head">
+                <h3>Conversion Funnel</h3>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                ${[
+                  { label: 'Applications Submitted', count: apps.total || 0, color: '#3B82F6' },
+                  { label: 'Assessments Completed', count: test.completed || 0, color: '#6366F1' },
+                  { label: 'Scholarship Unlocked (Eligible)', count: test.eligible || 0, color: '#10B981' },
+                  { label: 'Enrolled & Paid', count: pay.completedCount || 0, color: '#059669' },
+                  { label: '30-Hour Completed', count: intern.completed || 0, color: '#2563EB' }
+                ].map(step => {
+                  const max = Math.max(apps.total || 1, 1);
+                  const pct = Math.round((step.count / max) * 100);
+                  return `
+                    <div>
+                      <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:0.85rem;">
+                        <strong>${step.label}</strong>
+                        <span><b>${step.count}</b> (${pct}%)</span>
+                      </div>
+                      <div style="background:#E2E8F0;height:12px;border-radius:999px;overflow:hidden;">
+                        <div style="background:${step.color};height:100%;width:${pct}%;"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        view.innerHTML = `<p style="color:#DC2626;">Error: ${err.message}</p>`;
+      }
+    }
+
+    // ===================================================================
+    // 2. STUDENTS MANAGEMENT
+    // ===================================================================
+    async function loadStudents() {
+      const view = document.getElementById('admin-view');
+      view.innerHTML = '<p>Loading students list…</p>';
+
+      try {
+        const students = await api('/students');
+        currentData = students;
+
+        view.innerHTML = `
+          <div class="filter-bar">
+            <input type="text" id="stu-search" placeholder="Search name, email, ID, college…" oninput="filterStudentsTable()">
+            <select id="stu-mode" onchange="filterStudentsTable()">
+              <option value="">All Modes</option>
+              <option value="Online">Online</option>
+              <option value="Offline">Offline</option>
+            </select>
+            <select id="stu-status" onchange="filterStudentsTable()">
+              <option value="">All Statuses</option>
+              <option value="applied">Applied</option>
+              <option value="eligible">Eligible</option>
+              <option value="enrolled">Enrolled / Active</option>
+              <option value="completed">Completed</option>
+            </select>
+            <span style="font-size:0.85rem;color:var(--admin-mut);margin-left:auto;" id="stu-count-disp">${students.length} student(s)</span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table" id="students-table">
+              <thead>
+                <tr>
+                  <th>Student ID</th>
+                  <th>Candidate Name</th>
+                  <th>Contact Info</th>
+                  <th>College &amp; Dept</th>
+                  <th>Domain &amp; Mode</th>
+                  <th>Score</th>
+                  <th>Attendance</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="stu-table-body">
+                ${renderStudentsRows(students)}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        view.innerHTML = `<p style="color:#DC2626;">Error: ${err.message}</p>`;
+      }
+    }
+
+    function renderStudentsRows(list) {
+      if (!list.length) return '<tr><td colspan="9" style="text-align:center;padding:24px;">No students match criteria.</td></tr>';
+      return list.map(s => {
+        const att = s.attendance || {};
+        const attPill = att.completedHours >= 30 ? 'green' : (att.completedHours > 0 ? 'blue' : 'gray');
+        const stPill = s.status === 'enrolled' || s.status === 'active' ? 'green' : (s.status === 'eligible' ? 'blue' : 'yellow');
+
+        return `
+          <tr>
+            <td><code style="font-weight:700;color:var(--admin-green);">${s.studentId || '—'}</code></td>
+            <td><strong>${s.name}</strong><br><small style="color:var(--admin-mut);">${s.applicationId || ''}</small></td>
+            <td>${s.email}<br><small style="color:var(--admin-mut);">${s.phone || '—'}</small></td>
+            <td>${s.college}<br><small style="color:var(--admin-mut);">${s.department} (${s.passedOutYear || '2026'})</small></td>
+            <td>${s.domainName}<br><small class="pill ${s.mode === 'Offline' ? 'blue' : 'gray'}">${s.mode}</small></td>
+            <td>${s.score != null ? `<b>${s.score}%</b>` : 'Not tested'}</td>
+            <td>
+              <span class="pill ${attPill}">${att.completedHours || 0} / 30 hrs</span><br>
+              <small>${att.percentage || 100}% attendance</small>
+            </td>
+            <td><span class="pill ${stPill}">${(s.status || 'applied').toUpperCase()}</span></td>
+            <td>
+              <button class="btn btn-outline btn-sm" onclick="openStudentModal('${s.id}')">View &amp; Assign</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterStudentsTable() {
+      const q = document.getElementById('stu-search').value.toLowerCase();
+      const mode = document.getElementById('stu-mode').value;
+      const status = document.getElementById('stu-status').value;
+
+      const filtered = currentData.filter(s => {
+        const matchQ = !q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q) || s.studentId.toLowerCase().includes(q) || s.college.toLowerCase().includes(q);
+        const matchMode = !mode || s.mode.toLowerCase() === mode.toLowerCase();
+        const matchStatus = !status || s.status.toLowerCase() === status.toLowerCase();
+        return matchQ && matchMode && matchStatus;
+      });
+
+      document.getElementById('stu-table-body').innerHTML = renderStudentsRows(filtered);
+      document.getElementById('stu-count-disp').textContent = `${filtered.length} student(s)`;
+    }
+
+    // Student View / Assign Modal
+    function openStudentModal(id) {
+      const s = currentData.find(x => x.id === id);
+      if (!s) return;
+
+      const modal = document.getElementById('modal-inner-content');
+      modal.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--admin-line);padding-bottom:12px;">
+          <div>
+            <h2 style="font-family:'Space Grotesk',sans-serif;margin:0;color:var(--admin-navy);">${s.name}</h2>
+            <p style="margin:2px 0 0;font-size:0.85rem;color:var(--admin-mut);">Student ID: <code style="color:var(--admin-green);font-weight:700;">${s.studentId}</code> &middot; Application: ${s.applicationId || '—'}</p>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="closeModal()">✕ Close</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;background:#F8FAFC;border:1px solid var(--admin-line);border-radius:10px;padding:14px;margin-bottom:18px;font-size:0.85rem;">
+          <div><strong>Email:</strong> ${s.email}</div>
+          <div><strong>Mobile Phone:</strong> ${s.phone || '—'}</div>
+          <div><strong>College:</strong> ${s.college}</div>
+          <div><strong>Department:</strong> ${s.department} (${s.passedOutYear})</div>
+          <div><strong>Referral Source:</strong> <code>${s.referralCode}</code></div>
+          <div><strong>Internship Period:</strong> ${s.internshipPeriod || '1 month'}</div>
+          <div style="grid-column:span 2;"><strong>Why Hire Response:</strong> ${s.whyHire || '—'}</div>
+        </div>
+
+        <h3 style="font-size:1rem;color:var(--admin-navy);margin-bottom:12px;">Academic Assignments &amp; Status</h3>
+        <form id="assign-form" onsubmit="event.preventDefault(); submitAssignment('${s.id}');">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <label>Domain Track</label>
+              <select id="m-domain">
+                <option value="Full-Stack Web Development Track" ${s.domainName.includes('Web') ? 'selected' : ''}>Full-Stack Web Development</option>
+                <option value="Android & Mobile Development Track" ${s.domainName.includes('Android') || s.domainName.includes('App') ? 'selected' : ''}>Android & Mobile App Development</option>
+                <option value="Digital Marketing & Growth Track" ${s.domainName.includes('Marketing') ? 'selected' : ''}>Digital Marketing & Growth</option>
+                <option value="Business Analytics & Data Track" ${s.domainName.includes('Analytics') ? 'selected' : ''}>Business Analytics & Data</option>
+              </select>
+            </div>
+            <div>
+              <label>Assigned Batch</label>
+              <input type="text" id="m-batch" value="${s.assignedBatch || 'Winter 2026 Alpha'}">
+            </div>
+            <div>
+              <label>Assigned Mentor</label>
+              <input type="text" id="m-mentor" value="${s.assignedMentor || 'Dr. K. Ravindran'}">
+            </div>
+            <div>
+              <label>Enrollment Status</label>
+              <select id="m-status">
+                <option value="applied" ${s.status === 'applied' ? 'selected' : ''}>Applied</option>
+                <option value="eligible" ${s.status === 'eligible' ? 'selected' : ''}>Eligible (Passed Test)</option>
+                <option value="enrolled" ${s.status === 'enrolled' ? 'selected' : ''}>Enrolled / Active</option>
+                <option value="completed" ${s.status === 'completed' ? 'selected' : ''}>Completed (30 Hours)</option>
+                <option value="dropped" ${s.status === 'dropped' ? 'selected' : ''}>Dropped</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px;">
+            <button type="submit" class="btn btn-primary" style="flex:1;">Save Assignment Updates</button>
+            <button type="button" class="btn btn-outline" onclick="checkCertEligibility('${s.studentId}', '${s.name.replace(/'/g, "\\'")}', '${s.domainName.replace(/'/g, "\\'")}', '${s.college.replace(/'/g, "\\'")}', '${s.mode}')">Check Certificate Eligibility &rarr;</button>
+          </div>
+          <div id="m-msg" style="margin-top:10px;font-size:0.85rem;"></div>
+        </form>
+      `;
+
+      document.getElementById('modal-container').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-container').classList.add('hidden');
+    }
+
+    async function submitAssignment(id) {
+      const domainName = document.getElementById('m-domain').value;
+      const status = document.getElementById('m-status').value;
+      const msg = document.getElementById('m-msg');
+
+      msg.textContent = 'Saving updates…';
+      msg.style.color = 'var(--admin-navy)';
+
+      try {
+        await api(`/students/${id}/assign`, 'POST', { domainName });
+        await api(`/students/${id}/status`, 'POST', { status });
+        msg.textContent = '✓ Saved successfully and logged to audit trail.';
+        msg.style.color = 'var(--admin-green)';
+        setTimeout(() => { closeModal(); loadStudents(); }, 1200);
+      } catch (err) {
+        msg.textContent = err.message;
+        msg.style.color = '#DC2626';
+      }
+    }
+
+    // ===================================================================
+    // 3. ASSESSMENTS & MCQ QUESTIONS
+    // ===================================================================
+    async function loadAssessments() {
+      const view = document.getElementById('admin-view');
+      view.innerHTML = '<p>Loading assessment settings and questions…</p>';
+
+      try {
+        const [settings, questions] = await Promise.all([
+          api('/settings'),
+          api('/questions')
+        ]);
+        currentData = questions;
+
+        view.innerHTML = `
+          <!-- Engine Configuration Panel -->
+          <div class="admin-panel">
+            <div class="panel-head">
+              <h3>Assessment Engine Settings</h3>
+              <button class="btn btn-green btn-sm" onclick="saveSettings()">Save Configuration</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:14px;">
+              <div>
+                <label>Pass Mark (Default 30)</label>
+                <input type="number" id="cfg-pass" value="${settings.pass_mark || 30}" min="0" max="100">
+              </div>
+              <div>
+                <label>Total Marks</label>
+                <input type="number" id="cfg-total" value="${settings.total_marks || 100}" min="10" max="500">
+              </div>
+              <div>
+                <label>Questions Count</label>
+                <input type="number" id="cfg-qcount" value="${settings.question_count || 25}" min="1" max="100">
+              </div>
+              <div>
+                <label>Marks per Question</label>
+                <input type="number" id="cfg-marks" value="${settings.marks_per_question || 4}" min="1" max="50">
+              </div>
+              <div>
+                <label>Duration (Minutes)</label>
+                <input type="number" id="cfg-dur" value="${Math.round((settings.duration_seconds || 1200) / 60)}" min="1">
+              </div>
+              <div>
+                <label>Negative Marking</label>
+                <input type="number" id="cfg-neg" value="${settings.negative_marking || 0}" step="0.25" min="0">
+              </div>
+              <div>
+                <label>Attempt Limit</label>
+                <input type="number" id="cfg-limit" value="${settings.attempt_limit || 1}" min="1">
+              </div>
+              <div>
+                <label>Coupon Validity (Hours)</label>
+                <input type="number" id="cfg-coupon" value="${settings.coupon_valid_hours || 24}" min="1">
+              </div>
+            </div>
+            <div id="cfg-msg" style="margin-top:6px;font-size:0.85rem;"></div>
+          </div>
+
+          <!-- Questions Bank -->
+          <div class="admin-panel">
+            <div class="panel-head">
+              <h3>MCQ Question Bank (${questions.length} questions)</h3>
+              <div style="display:flex;gap:8px;">
+                <a href="/api/admin/attempts/export.csv" target="_blank" class="btn btn-outline btn-sm">&#128196; Export Results CSV</a>
+                <button class="btn btn-primary btn-sm" onclick="openQuestionModal(null)">+ Add New Question</button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Question</th>
+                    <th>Marks</th>
+                    <th>Correct Option</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${questions.map(q => `
+                    <tr>
+                      <td style="max-width:380px;white-space:normal;"><strong>${q.text}</strong></td>
+                      <td><b>${q.marks || 5}</b></td>
+                      <td><span class="pill green">Option ${(q.correct_option_id || 'a').toUpperCase()}</span></td>
+                      <td><span class="pill ${q.active ? 'green' : 'gray'}">${q.active ? 'ACTIVE' : 'INACTIVE'}</span></td>
+                      <td>
+                        <button class="btn btn-outline btn-sm" onclick='openQuestionModal(${JSON.stringify(q).replace(/'/g, "&apos;")})'>Edit</button>
+                        <button class="btn btn-outline btn-sm" onclick="toggleQuestion('${q.id}')">${q.active ? 'Disable' : 'Enable'}</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteQuestion('${q.id}')">Delete</button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        view.innerHTML = `<p style="color:#DC2626;">Error: ${err.message}</p>`;
+      }
+    }
+
+    async function saveSettings() {
+      const msg = document.getElementById('cfg-msg');
+      msg.textContent = 'Saving configuration…';
+
+      try {
+        await api('/settings', 'POST', {
+          passMark: Number(document.getElementById('cfg-pass').value),
+          totalMarks: Number(document.getElementById('cfg-total').value),
+          questionCount: Number(document.getElementById('cfg-qcount').value),
+          marksPerQuestion: Number(document.getElementById('cfg-marks').value),
+          durationMinutes: Number(document.getElementById('cfg-dur').value),
+          negativeMarking: Number(document.getElementById('cfg-neg').value),
+          attemptLimit: Number(document.getElementById('cfg-limit').value),
+          couponValidHours: Number(document.getElementById('cfg-coupon').value)
+        });
+        msg.textContent = '✓ Configuration saved successfully.';
+        msg.style.color = 'var(--admin-green)';
+      } catch (err) {
+        msg.textContent = err.message;
+        msg.style.color = '#DC2626';
+      }
+    }
+
+    function openQuestionModal(q) {
+      const isNew = !q;
+      const opts = q?.options || [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }, { id: 'd', text: '' }];
+      const correct = q?.correct_option_id || 'a';
+
+      const modal = document.getElementById('modal-inner-content');
+      modal.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-bottom:1px solid var(--admin-line);padding-bottom:10px;">
+          <h3 style="margin:0;font-family:'Space Grotesk',sans-serif;color:var(--admin-navy);">${isNew ? 'Create New Question' : 'Edit Question'}</h3>
+          <button class="btn btn-outline btn-sm" onclick="closeModal()">✕</button>
+        </div>
+        <form onsubmit="event.preventDefault(); submitQuestion('${q?.id || ''}');">
+          <label>Question Text</label>
+          <textarea id="q-text" rows="3" required placeholder="Enter question body…">${q?.text || ''}</textarea>
+          
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+            <div>
+              <label>Marks</label>
+              <input type="number" id="q-marks" value="${q?.marks || 5}" min="1" max="50" required>
+            </div>
+            <div>
+              <label>Question Set</label>
+              <input type="number" id="q-set" value="${q?.question_set || 1}" min="1">
+            </div>
+          </div>
+
+          <label>Options (Select radio for correct answer):</label>
+          ${['a', 'b', 'c', 'd'].map(oid => {
+            const optVal = opts.find(o => o.id === oid)?.text || '';
+            return `
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <input type="radio" name="q-correct" value="${oid}" ${oid === correct ? 'checked' : ''} style="width:auto;margin:0;">
+                <span style="font-weight:700;width:24px;">${oid.toUpperCase()}:</span>
+                <input type="text" id="q-opt-${oid}" value="${optVal}" placeholder="Option ${oid.toUpperCase()} text" required style="margin:0;flex:1;">
+              </div>
+            `;
+          }).join('')}
+
+          <div style="margin-top:18px;display:flex;gap:10px;">
+            <button type="submit" class="btn btn-primary" style="flex:1;">${isNew ? 'Create Question' : 'Save Changes'}</button>
+            <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+          </div>
+          <div id="q-err" style="color:#DC2626;margin-top:8px;font-size:0.85rem;"></div>
+        </form>
+      `;
+
+      document.getElementById('modal-container').classList.remove('hidden');
+    }
+
+    async function submitQuestion(id) {
+      const text = document.getElementById('q-text').value.trim();
+      const marks = Number(document.getElementById('q-marks').value);
+      const questionSet = Number(document.getElementById('q-set').value);
+      const correctOptionId = document.querySelector('input[name="q-correct"]:checked')?.value || 'a';
+      const options = ['a', 'b', 'c', 'd'].map(oid => ({
+        id: oid,
+        text: document.getElementById(`q-opt-${oid}`).value.trim()
+      }));
+
+      const errEl = document.getElementById('q-err');
+      errEl.textContent = 'Saving…';
+
+      try {
+        if (id) {
+          await api(`/questions/${id}`, 'POST', { text, marks, questionSet, correctOptionId, options });
+        } else {
+          await api('/questions', 'POST', { text, marks, questionSet, correctOptionId, options });
+        }
+        closeModal();
+        loadAssessments();
+      } catch (err) {
+        errEl.textContent = err.message;
+      }
+    }
+
+    async function toggleQuestion(id) {
+      try {
+        await api(`/questions/${id}/toggle`, 'POST');
+        loadAssessments();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteQuestion(id) {
+      if (!confirm('Are you sure you want to delete this question?')) return;
+      try {
+        await api(`/questions/${id}`, 'DELETE');
+        loadAssessments();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ===================================================================
+    // 4. PAYMENTS & TRANSACTIONS
+    // ===================================================================
+    async function loadPayments() {
+      const view = document.getElementById('admin-view');
+      view.innerHTML = '<p>Loading transactions…</p>';
+
+      try {
+        const payments = await api('/payments');
+        currentData = payments;
+
+        const totalRev = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amountPaise, 0);
+
+        view.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+            <div>
+              <strong style="font-size:1.1rem;color:var(--admin-navy);">Total Collected: ${inr(totalRev)}</strong> &middot;
+              <span style="font-size:0.85rem;color:var(--admin-mut);">${payments.length} orders recorded</span>
+            </div>
+            <a href="/api/admin/payments/export.csv" target="_blank" class="btn btn-outline btn-sm">&#128196; Download Full Payments CSV</a>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Payment ID</th>
+                  <th>Candidate</th>
+                  <th>Email</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th>Receipt</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${payments.map(p => `
+                  <tr>
+                    <td><code>${p.orderId || p.id}</code></td>
+                    <td><code>${p.paymentId || '—'}</code></td>
+                    <td><strong>${p.name}</strong></td>
+                    <td>${p.email}</td>
+                    <td><b>₹${p.amountRupees}</b></td>
+                    <td><span class="pill ${p.status === 'paid' ? 'green' : (p.status === 'created' ? 'yellow' : 'red')}">${p.status.toUpperCase()}</span></td>
+                    <td>${fmtDate(p.paidAt || p.created)}</td>
+                    <td>
+                      ${p.status === 'paid' ? `<a href="/api/enrollments/${p.id}/receipt.pdf" target="_blank" class="btn btn-outline btn-sm">PDF</a>` : '—'}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        view.innerHTML = `<p style="color:#DC2626;">Error: ${err.message}</p>`;
+      }
+    }
+
+    // ===================================================================
+    // 5. COUPONS
+    // ===================================================================
+    async function loadCoupons() {
+      const view = document.getElementById('admin-view');
+      view.innerHTML = '<p>Loading scholarship coupons…</p>';
+
+      try {
+        const coupons = await api('/coupons');
+        currentData = coupons;
+
+        view.innerHTML = `
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Coupon Code</th>
+                  <th>Candidate</th>
+                  <th>Email</th>
+                  <th>Discount</th>
+                  <th>Issued</th>
+                  <th>Expires</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${coupons.map(c => `
+                  <tr>
+                    <td><code style="font-weight:700;color:var(--admin-navy);">${c.code}</code></td>
+                    <td><strong>${c.name}</strong></td>
+                    <td>${c.email}</td>
+                    <td><b>${c.discount}%</b></td>
+                    <td>${fmtDate(c.issued)}</td>
+                    <td>${fmtDate(c.expires)}</td>
+                    <td><span class="pill ${c.status === 'redeemed' ? 'green' : (c.status === 'active' ? 'blue' : 'red')}">${(c.status || 'expired').toUpperCase()}</span></td>
+                    <td>
+                      <button class="btn btn-outline btn-sm" onclick="reissueCoupon('${c.code}')">Reissue +24h</button>
+                      ${c.status === 'active' ? `<button class="btn btn-danger btn-sm" onclick="revokeCoupon('${c.code}')">Revoke</button>` : ''}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        view.innerHTML = `<p style="color:#DC2626;">Error: ${err.message}</p>`;
+      }
+    }
+
+    async function reissueCoupon(code) {
+      if (!confirm(`Reissue coupon ${code} for 24 hours?`)) return;
+      try {
+        await api(`/coupons/${code}/reissue`, 'POST', { hours: 24 });
+        alert(`Coupon ${code} reissued successfully!`);
+        loadCoupons();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function revokeCoupon(code) {
+      if (!confirm(`Revoke coupon ${code}?`)) return;
+      try {
+        await api(`/coupons/${code}/revoke`, 'POST');
+        loadCoupons();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ===================================================================
+    // 6. BATCHES
+    // ===================================================================
+    async function loadBatches() {
+      const view = document.getElementById('admin-view');
+      view.innerHTML = '<p>Loading batches…</p>';
+
+      try {
+        const batches = await api('/batches');
+        view.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <strong style="color:var(--admin-navy);">${batches.length} Cohort Batches Defined</strong>
+            <button class="btn btn-primary btn-sm" onclick="openBatchModal()">+ Add New Batch</button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;">
+            ${batches.map(b => `
+              <div class="admin-panel" style="margin:0;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                  <span class="pill ${b.status === 'active' ? 'green' : 'gray'}">${b.status.toUpperCase()}</span>
+                  <small style="color:var(--admin-mut);">${b.seats_limit || 60} seats max</small>
+                </div>
+                <h3 style="margin:0 0 4px;font-family:'Space Grotesk',sans-serif;color:var(--admin-navy);">${b.name}</h3>
+                <p style="font-size:0.85rem;color:var(--admin-mut);margin:0 0 10px;">${b.starts_on || 'TBA'} &rarr; ${b.ends_on || 'TBA'}</p>
+                <div style="font-size:0.82rem;color:var(--admin-navy);margin-bottom:12px;">
+                  <div><strong>Mode:</strong> ${b.mode || 'Online & Offline'}</div>
+                  <div><strong>Timings:</strong> ${b.timings || 'Online 4-6 PM | Offline 9 AM-6 PM'}</div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn btn-outline btn-sm" onclick="toggleBatchStatus('${b.id}', '${b.status}')">
+                    ${b.status === 'active' ? 'Deactivate' : 'Activate Batch'}
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        view.innerHTML = `<p style="color:#DC2626;">Error: ${err.message}</p>`;
+      }
+    }
+
+    function openBatchModal() {
+      const modal = document.getElementById('modal-inner-content');
+      modal.innerHTML = `
+        <h3 style="margin-top:0;color:var(--admin-navy);">Create New Cohort Batch</h3>
+        <form onsubmit="event.preventDefault(); submitBatch();">
+          <label>Batch Name</label>
+          <input type="text" id="b-name" required placeholder="e.g. Winter 2026 Batch Bravo">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <label>Start Date</label>
+              <input type="date" id="b-start">
+            </div>
+            <div>
+              <label>End Date</label>
+              <input type="date" id="b-end">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <label>Mode</label>
+              <select id="b-mode">
+                <option value="Online & Offline">Online & Offline</option>
+                <option value="Online">Online Only</option>
+                <option value="Offline">Offline Only</option>
+              </select>
+            </div>
+            <div>
+              <label>Seat Limit</label>
+              <input type="number" id="b-seats" value="60" min="10">
+            </div>
+          </div>
+          <label>Timings Description</label>
+          <input type="text" id="b-timings" value="Online: 4:00 PM – 6:00 PM | Offline: 9:00 AM – 6:00 PM">
+          <div style="display:flex;gap:10px;margin-top:14px;">
+            <button type="submit" class="btn btn-primary" style="flex:1;">Create Batch</button>
+            <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+          </div>
+        </form>
+      `;
+      document.getElementById('modal-container').classList.remove('hidden');
+    }
+
+    async function submitBatch() {
+      const name = document.getElementById('b-name').value;
+      const starts_on = document.getElementById('b-start').value;
+      const ends_on = document.getElementById('b-end').value;
+      const mode = document.getElementById('b-mode').value;
+      const seats_limit = Number(document.getElementById('b-seats').value);
+      const timings = document.getElementById('b-timings').value;
+
+      try {
+        await api('/batches', 'POST', { name, starts_on, ends_on, mode, seats_limit, timings });
+        closeModal();
+        loadBatches();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function toggleBatchStatus(id, curStatus) {
+      const next = curStatus === 'active' ? 'inactive' : 'active';
+      try {
+        await api(`/batches/${id}/status`, 'POST', { status: next });
+        loadBatches();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ===================================================================
+    // 7. MENTORS
+    // ===================================================================
+    async function loadMentors() {
+      const view = document.getElementById('admin-view');
+      view.innerHTML = '<p>Loading mentors directory…</p>';
+
+      try {
+        const mentors = await api('/mentors');
+        view.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <strong style="color:var(--admin-navy);">${mentors.length} Academic Mentors</strong>
+            <button class="btn btn-primary btn-sm" onclick="openMentorModal()">+ Add New Mentor</button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px;">
+            ${mentors.map(m => `
+              <div class="admin-panel" style="margin:0;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                  <span class="pill green">VERIFIED MENTOR</span>
+                  <small style="color:var(--admin-mut);">${m.phone || ''}</small>
+                </div>
+                <h3 style="margin:0 0 2px;font-family:'Space Grotesk',sans-serif;color:var(--admin-navy);">${m.name}</h3>
+                <p style="font-size:0.82rem;font-weight:700;color:var(--admin-green);margin:0 0 6px;">${m.title}</p>
+                <p style="font-size:0.85rem;color:var(--admin-mut);margin:0 0 10px;">Domain: <b>${m.domain}</b></p>
+                <p style="font-size:0.82rem;color:#334155;line-height:1.5;">${m.bio || 'Academic coordinator'}</p>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        view.innerHTML = `<p style="color:#DC2626;">Error: ${err.message}</p>`;
+      }
+    }
+
+    function openMentorModal() {
+      const modal = document.getElementById('modal-inner-content');
+      modal.innerHTML = `
+        <h3 style="margin-top:0;color:var(--admin-navy);">Add New Academic Mentor</h3>
+        <form onsubmit="event.preventDefault(); submitMentor();">
+          <label>Full Name</label>
+          <input type="text" id="men-name" required placeholder="Dr. S. Ramachandran">
+          <label>Email Address</label>
+          <input type="email" id="men-email" required placeholder="ramachandran@plantgreeninertia.com">
+          <label>Mobile Number</label>
+          <input type="tel" id="men-phone" placeholder="+91 94440 12345">
+          <label>Domain Track</label>
+          <input type="text" id="men-domain" required placeholder="Full-Stack Web Development & Cloud">
+          <label>Academic Title</label>
+          <input type="text" id="men-title" value="Senior Academic Mentor">
+          <label>Bio / Background</label>
+          <textarea id="men-bio" rows="2" placeholder="Experience, credentials, background…"></textarea>
+          <div style="display:flex;gap:10px;margin-top:14px;">
+            <button type="submit" class="btn btn-primary" style="flex:1;">Add Mentor</button>
+            <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+          </div>
+        </form>
+      `;
+      document.getElementById('modal-container').classList.remove('hidden');
+    }
+
+    async function submitMentor() {
+      const name = document.getElementById('men-name').value;
+      const email = document.getElementById('men-email').value;
+      const phone = document.getElementById('men-phone').value;
+      const domain = document.getElementById('men-domain').value;
+      const title = document.getElementById('men-title').value;
+      const bio = document.getElementById('men-bio').value;
+
+      try {
+        await api('/mentors', 'POST', { name, email, phone, domain, title, bio });
+        closeModal();
+        loadMentors();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ===================================================================
+    // 8. CERTIFICATES & CRITERIA ENFORCEMENT
+    // ===================================================================
+    async function loadCertificates() {
+      const view = document.getElementById('admin-view');
+      view.innerHTML = '<p>Loading certificates registry…</p>';
+
+      try {
+        const certs = await api('/certificates');
+        view.innerHTML = `
+          <div class="admin-panel">
+            <div class="panel-head">
+              <h3>Certificate Issuance Gate</h3>
+            </div>
+            <p style="font-size:0.85rem;color:var(--admin-mut);margin:0 0 14px;">
+              Certificates are strictly issued <strong>only when completion criteria are met</strong> (minimum 30 verified training hours and &ge; 75% attendance).
+            </p>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <input type="text" id="cert-check-id" placeholder="Enter Student ID (e.g. PGI-S26-0001)" style="margin:0;width:280px;">
+              <button class="btn btn-primary btn-sm" onclick="checkCertEligibility(document.getElementById('cert-check-id').value)">Verify Eligibility &rarr;</button>
+            </div>
+            <div id="cert-gate-result" style="margin-top:12px;"></div>
+          </div>
+
+          <div class="admin-panel">
+            <div class="panel-head">
+              <h3>Issued Certificates Registry (${certs.length})</h3>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Certificate ID</th>
+                    <th>Student Name</th>
+                    <th>Student ID</th>
+                    <th>Domain</th>
+                    <th>Hours</th>
+                    <th>Attendance</th>
+                    <th>Issued At</th>
+                    <th>Download</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${certs.length ? certs.map(c => `
+                    <tr>
+                      <td><code style="font-weight:700;color:var(--admin-navy);">${c.certificate_id}</code></td>
+                      <td><strong>${c.student_name}</strong></td>
+                      <td><code>${c.student_id}</code></td>
+                      <td>${c.domain}</td>
+                      <td><b>${c.completed_hours} hrs</b></td>
+                      <td><span class="pill green">${c.attendance_percentage}%</span></td>
+                      <td>${fmtDate(c.issued_at)}</td>
+                      <td>
+                        <a href="/api/admin/certificates/${c.certificate_id}/download.pdf" target="_blank" class="btn btn-outline btn-sm">PDF Certificate</a>
+                      </td>
+                    </tr>
+                  `).join('') : '<tr><td colspan="8" style="text-align:center;padding:20px;">No certificates issued yet.</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        view.innerHTML = `<p style="color:#DC2626;">Error: ${err.message}</p>`;
+      }
+    }
+
+    async function checkCertEligibility(studentId, name, domain, college, mode) {
+      if (!studentId) return alert('Enter a valid Student ID');
+      const resBox = document.getElementById('cert-gate-result') || document.getElementById('m-msg');
+      if (resBox) resBox.innerHTML = '<span style="color:var(--admin-navy);">Checking attendance logs…</span>';
+
+      try {
+        const d = await api(`/certificates/eligibility/${encodeURIComponent(studentId)}`);
+        if (d.eligible) {
+          resBox.innerHTML = `
+            <div style="background:#DCFCE7;border:1px solid #86EFAC;color:#166534;padding:12px;border-radius:8px;font-size:0.85rem;">
+              <strong>✓ Eligible for Certificate Issuance!</strong><br>
+              Completed: <b>${d.completedHours} / 30.0 hours</b> &middot; Attendance: <b>${d.attendancePercentage}%</b> (&ge; 75% required).
+              <div style="margin-top:8px;">
+                <button class="btn btn-green btn-sm" onclick="issueCertificate('${studentId}', '${name || 'Candidate'}', '${domain || 'Full-Stack Web Development'}', '${college || ''}', '${mode || 'Online'}')">
+                  Issue Official Certificate Now &rarr;
+                </button>
+              </div>
+            </div>
+          `;
+        } else {
+          resBox.innerHTML = `
+            <div style="background:#FEE2E2;border:1px solid #FCA5A5;color:#991B1B;padding:12px;border-radius:8px;font-size:0.85rem;">
+              <strong>✕ Certificate Blocked (Criteria Not Met):</strong><br>
+              ${d.reason}<br>
+              <small>Candidate currently has ${d.completedHours} / 30.0 hours logged and ${d.attendancePercentage}% attendance.</small>
+            </div>
+          `;
+        }
+      } catch (err) {
+        if (resBox) resBox.innerHTML = `<span style="color:#DC2626;">Error: ${err.message}</span>`;
+      }
+    }
+
+    async function issueCertificate(studentId, studentName, domain, college, mode) {
+      try {
+        const res = await api('/certificates/issue', 'POST', { studentId, studentName, domain, college, mode });
+        alert(`✓ Certificate ${res.certificate.certificate_id} issued successfully! Download link ready.`);
+        loadCertificates();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ===================================================================
+    // 9. NOTIFICATIONS & BROADCASTS
+    // ===================================================================
+    async function loadNotifications() {
+      const view = document.getElementById('admin-view');
+      view.innerHTML = '<p>Loading notifications…</p>';
+
+      try {
+        const notifs = await api('/notifications');
+        view.innerHTML = `
+          <div class="admin-panel">
+            <div class="panel-head">
+              <h3>Broadcast Cohort Announcement</h3>
+            </div>
+            <form onsubmit="event.preventDefault(); submitBroadcast();">
+              <label>Announcement Title</label>
+              <input type="text" id="bc-title" required placeholder="e.g. Mandatory Lab Submission Deadline Alert">
+              <label>Message Content</label>
+              <textarea id="bc-msg" rows="3" required placeholder="Enter announcement body text…"></textarea>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <label>Target Track</label>
+                  <select id="bc-track">
+                    <option value="all">All Tracks</option>
+                    <option value="tech-web">Web Development</option>
+                    <option value="tech-app">Mobile Development</option>
+                    <option value="nontech">Non-Technical</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Priority</label>
+                  <select id="bc-priority">
+                    <option value="normal">Normal</option>
+                    <option value="high">High Priority</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary" style="margin-top:14px;">Broadcast Announcement &rarr;</button>
+              <div id="bc-res" style="margin-top:8px;font-size:0.85rem;"></div>
+            </form>
+          </div>
+
+          <div class="admin-panel">
+            <div class="panel-head">
+              <h3>Previous Broadcasts (${notifs.length})</h3>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              ${notifs.map(n => `
+                <div style="background:#F8FAFC;border:1px solid var(--admin-line);border-radius:8px;padding:12px;">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <strong style="color:var(--admin-navy);">${n.title}</strong>
+                    <span class="pill ${n.priority === 'urgent' ? 'red' : (n.priority === 'high' ? 'yellow' : 'gray')}">${n.priority.toUpperCase()}</span>
+                  </div>
+                  <p style="font-size:0.85rem;color:#334155;margin:0 0 6px;">${n.message}</p>
+                  <small style="color:var(--admin-mut);">${fmtDate(n.created_at)}</small>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        view.innerHTML = `<p style="color:#DC2626;">Error: ${err.message}</p>`;
+      }
+    }
+
+    async function submitBroadcast() {
+      const title = document.getElementById('bc-title').value;
+      const message = document.getElementById('bc-msg').value;
+      const targetTrack = document.getElementById('bc-track').value;
+      const priority = document.getElementById('bc-priority').value;
+      const res = document.getElementById('bc-res');
+
+      res.textContent = 'Broadcasting…';
+      try {
+        await api('/notifications', 'POST', { title, message, targetTrack, priority });
+        res.textContent = '✓ Announcement broadcasted successfully.';
+        res.style.color = 'var(--admin-green)';
+        loadNotifications();
+      } catch (err) {
+        res.textContent = err.message;
+        res.style.color = '#DC2626';
+      }
+    }
+
+    // ===================================================================
+    // 10. SYSTEM AUDIT LOGS
+    // ===================================================================
+    async function loadAuditLogs() {
+      const view = document.getElementById('admin-view');
+      view.innerHTML = '<p>Loading audit logs…</p>';
+
+      try {
+        const logs = await api('/audit-logs');
+        view.innerHTML = `
+          <div class="filter-bar">
+            <input type="text" id="audit-q" placeholder="Filter by action, admin, target…" oninput="filterAuditLogs(this.value)">
+            <span style="font-size:0.85rem;color:var(--admin-mut);margin-left:auto;">${logs.length} audit entries</span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table" id="audit-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Admin User</th>
+                  <th>Action</th>
+                  <th>Target Type</th>
+                  <th>Target ID</th>
+                  <th>IP Address</th>
+                  <th>Payload Details</th>
+                </tr>
+              </thead>
+              <tbody id="audit-table-body">
+                ${renderAuditRows(logs)}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        view.innerHTML = `<p style="color:#DC2626;">Error: ${err.message}</p>`;
+      }
+    }
+
+    function renderAuditRows(list) {
+      if (!list.length) return '<tr><td colspan="7" style="text-align:center;padding:20px;">No audit logs found.</td></tr>';
+      return list.map(l => `
+        <tr>
+          <td><small>${fmtDate(l.created_at)}</small></td>
+          <td><strong>${l.admin_email}</strong></td>
+          <td><span class="pill blue">${l.action}</span></td>
+          <td>${l.target_type}</td>
+          <td><code>${l.target_id || '—'}</code></td>
+          <td><small>${l.ip_address || '—'}</small></td>
+          <td><code style="font-size:0.75rem;">${JSON.stringify(l.details || {})}</code></td>
+        </tr>
+      `).join('');
+    }
+
+    function exportActiveCsv() {
+      if (activeTab === 'payments') {
+        window.open('/api/admin/payments/export.csv', '_blank');
+      } else if (activeTab === 'assessments') {
+        window.open('/api/admin/attempts/export.csv', '_blank');
+      } else {
+        alert('CSV Export is available under Payments and Assessments.');
+      }
+    }
+
+    // Start
+    window.addEventListener('DOMContentLoaded', initAuth);
+  </script>
+</body>
+</html>

@@ -43,7 +43,7 @@ export function buildOfferPDF(o) {
     P([[`Subject: Offer of Internship – ${role}`, true]], { after: 12 });
     P([`Dear ${o.name},`], { after: 12 });
 
-    P(['We are pleased to offer you the position of ', [role, true], ' at ', ['Plant Green Inertia Pvt. Ltd.', true], ' under the ', ['Diwali Special Internship and Training Program', true], ', following your successful enrollment on ', [fmtDate(o.enrolledAt), true], '.'], { after: 10 });
+    P(['We are pleased to offer you the position of ', [role, true], ' at ', ['Plant Green Inertia Pvt. Ltd.', true], ' under the ', ['Winter Internship and Training Program', true], ', following your successful enrollment on ', [fmtDate(o.enrolledAt), true], '.'], { after: 10 });
 
     P([['Internship Track: ', true], o.course], { after: 0 });
     if (o.duration) P([['Duration: ', true], o.duration], { after: 0 });

@@ -1,43 +1,957 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Scholarship Assessment | Diwali Special Internship and Training Program</title>
-<link rel="icon" href="static/images/favicon.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="static/css/portal.css"></head><body>
-<header><a href="index.html">&larr; Diwali Special Internship and Training Program</a><button class="alt hidden" id="logout" style="margin:0;padding:6px 16px">Log out</button></header>
-<main>
-<div id="loading" class="card">Loading…</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Scholarship Assessment | Winter Internship &amp; Training Program</title>
+  <link rel="icon" href="static/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <script>
+    window.__pgiConfigPromise = fetch('/api/config').then(function (r) { return r.json(); });
+    (function () {
+      try {
+        var p = new URLSearchParams(location.search);
+        if (p.get('mode') === 'register') return;
+        var qEm = (p.get('email') || '').trim().toLowerCase();
+        var tok = sessionStorage.getItem('pgi_student_token') || localStorage.getItem('pgi_student_token');
+        var em = (sessionStorage.getItem('pgi_student_email') || localStorage.getItem('pgi_student_email') || '').toLowerCase();
+        if (!tok) {
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf('sb-') === 0 && k.slice(-11) === '-auth-token') {
+              var parsed = JSON.parse(localStorage.getItem(k) || 'null');
+              if (parsed && parsed.access_token && (!parsed.expires_at || parsed.expires_at * 1000 > Date.now() + 15000)) {
+                tok = parsed.access_token;
+                em = (parsed.user && parsed.user.email ? parsed.user.email : em).toLowerCase();
+                break;
+              }
+            }
+          }
+        }
+        if (tok && (!qEm || !em || em === qEm)) {
+          window.__pgiBootToken = tok;
+          window.__pgiBootEmail = em;
+          window.__pgiBootPromise = fetch('/api/portal/boot', {
+            headers: { Authorization: 'Bearer ' + tok }
+          }).then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); });
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="static/css/theme-winter.css">
+  <link rel="stylesheet" href="static/css/portal.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="index.html" class="brand-link">
+        <img class="brand-logo-sq" src="static/images/Plant Green Inertia Logo.png" alt="Plant Green Inertia" onerror="this.src='static/images/pgi-logo.jpg'">
+        <span class="brand-title">Plant Green Inertia</span>
+        <span class="brand-badge">WINTER 2026</span>
+      </a>
+      <div class="header-actions">
+        <button type="button" id="nav-payment-btn" class="btn-nav-payment">Completed Assessment? Go to Payment &rarr;</button>
+        <span id="user-display" class="user-email"></span>
+        <button class="btn-logout hidden" id="logout">Sign Out</button>
+      </div>
+    </div>
+  </header>
 
-<section id="s-auth" class="card hidden"><h1 id="auth-title">Register for the Scholarship Assessment</h1>
-<p>Create your student account to take the scholarship test. Registration is required before the test can start.</p>
-<div id="f-name"><label>Full name</label><input id="name" type="text" autocomplete="name"></div>
-<div id="f-phone"><label>Mobile number</label><input id="phone" type="tel" autocomplete="tel"></div>
-<label>Email</label><input id="email" type="email" autocomplete="email"><label>Password (min 8 characters)</label><input id="pw" type="password" autocomplete="current-password">
-<button id="auth-go">Register</button> <button class="alt" id="auth-toggle">I already have an account</button><div class="msg" id="auth-msg"></div></section>
+  <main class="portal-main">
+    <!-- Loading -->
+    <div id="loading" class="card loading-card">
+      <div class="spinner"></div>
+      <p id="loading-text">Connecting to secure assessment environment…</p>
+    </div>
 
-<section id="s-profile" class="card hidden"><h1>Complete your student profile</h1>
-<label>Full name</label><input id="p-name" type="text"><label>Mobile number</label><input id="p-phone" type="tel">
-<button id="p-save">Save and continue</button><div class="msg" id="p-msg"></div></section>
+    <!-- Step 1: Candidate Assessment Login (Stitch Specification) -->
+    <section id="s-auth" class="auth-stitch-card hidden">
+      <div class="auth-stitch-inner">
+        <div class="auth-card-top">
+          <a href="index.html" class="auth-brand-lockup" aria-label="Plant Green Inertia Home">
+            <img class="auth-card-logo" src="static/images/Plant Green Inertia Logo.png" alt="Plant Green Inertia" onerror="this.src='static/images/pgi-logo.jpg'">
+            <span class="auth-brand-text">
+              <span class="auth-brand-top">PLANT GREEN</span>
+              <span class="auth-brand-sub">INERTIA</span>
+            </span>
+          </a>
+          <span class="auth-cohort-pill" id="auth-step-chip">
+            <span class="auth-cohort-dot"></span>
+            <span>WINTER 2026 COHORT</span>
+          </span>
+        </div>
 
-<section id="s-inst" class="card hidden"><h1>Assessment rules</h1>
-<ul><li>One scholarship attempt per student. The test lasts 15 minutes. The timer runs on our server and cannot be paused; refreshing the page does not reset it.</li>
-<li>Answers are saved automatically as you select them. The test submits automatically when time ends.</li>
-<li>Your camera must stay on and you must stay alone in front of it. Before the test your face is verified; during the test we check for no face, more than one person, a different person, head turned away, a mobile phone in view, leaving the tab or full screen, and copy/paste. Looking down for a long time and sustained voices or loud noise are also logged for review; they do not count as warnings.</li>
-<li><b>Violations:</b> you get <b>3 warnings</b>. The <b>4th violation submits your test automatically</b> with the answers saved so far. A report is generated after the test.</li>
-<li>Privacy: video is analysed inside your browser and is not recorded. When an event is flagged, one small still photo is saved with it for review by the program team only (at most 8 per attempt). Your microphone is used only to measure loudness; no audio is recorded or uploaded.</li>
-<li>Your score decides your scholarship: 0–49% = 85% off (₹1,499.85), 50–99% = 90% off (₹999.90), 100% = free (₹0), on the ₹9,999 internship fee. Your coupon is valid for 24 hours.</li></ul>
-</ul><button class="alt" id="cam-go">Allow camera &amp; microphone, then verify my face</button><video id="prev" class="hidden" autoplay muted playsinline></video>
-<div class="msg" id="cam-msg"></div><div class="msg" id="face-msg"></div>
-<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="agree"> I have read the rules and consent to camera monitoring during the test.</label>
-<button id="begin" disabled>Start test</button><div class="msg" id="inst-msg"></div></section>
+        <div class="auth-gateway-eyebrow">ASSESSMENT PORTAL // SECURE GATEWAY</div>
+        <h1 id="auth-title" class="auth-stitch-title">Candidate Assessment Login</h1>
+        <p class="auth-stitch-sub" id="auth-sub">Enter your Candidate UID or registered institutional email along with your Date of Birth to access the monitored examination session.</p>
 
-<section id="s-test" class="hidden"><div class="bar"><span id="prog"></span><span id="saved" class="ok"></span><span id="wcount"></span><span id="mon" class="ok"></span><span id="timer"></span></div>
-<div id="viol-modal" class="hidden"><div class="card"><h1 id="vm-title"></h1><p id="vm-body"></p><button id="vm-ok">Continue test</button></div></div><div id="qs"></div><button id="submit">Submit test</button><div class="msg" id="t-msg"></div></section>
-<video id="pvid" class="hidden" autoplay muted playsinline></video>
+        <div class="auth-form-stack">
+          <div id="f-name" class="auth-field-block hidden">
+            <div class="auth-label-row">
+              <label for="name">Full Name <span class="req">*</span></label>
+            </div>
+            <div class="auth-input-shell">
+              <span class="auth-input-ico" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </span>
+              <input id="name" type="text" autocomplete="name" placeholder="As per official college ID">
+            </div>
+          </div>
 
-<section id="s-courses" class="hidden"><div class="card"><h1>Choose your internship</h1><div id="c-coupon"></div><div class="msg" id="c-msg"></div></div><div id="course-list"></div></section>
-<section id="s-dash" class="card hidden"><h1>Student dashboard</h1><div id="dash"></div></section>
-<section id="s-res" class="card hidden"><h1>Your result</h1><div id="res"></div></section>
-</main>
-<p style="text-align:center;font-size:.85rem;margin:1rem 0 2rem"><a style="margin:0 .6rem;color:inherit" href="terms.html">Terms &amp; Conditions</a><a style="margin:0 .6rem;color:inherit" href="privacy.html">Privacy Policy</a><a style="margin:0 .6rem;color:inherit" href="refund.html">Refund &amp; Cancellation</a><a style="margin:0 .6rem;color:inherit" href="contact.html">Contact Us</a></p>
-<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script defer src="static/js/portal.js"></script></body></html>
+          <div id="f-phone" class="auth-field-block hidden">
+            <div class="auth-label-row">
+              <label for="phone">Mobile Number <span class="req">*</span></label>
+            </div>
+            <div class="auth-input-shell">
+              <span class="auth-input-ico" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+              </span>
+              <input id="phone" type="tel" autocomplete="tel" placeholder="10-digit mobile number">
+            </div>
+          </div>
+
+          <div id="f-email" class="auth-field-block">
+            <div class="auth-label-row">
+              <label for="email" id="email-label">Candidate UID or Institutional Email <span class="req">*</span></label>
+              <button type="button" class="auth-inline-find" id="btn-find-uid">Find UID</button>
+            </div>
+            <div class="auth-input-shell">
+              <span class="auth-input-ico" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                  <circle cx="9" cy="11" r="2"></circle>
+                  <path d="M13 10h5M13 14h4M6 16c.8-1.3 2-2 3-2s2.2.7 3 2"></path>
+                </svg>
+              </span>
+              <input id="email" type="text" autocomplete="username" placeholder="e.g. PGI-W26-0001 or student@uni.edu">
+            </div>
+            <div class="auth-helper-line">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="9 12 11.2 14.2 15.5 9.8"></polyline>
+              </svg>
+              <span id="email-helper">Sent in your initial Winter 2026 Application Confirmation receipt.</span>
+            </div>
+          </div>
+
+          <div id="f-pw" class="auth-field-block">
+            <div class="auth-label-row">
+              <label for="pw" id="pw-label">Date of Birth (Examination Key) <span class="req">*</span></label>
+              <span class="auth-format-tag" id="pw-format-hint">Format: DD/MM/YYYY</span>
+            </div>
+            <div class="auth-input-shell has-toggle">
+              <span class="auth-input-ico" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+              </span>
+              <input id="pw" type="password" autocomplete="current-password" placeholder="DD / MM / YYYY">
+              <button type="button" class="auth-eye-btn" id="toggle-portal-pw" aria-label="Show password">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              </button>
+            </div>
+            <div class="auth-helper-line is-plain">
+              <span id="pw-helper">Must match registered application documents exactly.</span>
+            </div>
+          </div>
+
+          <button id="auth-go" type="button" class="auth-submit-btn">
+            <span>Verify &amp; Proceed to Proctor Check</span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
+
+          <div class="msg" id="auth-msg"></div>
+
+          <div class="auth-links-row">
+            <button type="button" class="auth-link-cyan" id="link-forgot-pw">Forgot Candidate UID?</button>
+            <a href="contact.html" class="auth-link-support">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+              </svg>
+              <span>Need Support?</span>
+            </a>
+          </div>
+
+          <div class="auth-secondary-row">
+            <button id="auth-toggle" type="button" class="auth-subtle-toggle">New candidate? Register manually</button>
+          </div>
+        </div>
+
+        <!-- Inline Find UID & Recovery Panel -->
+        <div id="panel-portal-forgot" class="auth-recovery-drawer hidden">
+          <div class="auth-recovery-head">
+            <strong>Find Candidate UID / Recover Access</strong>
+            <button type="button" id="btn-portal-forgot-cancel" class="auth-drawer-close" aria-label="Close">&times;</button>
+          </div>
+          <p class="auth-recovery-copy">Enter your registered email or 10-digit mobile number to look up your Candidate UID, or email a password reset link.</p>
+          <div class="auth-input-shell">
+            <input id="forgot-portal-id" type="text" placeholder="student@uni.edu or 9876543210">
+          </div>
+          <div class="auth-recovery-actions">
+            <button type="button" id="btn-portal-lookup-uid" class="auth-btn-lookup">Find UID &rarr;</button>
+            <button type="button" id="btn-portal-forgot-send" class="auth-btn-reset">Send Reset Email</button>
+          </div>
+          <div id="portal-forgot-msg" class="msg" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <div class="auth-stitch-footer">
+        <span class="auth-foot-item">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span>256-Bit TLS Secured</span>
+        </span>
+        <span class="auth-foot-item">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span>AI Proctor Monitored</span>
+        </span>
+        <span class="auth-foot-item">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 21h18M5 21V7l8-4 8 4v14M9 10h2M13 10h2M9 14h2M13 14h2"></path>
+          </svg>
+          <span>Official PGI Winter Portal</span>
+        </span>
+      </div>
+    </section>
+
+    <!-- Step 2: Complete Profile if needed -->
+    <section id="s-profile" class="card hidden">
+      <div class="card-head">
+        <span class="step-chip">Step 2 of 3</span>
+        <h1>Complete Your Student Profile</h1>
+        <p class="subtitle">Ensure your full name matches your official college records for certificate issuance.</p>
+      </div>
+      <div class="form-body">
+        <label for="p-name">Full Name</label>
+        <input id="p-name" type="text" placeholder="Your full name">
+        <label for="p-phone">Mobile Number</label>
+        <input id="p-phone" type="tel" placeholder="10-digit mobile number">
+        <button id="p-save" class="btn btn-primary" style="margin-top:16px;">Save &amp; Continue &rarr;</button>
+        <div class="msg" id="p-msg"></div>
+      </div>
+    </section>
+
+    <!-- Step 3: Proctor Verification Pre-Flight Check -->
+    <section id="s-inst" class="proctor-screen hidden">
+      <!-- Top Header Strip -->
+      <div class="pv-header-bar">
+        <div>
+          <div class="pv-eyebrow">
+            <span class="dot"></span>
+            <span>PRE-FLIGHT VALIDATION</span>
+          </div>
+          <h1 class="pv-title">Proctor Verification</h1>
+          <p class="pv-sub">Live monitoring active during assessment.</p>
+        </div>
+
+        <div class="pv-status-strip">
+          <div class="pv-pill" id="pv-pill-fs">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+            </svg>
+            <span>Full Screen: <strong id="pv-top-fs">Ready</strong></span>
+          </div>
+          <div class="pv-pill" id="pv-pill-cam">
+            <span class="pv-pill-dot"></span>
+            <span>Camera Feed: <strong id="pv-top-cam">Standby</strong></span>
+          </div>
+          <div class="pv-pill" id="pv-pill-mic">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+            </svg>
+            <span>Audio: <strong id="pv-top-mic">Checking</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div id="pv-payment-alert" class="pv-payment-alert hidden" role="alert">
+        <div class="pv-payment-alert-body">
+          <strong>Assessment Not Completed Yet:</strong>
+          <span id="pv-payment-alert-text"></span>
+        </div>
+        <button type="button" id="pv-payment-alert-close" class="pv-alert-close" aria-label="Dismiss">&times;</button>
+      </div>
+
+      <!-- Central Dark Webcam Stage -->
+      <div class="proctor-video-stage">
+        <div class="pv-video-placeholder" id="pv-placeholder">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M23 7l-7 5 7 5V7z"></path>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+          </svg>
+          <span>Click "Verify / Retest Camera" to activate webcam feed</span>
+        </div>
+
+        <video id="prev" class="hidden" autoplay muted playsinline></video>
+
+        <!-- HUD Top Bar -->
+        <div class="pv-hud-top">
+          <div class="pv-live-group">
+            <span class="pv-live-badge"><span class="live-dot"></span> LIVE</span>
+            <span class="pv-res-pill" id="pv-res">30 FPS &middot; HD</span>
+          </div>
+          <div class="pv-telemetry-top">
+            <span>&#9728; Lighting: <b id="pv-lighting" class="warn">Checking</b></span>
+            <span>&#9786; Face: <b id="pv-face-badge" class="warn">Waiting</b></span>
+          </div>
+        </div>
+
+        <!-- Center Alignment Reticle -->
+        <div class="pv-target-reticle" id="pv-reticle">
+          <span class="pv-reticle-tick t"></span>
+          <span class="pv-reticle-tick b"></span>
+          <span class="pv-reticle-tick l"></span>
+          <span class="pv-reticle-tick r"></span>
+          <span class="pv-reticle-label">TARGET FRAME</span>
+        </div>
+
+        <!-- HUD Bottom Bar -->
+        <div class="pv-hud-bottom">
+          <div class="pv-cand-meta">
+            <strong>Candidate: <span id="pv-cand-name">Candidate</span></strong>
+            <span>UID: <span id="pv-cand-uid">PGI-W26-XXXX</span> &middot; PGI Proctor Node</span>
+          </div>
+          <button type="button" class="pv-quick-cam-btn" id="pv-quick-cam" title="Verify / Retest Camera">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sub-video Sync & Sensor ID Row -->
+      <div class="pv-sub-video-row">
+        <div class="msg" id="face-msg" style="margin:0;">Allow camera permissions to run automated face alignment verification.</div>
+        <span class="sensor-tag">Sensor ID: <span id="pv-sensor-id">CAM-STANDBY</span></span>
+      </div>
+
+      <!-- 4-Column Hardware & Telemetry Diagnostic Bar -->
+      <div class="pv-diag-bar">
+        <div class="pv-diag-cell">
+          <span class="pv-diag-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 7l-7 5 7 5V7z"></path>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+          </span>
+          <div class="pv-diag-text">
+            <strong>Webcam Stream</strong>
+            <span id="diag-cam">Pending</span>
+          </div>
+        </div>
+
+        <div class="pv-diag-cell">
+          <span class="pv-diag-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            </svg>
+          </span>
+          <div class="pv-diag-text">
+            <strong>Mic Input</strong>
+            <span id="diag-mic">Pending</span>
+          </div>
+        </div>
+
+        <div class="pv-diag-cell">
+          <span class="pv-diag-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </span>
+          <div class="pv-diag-text">
+            <strong>Screen Lock</strong>
+            <span id="diag-fs" class="ok">&#10003; Ready</span>
+          </div>
+        </div>
+
+        <div class="pv-diag-cell">
+          <span class="pv-diag-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </span>
+          <div class="pv-diag-text">
+            <strong>Network Latency</strong>
+            <span id="diag-net">Checking&hellip;</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Proctor Guidelines Grid -->
+      <div class="pv-guidelines-head">
+        <h3>Proctor Guidelines</h3>
+        <span>100 Marks &middot; 20 Mins &middot; Pass Mark: 30</span>
+      </div>
+
+      <div class="pv-guidelines-grid">
+        <div class="pv-guide-card">
+          <div class="pv-guide-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M3 7V5a2 2 0 0 1 2-2h2m10 0h2a2 2 0 0 1 2 2v2m0 10v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path>
+            </svg>
+          </div>
+          <strong>Remain Centered</strong>
+          <span>Keep face clearly in frame</span>
+        </div>
+
+        <div class="pv-guide-card">
+          <div class="pv-guide-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </div>
+          <strong>No Tab Switching</strong>
+          <span>Full screen locked (3 warnings max)</span>
+        </div>
+
+        <div class="pv-guide-card">
+          <div class="pv-guide-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 5L6 9H2v6h4l5 4V5z"></path>
+              <line x1="23" y1="9" x2="17" y2="15"></line>
+              <line x1="17" y1="9" x2="23" y2="15"></line>
+            </svg>
+          </div>
+          <strong>Quiet Environment</strong>
+          <span>Background audio monitored</span>
+        </div>
+
+        <div class="pv-guide-card">
+          <div class="pv-guide-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="8.5" cy="7" r="4"></circle>
+              <polyline points="17 11 19 13 23 9"></polyline>
+            </svg>
+          </div>
+          <strong>Single Person</strong>
+          <span>No multiple occupants</span>
+        </div>
+      </div>
+
+      <label class="consent-label" style="justify-content:center; margin:16px 0;">
+        <input type="checkbox" id="agree">
+        <span>I have read and agree to the assessment rules (100 marks, 20-min timer) &amp; proctoring policy.</span>
+      </label>
+
+      <!-- Dual Bottom Action Buttons -->
+      <div class="pv-actions-row">
+        <button type="button" class="pv-btn-retest" id="cam-go">&#8635; Verify / Retest Camera</button>
+        <button type="button" class="pv-btn-begin" id="begin" disabled>Start Assessment &rarr;</button>
+      </div>
+
+      <div class="pv-warn-footer">&#9888; Exiting full screen or accumulating 4 violations triggers auto-submission.</div>
+
+      <div class="msg" id="cam-msg" style="text-align:center;"></div>
+      <div class="msg" id="inst-msg" style="text-align:center;"></div>
+    </section>
+
+    <!-- Assessment In-Progress Cockpit (Stitch Fullscreen Specification) -->
+    <section id="s-test" class="exam-cockpit hidden">
+      <!-- Top Assessment Bar + Velocity Progress -->
+      <header class="exam-top-card">
+        <div class="exam-top-row">
+          <div class="exam-brand-cluster">
+            <span class="exam-app-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="14" rx="2"></rect>
+                <polyline points="8 11 11 14 16 9"></polyline>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+              </svg>
+            </span>
+            <div>
+              <div class="exam-title-line">
+                <h1 class="exam-title">Winter Technical Assessment 2026</h1>
+                <span class="exam-section-pill" id="exam-mode-pill">FULLSCREEN PROCTORED</span>
+              </div>
+              <p class="exam-subline" id="exam-subline">Scholarship Eligibility &amp; Core Domain Assessment</p>
+            </div>
+          </div>
+
+          <div class="exam-right-telemetry">
+            <div class="exam-qprogress-meta">
+              <span class="exam-meta-cap">QUESTION PROGRESS</span>
+              <strong id="prog-badge">01 / 25</strong>
+            </div>
+            <div class="timer-chip" id="timer-chip">
+              <span class="timer-dot"></span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span class="timer-text"><span id="timer">20:00</span> <small>remaining</small></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="exam-velocity-bar-wrap">
+          <div class="exam-velocity-labels">
+            <span>Completion Velocity</span>
+            <span id="exam-velocity-status">0% Answered</span>
+          </div>
+          <div class="exam-velocity-track">
+            <div class="exam-velocity-fill" id="exam-velocity-fill" style="width:0%;"></div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Inline Stitch Proctor Warning Banner (triggers on live infractions) -->
+      <div id="proctor-warning-banner" class="exam-warning-banner hidden" role="alert">
+        <div class="exam-warn-left">
+          <span class="exam-warn-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </span>
+          <div class="exam-warn-copy">
+            <div class="exam-warn-headline">
+              <strong id="warn-banner-title">PROCTOR WARNING: ANOMALY DETECTED</strong>
+              <span class="exam-strike-pill" id="wcount">Strike 0 of 3</span>
+              <span class="exam-incident-tag" id="warn-incident-tag">&middot; Live Monitoring Active</span>
+            </div>
+            <p id="warn-banner-body">Violations are logged to your integrity report. Exceeding 3 strikes triggers automatic assessment submission.</p>
+          </div>
+        </div>
+        <button type="button" id="warn-resume-btn" class="exam-warn-cta">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span>I Understand &amp; Resume Assessment</span>
+        </button>
+      </div>
+
+      <!-- Proctoring Warning Modal (Fullscreen Recovery Backup) -->
+      <div id="viol-modal" class="hidden">
+        <div class="modal-card">
+          <h2 id="vm-title">Proctoring Warning</h2>
+          <p id="vm-body">Violation detected.</p>
+          <button id="vm-ok" class="btn btn-primary">I Understand &amp; Resume Assessment</button>
+        </div>
+      </div>
+
+      <!-- Submit Confirmation Modal -->
+      <div id="submit-modal" class="hidden">
+        <div class="modal-card">
+          <h2>Submit Assessment?</h2>
+          <p id="sm-body">You have answered 0 of 25 questions.</p>
+          <p class="modal-warn">Once submitted, your answers will be permanently evaluated on the server and cannot be changed.</p>
+          <div class="modal-actions">
+            <button id="sm-cancel" class="btn btn-outline">Review Questions</button>
+            <button id="sm-confirm" class="btn btn-primary">Confirm &amp; Submit</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two-Column Assessment Workspace -->
+      <div class="test-workspace">
+        <!-- Left Column: Question Arena & Telemetry Pill -->
+        <div class="question-column">
+          <div class="question-card" id="current-question-card">
+            <div class="q-meta-strip">
+              <div class="q-meta-left">
+                <span class="q-domain-pill" id="q-domain-pill">DOMAIN: WINTER COHORT BENCHMARK</span>
+                <span class="q-type-pill">Single Choice</span>
+              </div>
+              <span class="q-marks" id="q-marks-label">Mark: +4 / 0</span>
+            </div>
+
+            <div class="q-seq-eyebrow" id="q-num-label">ITEM SEQUENCE 01 OF 25</div>
+            <div class="q-text" id="q-text-body">Loading question&hellip;</div>
+            <div class="q-options" id="q-options-container"></div>
+
+            <div class="question-nav-actions">
+              <div class="q-nav-left">
+                <button type="button" id="btn-prev-q" class="btn-exam-secondary">&larr; Previous</button>
+                <button type="button" id="btn-mark-review" class="btn-exam-review">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                  <span>Mark for Review</span>
+                </button>
+              </div>
+              <button type="button" id="btn-next-q" class="btn-exam-next">Next Question &rarr;</button>
+            </div>
+          </div>
+
+          <div class="msg" id="t-msg"></div>
+
+          <!-- Bottom Telemetry Strip -->
+          <div class="exam-bottom-bar">
+            <div class="exam-bottom-left">
+              <span class="exam-live-dot"></span>
+              <span class="exam-proctor-flag">Secure Proctor Session: Active</span>
+              <span class="exam-uid-sep">&middot; Candidate UID: <b id="app-id-disp">-</b></span>
+            </div>
+            <div class="exam-bottom-right" id="saved">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+                <polyline points="9 14 11 16 15 12"></polyline>
+              </svg>
+              <span id="saved-text">Answers Autosaved to Vault</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Sidebar Column: Matrix, Live Proctor Feed & Protocol -->
+        <aside class="navigator-column">
+          <!-- Question Matrix Card -->
+          <div class="navigator-card">
+            <div class="nav-card-head">
+              <div>
+                <h3>Question Matrix</h3>
+                <span class="nav-subtitle" id="nav-summary">0 of 25 Completed</span>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#64748B;" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+              </svg>
+            </div>
+
+            <div class="chips-grid" id="nav-chips-grid"></div>
+
+            <div class="matrix-stats-row">
+              <div class="matrix-stat">
+                <span class="stat-label"><span class="stat-dot answered"></span>Answered</span>
+                <strong id="stat-answered">0</strong>
+              </div>
+              <div class="matrix-stat">
+                <span class="stat-label"><span class="stat-dot review"></span>Review</span>
+                <strong id="stat-review">0</strong>
+              </div>
+              <div class="matrix-stat">
+                <span class="stat-label"><span class="stat-dot pending"></span>Pending</span>
+                <strong id="stat-pending">20</strong>
+              </div>
+            </div>
+
+            <div class="matrix-consumed-block">
+              <div class="consumed-labels">
+                <span>Time Consumed</span>
+                <span id="time-consumed-label">0m 00s consumed</span>
+              </div>
+              <div class="consumed-track">
+                <div class="consumed-fill" id="time-consumed-fill" style="width:0%;"></div>
+              </div>
+            </div>
+
+            <button type="button" id="btn-submit-q" class="btn-matrix-submit">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                <polyline points="9 11 12 14 22 4"></polyline>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+              </svg>
+              <span>Submit Assessment</span>
+            </button>
+          </div>
+
+          <!-- Live Proctor Feed Card -->
+          <div class="proctor-feed-card">
+            <div class="feed-card-head">
+              <span class="feed-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M23 7l-7 5 7 5V7z"></path>
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                </svg>
+                <span>LIVE PROCTOR FEED</span>
+              </span>
+              <span class="feed-rec-pill"><span class="rec-dot"></span> REC &middot; 30 FPS</span>
+            </div>
+
+            <div class="feed-video-stage" id="feed-video-stage">
+              <video id="pvid" class="cam-stream" autoplay muted playsinline></video>
+              <span class="feed-corner tl"></span>
+              <span class="feed-corner tr"></span>
+              <span class="feed-corner bl"></span>
+              <span class="feed-corner br"></span>
+              <div class="feed-hud-top">
+                <span class="cam-status ok" id="mon">AI Proctor: Active</span>
+              </div>
+              <div class="feed-hud-bottom">
+                <span class="feed-uid-line">UID: <span id="feed-uid-disp">PGI-W26</span> &middot; <span id="feed-name-disp">Candidate</span></span>
+                <span class="feed-mic-bars" id="feed-mic-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+              </div>
+            </div>
+
+            <div class="feed-status-strip">
+              <span id="feed-pill-cam">&#10003; Webcam: OK</span>
+              <span id="feed-pill-mic">&#10003; Mic: Sync</span>
+              <span id="feed-pill-tab">&#128274; Tab Locked</span>
+            </div>
+          </div>
+
+          <!-- Protocol Notice Card -->
+          <div class="protocol-notice-card">
+            <div class="protocol-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              <span>PROTOCOL NOTICE</span>
+            </div>
+            <p id="protocol-notice-text">Unanswered items receive 0 marks. Exiting full screen, switching tabs, or leaving the frame logs a strike (auto-submits after 3 strikes).</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Assessment Result Screen -->
+    <section id="s-res" class="res-stitch-shell hidden">
+      <div id="res-container"></div>
+    </section>
+
+    <!-- Course Selection & Checkout Screen -->
+    <section id="s-courses" class="hidden">
+      <div class="card">
+        <div class="card-head">
+          <span class="step-chip">Final Step</span>
+          <h1>Select Your Winter Internship Track</h1>
+          <p class="subtitle" id="c-coupon-sub">Scholarship applied automatically.</p>
+        </div>
+        <div id="c-coupon" class="coupon-banner"></div>
+        <div style="margin-top:12px;">
+          <button type="button" id="btn-back-result" class="btn btn-outline hidden" style="padding:7px 14px;font-size:0.84rem;">&larr; View Score &amp; Voucher Summary</button>
+        </div>
+        <div class="msg" id="c-msg"></div>
+      </div>
+      <div id="course-list" class="courses-grid"></div>
+    </section>
+
+    <!-- Student Dashboard Screen (Enrolled) -->
+    <section id="s-dash" class="card hidden">
+      <div class="card-head">
+        <span class="step-chip">Enrolled Candidate</span>
+        <h1>Student Dashboard</h1>
+        <p class="subtitle">Your official Winter 2026 internship enrolment details.</p>
+      </div>
+      <div id="dash"></div>
+    </section>
+
+    <!-- Step 3: Stitch Remittance & Razorpay Checkout Screen -->
+    <section id="s-checkout" class="remit-shell hidden">
+      <div class="remit-top-bar">
+        <div class="remit-top-left">
+          <span class="remit-step-badge">3</span>
+          <strong class="remit-step-title">Step 3: Remittance</strong>
+          <span class="remit-dot-sep">&bull;</span>
+          <span class="remit-sub-pill" id="co-subsidy-pill">Standard Fee (&#8377;9,999)</span>
+          <button type="button" id="cm-cancel" class="remit-back-link">&larr; Change Domain</button>
+        </div>
+        <div class="remit-top-right hidden" id="co-expiry-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284C7" stroke-width="2.2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>Expires in: <strong id="co-expiry-timer">--:--:--</strong></span>
+        </div>
+      </div>
+
+      <div class="remit-two-col">
+        <!-- Left Card: Matriculation Fee & Coupon Application -->
+        <div class="remit-card remit-fee-card">
+          <div class="remit-card-head">
+            <h2>Matriculation Fee</h2>
+            <span class="remit-cohort-badge">Cohort 2026</span>
+          </div>
+
+          <div class="remit-cand-box">
+            <div>
+              <strong id="co-cand-name">Candidate</strong>
+              <span id="cm-course-title">Winter Internship Track</span>
+              <small id="cm-course-duration" class="remit-cand-dur">10 Days (30 Hours)</small>
+            </div>
+            <span class="remit-uid-tag" id="co-cand-uid">UID: PGI-W26</span>
+          </div>
+
+          <div class="remit-coupon-box">
+            <label for="co-coupon-input" class="remit-coupon-lbl">Apply Scholarship Coupon Code</label>
+            <div class="remit-coupon-row">
+              <input id="co-coupon-input" type="text" placeholder="e.g. WIN-XXXXXX" autocomplete="off">
+              <button type="button" id="co-coupon-apply" class="remit-btn-apply">Apply</button>
+              <button type="button" id="co-coupon-remove" class="remit-btn-remove hidden">Remove</button>
+            </div>
+            <div id="co-coupon-hint" class="remit-coupon-hint hidden"></div>
+            <div id="co-coupon-msg" class="msg" style="margin-top:6px;"></div>
+          </div>
+
+          <div class="remit-lines">
+            <div class="remit-line">
+              <span class="lbl">Tuition Fee</span>
+              <span class="val" id="cm-base-price">&#8377;9,999</span>
+            </div>
+            <div class="remit-line is-sub">
+              <span class="lbl">&#127991; Institutional Subsidy <small id="cm-coupon-code"></small></span>
+              <span class="val" id="cm-discount">&#8377;0</span>
+            </div>
+            <div class="remit-line">
+              <span class="lbl">Platform Access</span>
+              <span class="val is-included">INCLUDED</span>
+            </div>
+          </div>
+
+          <div class="remit-total-box">
+            <div>
+              <strong>TOTAL AMOUNT</strong>
+              <span>Taxes Included</span>
+            </div>
+            <div class="remit-total-amt" id="cm-payable">&#8377;9,999</div>
+          </div>
+
+          <div class="remit-trust-row">
+            <div class="remit-trust-chip">&#128274; SSL 256-bit</div>
+            <div class="remit-trust-chip">&#129534; Instant Receipt</div>
+            <div class="remit-trust-chip">&#10003; Verified</div>
+          </div>
+        </div>
+
+        <!-- Right Card: Razorpay Payment Options -->
+        <div class="remit-card remit-pay-card">
+          <div class="remit-card-head">
+            <h2>Payment Options</h2>
+            <span class="remit-rzp-badge">&#9889; Razorpay Trusted</span>
+          </div>
+
+          <div class="remit-rzp-frame">
+            <div class="remit-rzp-navy">
+              <div class="remit-rzp-brand">
+                <div class="remit-rzp-icon">&#9889;</div>
+                <div>
+                  <strong>Plant Green Inertia</strong>
+                  <span>Winter Fellowship 2026</span>
+                </div>
+              </div>
+              <div class="remit-rzp-amt-col">
+                <span>PAYABLE</span>
+                <strong id="co-rzp-payable">&#8377;9,999.00</strong>
+              </div>
+            </div>
+
+            <div class="remit-rzp-body">
+              <div class="remit-rzp-user">
+                <span id="co-rzp-user-info">&#128100; Candidate &middot; email</span>
+              </div>
+
+              <div class="remit-methods-list" id="co-methods-list">
+                <label class="remit-method-item is-selected" data-method="upi">
+                  <input type="radio" name="rzp-method" value="upi" checked>
+                  <span class="remit-m-ico">&#128241;</span>
+                  <div class="remit-m-meta">
+                    <div class="remit-m-title">UPI <span class="remit-fastest-pill">FASTEST</span></div>
+                    <span>Google Pay, PhonePe, Paytm, QR</span>
+                  </div>
+                  <span class="remit-m-arrow">&rsaquo;</span>
+                </label>
+
+                <label class="remit-method-item" data-method="card">
+                  <input type="radio" name="rzp-method" value="card">
+                  <span class="remit-m-ico">&#128179;</span>
+                  <div class="remit-m-meta">
+                    <div class="remit-m-title">Cards</div>
+                    <span>Debit and Credit</span>
+                  </div>
+                  <span class="remit-m-arrow">&rsaquo;</span>
+                </label>
+
+                <label class="remit-method-item" data-method="netbanking">
+                  <input type="radio" name="rzp-method" value="netbanking">
+                  <span class="remit-m-ico">&#127974;</span>
+                  <div class="remit-m-meta">
+                    <div class="remit-m-title">Netbanking</div>
+                    <span>All Major Indian Banks</span>
+                  </div>
+                  <span class="remit-m-arrow">&rsaquo;</span>
+                </label>
+
+                <label class="remit-method-item" data-method="wallet">
+                  <input type="radio" name="rzp-method" value="wallet">
+                  <span class="remit-m-ico">&#128188;</span>
+                  <div class="remit-m-meta">
+                    <div class="remit-m-title">Wallets</div>
+                    <span>Paytm, PhonePe, Amazon Pay</span>
+                  </div>
+                  <span class="remit-m-arrow">&rsaquo;</span>
+                </label>
+              </div>
+
+              <button type="button" id="cm-pay-now" class="remit-pay-btn">&#128274; Pay &#8377;9,999</button>
+
+              <div class="remit-rzp-foot">
+                <span>&#9889; Secured by <strong>Razorpay</strong></span>
+                <span>&#10003; TLS 1.3 &bull; PCI-DSS</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="remit-order-meta" id="co-order-ref">Instant Razorpay order generated securely on click</div>
+          <div id="cm-msg" class="msg" style="margin-top:10px;text-align:center;"></div>
+        </div>
+      </div>
+
+      <div class="remit-help-bar">
+        <span>&#127911; Need Help? Call <strong>+91 82206 99083</strong></span>
+        <span>&#9993; Receipt sent to registered email</span>
+      </div>
+    </section>
+  </main>
+
+  <footer class="portal-footer">
+    <div class="portal-footer-inner">
+      <div class="portal-footer-top">
+        <div class="portal-footer-brand">
+          <strong>Plant Green Inertia</strong>
+          <span>Executive fellowship platform for environmental stewardship &amp; engineering momentum.</span>
+        </div>
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="terms.html">Terms of Service</a>
+          <a href="privacy.html">Privacy Policy</a>
+          <a href="refund.html">Refund Policy</a>
+          <a href="contact.html">Support Desk</a>
+          <a href="dashboard.html">Student Login</a>
+        </nav>
+      </div>
+      <div class="portal-footer-bottom">
+        <p class="footer-copy">&copy; 2026 Plant Green Inertia Pvt. Ltd. All rights reserved.</p>
+        <span class="footer-cohort-tag">PGI WINTER INTERNSHIP 2026 COHORT</span>
+      </div>
+    </div>
+  </footer>
+
+  <script async src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script defer src="static/js/portal.js"></script>
+</body>
+</html>
