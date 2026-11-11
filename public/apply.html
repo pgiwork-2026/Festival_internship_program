@@ -297,10 +297,11 @@
     /* Graduation Year Segmented Pill Group */
     .segmented-group {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(105px, 1.35fr);
       gap: 6px;
     }
-    .segmented-btn {
+    .segmented-btn,
+    .segmented-year-input {
       height: 46px;
       background: #ffffff;
       border: 1px solid #CBD5E1;
@@ -308,13 +309,16 @@
       font-weight: 600;
       font-size: 0.88rem;
       color: #475569;
+      transition: all 0.15s;
+    }
+    .segmented-btn {
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.15s;
     }
-    .segmented-btn:hover {
+    .segmented-btn:hover,
+    .segmented-year-input:hover {
       background: #F8FAFC;
       border-color: #94A3B8;
     }
@@ -324,6 +328,39 @@
       color: #ffffff;
       font-weight: 700;
       box-shadow: 0 2px 8px rgba(41, 105, 52, 0.25);
+    }
+    .segmented-year-input {
+      width: 100%;
+      padding: 0 10px;
+      text-align: center;
+      font-family: inherit;
+      color: #0F172A;
+      outline: none;
+    }
+    .segmented-year-input::placeholder {
+      color: #64748B;
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+    .segmented-year-input:focus,
+    .segmented-year-input.selected {
+      border-color: var(--stitch-emerald);
+      box-shadow: 0 0 0 3px rgba(41, 105, 52, 0.14);
+      color: var(--stitch-emerald);
+      font-weight: 700;
+    }
+    .segmented-year-input.is-invalid {
+      border-color: #DC2626;
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+      color: #DC2626;
+    }
+    .segmented-year-input::-webkit-inner-spin-button,
+    .segmented-year-input::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .segmented-year-input[type="number"] {
+      -moz-appearance: textfield;
     }
 
     /* Section 02 Inner Container Box */
@@ -375,6 +412,9 @@
       margin-top: 8px;
     }
     @media (max-width: 680px) {
+      .segmented-group {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
       .mode-cards-grid {
         grid-template-columns: 1fr;
       }
@@ -1111,14 +1151,26 @@
             </div>
           </div>
 
-          <!-- Row 4: Graduation Year Segmented Buttons -->
+          <!-- Row 4: Graduation / Passed-Out Year Segmented Buttons -->
           <div class="field-group">
-            <label class="field-label">Graduation Year <span class="req">*</span></label>
+            <label class="field-label" for="customPassedOutYear">Graduation / Passed-Out Year <span class="req">*</span></label>
             <div class="segmented-group" id="yearSegmentedGroup">
               <button type="button" class="segmented-btn" data-year="2024">2024</button>
               <button type="button" class="segmented-btn" data-year="2025">2025</button>
               <button type="button" class="segmented-btn selected" data-year="2026">2026</button>
               <button type="button" class="segmented-btn" data-year="2027">2027</button>
+              <button type="button" class="segmented-btn" data-year="2028">2028</button>
+              <input
+                type="number"
+                id="customPassedOutYear"
+                class="segmented-year-input"
+                min="1980"
+                max="2050"
+                step="1"
+                inputmode="numeric"
+                placeholder="Other year"
+                aria-label="Enter custom passed-out year"
+              >
             </div>
             <div class="stitch-feedback" id="passedOutYearFeedback"></div>
           </div>

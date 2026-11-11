@@ -226,7 +226,9 @@ app.post('/api/applications', wrap(async (req, res) => {
   if (!dobCreds) throw fail(400, 'Please enter a valid Date of Birth.');
   if (!college) throw fail(400, 'Please enter your college name.');
   if (!department) throw fail(400, 'Please enter your department/degree.');
-  if (!passedOutYear) throw fail(400, 'Please select your passed-out year.');
+  if (!/^\d{4}$/.test(passedOutYear) || Number(passedOutYear) < 1980 || Number(passedOutYear) > 2050) {
+    throw fail(400, 'Please enter a valid 4-digit passed-out year.');
+  }
   if (!['Technical', 'Non-Technical'].includes(domainType)) throw fail(400, 'Select a valid domain type (Technical or Non-Technical).');
   if (!domainName) throw fail(400, 'Please select a specialization domain.');
   if (!['Online', 'Offline'].includes(mode)) throw fail(400, 'Select a valid training mode (Online or Offline).');

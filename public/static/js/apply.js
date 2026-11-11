@@ -113,19 +113,75 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // =========================================================================
-  // 4. Graduation Year Segmented Buttons
+  // 4. Graduation / Passed-Out Year Segmented Buttons + Custom Number Input
   // =========================================================================
   const yearInput = document.getElementById('passedOutYear');
   const yearButtons = document.querySelectorAll('#yearSegmentedGroup .segmented-btn');
+  const customYearInput = document.getElementById('customPassedOutYear');
+  const yearFeedback = document.getElementById('passedOutYearFeedback');
+
+  function validatePassedOutYear(showFeedback = true) {
+    const val = String(yearInput?.value || '').trim();
+    const ok = /^\d{4}$/.test(val) && Number(val) >= 1980 && Number(val) <= 2050;
+    if (customYearInput) {
+      customYearInput.classList.toggle('is-invalid', !ok && showFeedback);
+    }
+    if (yearFeedback) {
+      yearFeedback.textContent = (!ok && showFeedback) ? 'Please select a year or enter a valid 4-digit passed-out year (1980–2050).' : '';
+    }
+    return ok;
+  }
 
   yearButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       yearButtons.forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       const selectedYear = btn.getAttribute('data-year');
+      if (customYearInput) {
+        customYearInput.value = '';
+        customYearInput.classList.remove('selected', 'is-invalid');
+      }
       if (yearInput) yearInput.value = selectedYear;
+      if (yearFeedback) yearFeedback.textContent = '';
     });
   });
+
+  if (customYearInput) {
+    customYearInput.addEventListener('input', () => {
+      const cleaned = customYearInput.value.replace(/\D/g, '').slice(0, 4);
+      if (customYearInput.value !== cleaned) customYearInput.value = cleaned;
+      if (cleaned) {
+        yearButtons.forEach(b => b.classList.remove('selected'));
+        customYearInput.classList.add('selected');
+        if (yearInput) yearInput.value = cleaned;
+        if (cleaned.length === 4) {
+          validatePassedOutYear(true);
+        } else {
+          customYearInput.classList.remove('is-invalid');
+          if (yearFeedback) yearFeedback.textContent = '';
+        }
+      } else {
+        customYearInput.classList.remove('selected', 'is-invalid');
+        const activeBtn = document.querySelector('#yearSegmentedGroup .segmented-btn.selected');
+        if (yearInput) yearInput.value = activeBtn ? activeBtn.getAttribute('data-year') : '';
+        if (yearFeedback) yearFeedback.textContent = '';
+      }
+    });
+
+    customYearInput.addEventListener('blur', () => {
+      const val = customYearInput.value.trim();
+      if (val) {
+        validatePassedOutYear(true);
+      } else if (!document.querySelector('#yearSegmentedGroup .segmented-btn.selected')) {
+        const defaultBtn = document.querySelector('#yearSegmentedGroup .segmented-btn[data-year="2026"]');
+        if (defaultBtn) {
+          defaultBtn.classList.add('selected');
+          if (yearInput) yearInput.value = '2026';
+          if (yearFeedback) yearFeedback.textContent = '';
+        }
+      }
+    });
+  }
 
   // =========================================================================
   // 5. Internship Period Segmented Chips
@@ -406,8 +462,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
+      const yearValid = typeof validatePassedOutYear === 'function' ? validatePassedOutYear(true) : true;
+      if (!yearValid) allValid = false;
+
       if (!allValid) {
-        const firstInvalid = document.querySelector('.stitch-input.is-invalid, .stitch-select.is-invalid');
+        const firstInvalid = document.querySelector('.stitch-input.is-invalid, .stitch-select.is-invalid, .segmented-year-input.is-invalid');
         firstInvalid?.focus();
         return;
       }
