@@ -13,7 +13,7 @@
   <style>
     :root {
       --admin-navy: #101D35;
-      --admin-green: #2A6636;
+      --admin-green: #296934;
       --admin-blue: #2563EB;
       --admin-bg: #F8FAFC;
       --admin-line: #E2E8F0;
@@ -102,7 +102,8 @@
       color: #ffffff;
     }
     .btn-green:hover {
-      background: #23522C;
+      background: #296934;
+      filter: brightness(0.92);
     }
     .btn-outline {
       background: #ffffff;
@@ -183,7 +184,7 @@
     nav#admin-nav button.active {
       background: var(--admin-green);
       color: #ffffff;
-      box-shadow: 0 2px 8px rgba(42, 102, 54, 0.3);
+      box-shadow: 0 2px 8px rgba(41, 105, 52, 0.3);
     }
     .aside-user {
       padding: 14px 16px;
@@ -336,7 +337,7 @@
       text-transform: uppercase;
       letter-spacing: 0.03em;
     }
-    .pill.green { background: #DCFCE7; color: #166534; }
+    .pill.green { background: rgba(41, 105, 52, 0.09); color: #296934; }
     .pill.blue { background: #DBEAFE; color: #1E40AF; }
     .pill.yellow { background: #FEF3C7; color: #92400E; }
     .pill.red { background: #FEE2E2; color: #991B1B; }
@@ -447,16 +448,16 @@
       </div>
 
       <nav id="admin-nav">
-        <button class="active" onclick="showTab('analytics')">&#128202; Analytics</button>
-        <button onclick="showTab('students')">&#128101; Students &amp; Interns</button>
-        <button onclick="showTab('assessments')">&#128221; Assessments &amp; MCQs</button>
-        <button onclick="showTab('payments')">&#128179; Payments &amp; Orders</button>
-        <button onclick="showTab('coupons')">&#127915; Coupons</button>
-        <button onclick="showTab('batches')">&#128197; Programs &amp; Batches</button>
-        <button onclick="showTab('mentors')">&#128104;&#8205;&#127979; Mentors</button>
-        <button onclick="showTab('certificates')">&#127891; Certificates</button>
-        <button onclick="showTab('notifications')">&#128276; Notifications</button>
-        <button onclick="showTab('audit')">&#128737;&#65039; Audit Logs</button>
+        <button class="active" onclick="showTab('analytics')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Analytics</button>
+        <button onclick="showTab('students')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Students &amp; Interns</button>
+        <button onclick="showTab('assessments')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Assessments &amp; MCQs</button>
+        <button onclick="showTab('payments')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Payments &amp; Orders</button>
+        <button onclick="showTab('coupons')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> Coupons</button>
+        <button onclick="showTab('batches')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Programs &amp; Batches</button>
+        <button onclick="showTab('mentors')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Mentors</button>
+        <button onclick="showTab('certificates')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg> Certificates</button>
+        <button onclick="showTab('notifications')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications</button>
+        <button onclick="showTab('audit')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Audit Logs</button>
       </nav>
 
       <div class="aside-user">
@@ -472,8 +473,8 @@
       <div class="admin-topbar">
         <h1 id="topbar-title">Analytics &amp; Program Telemetry</h1>
         <div class="topbar-tools">
-          <button class="btn btn-outline btn-sm" id="btn-refresh" onclick="refreshCurrentTab()">&#8635; Refresh</button>
-          <button class="btn btn-outline btn-sm" id="btn-export-csv" onclick="exportActiveCsv()">&#128196; Export CSV</button>
+          <button class="btn btn-outline btn-sm" id="btn-refresh" onclick="refreshCurrentTab()" style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Refresh</button>
+          <button class="btn btn-outline btn-sm" id="btn-export-csv" onclick="exportActiveCsv()" style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV</button>
         </div>
       </div>
 
@@ -714,8 +715,8 @@
                 ${[
                   { label: 'Applications Submitted', count: apps.total || 0, color: '#3B82F6' },
                   { label: 'Assessments Completed', count: test.completed || 0, color: '#6366F1' },
-                  { label: 'Scholarship Unlocked (Eligible)', count: test.eligible || 0, color: '#10B981' },
-                  { label: 'Enrolled & Paid', count: pay.completedCount || 0, color: '#059669' },
+                  { label: 'Scholarship Unlocked (Eligible)', count: test.eligible || 0, color: 'rgba(41, 105, 52, 0.75)' },
+                  { label: 'Enrolled & Paid', count: pay.completedCount || 0, color: '#296934' },
                   { label: '30-Hour Completed', count: intern.completed || 0, color: '#2563EB' }
                 ].map(step => {
                   const max = Math.max(apps.total || 1, 1);
@@ -994,7 +995,7 @@
             <div class="panel-head">
               <h3>MCQ Question Bank (${questions.length} questions)</h3>
               <div style="display:flex;gap:8px;">
-                <a href="/api/admin/attempts/export.csv" target="_blank" class="btn btn-outline btn-sm">&#128196; Export Results CSV</a>
+                <a href="/api/admin/attempts/export.csv" target="_blank" class="btn btn-outline btn-sm" style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export Results CSV</a>
                 <button class="btn btn-primary btn-sm" onclick="openQuestionModal(null)">+ Add New Question</button>
               </div>
             </div>
@@ -1170,7 +1171,7 @@
               <strong style="font-size:1.1rem;color:var(--admin-navy);">Total Collected: ${inr(totalRev)}</strong> &middot;
               <span style="font-size:0.85rem;color:var(--admin-mut);">${payments.length} orders recorded</span>
             </div>
-            <a href="/api/admin/payments/export.csv" target="_blank" class="btn btn-outline btn-sm">&#128196; Download Full Payments CSV</a>
+            <a href="/api/admin/payments/export.csv" target="_blank" class="btn btn-outline btn-sm" style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Full Payments CSV</a>
           </div>
 
           <div class="table-wrap">
@@ -1548,7 +1549,7 @@
         const d = await api(`/certificates/eligibility/${encodeURIComponent(studentId)}`);
         if (d.eligible) {
           resBox.innerHTML = `
-            <div style="background:#DCFCE7;border:1px solid #86EFAC;color:#166534;padding:12px;border-radius:8px;font-size:0.85rem;">
+            <div style="background:rgba(41, 105, 52, 0.09);border:1px solid rgba(41, 105, 52, 0.28);color:#296934;padding:12px;border-radius:8px;font-size:0.85rem;">
               <strong>✓ Eligible for Certificate Issuance!</strong><br>
               Completed: <b>${d.completedHours} / 30.0 hours</b> &middot; Attendance: <b>${d.attendancePercentage}%</b> (&ge; 75% required).
               <div style="margin-top:8px;">

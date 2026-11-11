@@ -20,8 +20,8 @@
       --stitch-blue-accent: #0284C7;
       --stitch-blue-light: #F0F7FC;
       --stitch-blue-border: #DCEEF8;
-      --stitch-emerald: #0A8A54;
-      --stitch-emerald-hover: #076E43;
+      --stitch-emerald: #296934;
+      --stitch-emerald-hover: #296934;
       --stitch-slate: #334155;
       --stitch-muted: #64748B;
       --stitch-line: #E2E8F0;
@@ -182,8 +182,8 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: #DCFCE7;
-      color: #166534;
+      background: rgba(41, 105, 52, 0.09);
+      color: #296934;
       font-size: 0.72rem;
       font-weight: 700;
       padding: 3px 10px;
@@ -323,7 +323,7 @@
       border-color: var(--stitch-emerald);
       color: #ffffff;
       font-weight: 700;
-      box-shadow: 0 2px 8px rgba(10, 138, 84, 0.25);
+      box-shadow: 0 2px 8px rgba(41, 105, 52, 0.25);
     }
 
     /* Section 02 Inner Container Box */
@@ -364,7 +364,7 @@
       border-color: var(--stitch-emerald);
       color: #ffffff;
       font-weight: 700;
-      box-shadow: 0 2px 8px rgba(10, 138, 84, 0.25);
+      box-shadow: 0 2px 8px rgba(41, 105, 52, 0.25);
     }
 
     /* Mode Selection Cards */
@@ -397,7 +397,7 @@
     }
     .mode-selectable-card.selected {
       border-color: var(--stitch-emerald);
-      box-shadow: 0 0 0 3px rgba(10, 138, 84, 0.12);
+      box-shadow: 0 0 0 3px rgba(41, 105, 52, 0.12);
       background: #ffffff;
     }
     .mode-top-row {
@@ -485,7 +485,7 @@
       border-color: var(--stitch-emerald);
       color: #ffffff;
       font-weight: 700;
-      box-shadow: 0 2px 8px rgba(10, 138, 84, 0.25);
+      box-shadow: 0 2px 8px rgba(41, 105, 52, 0.25);
     }
 
     /* Card Footer Action Bar */
@@ -528,6 +528,7 @@
     }
     .btn-stitch-submit:hover {
       background: var(--stitch-emerald-hover);
+      filter: brightness(0.92);
       transform: translateY(-1px);
     }
     .btn-stitch-submit:disabled {
@@ -799,7 +800,7 @@
       width: 36px;
       height: 36px;
       border-radius: 50%;
-      background: #E6F5EC;
+      background: rgba(41, 105, 52, 0.09);
       color: var(--stitch-emerald);
       display: flex;
       align-items: center;
@@ -877,6 +878,7 @@
     }
     .promise-btn-next:hover {
       background: var(--stitch-emerald-hover);
+      filter: brightness(0.92);
       transform: translateY(-1px);
     }
     .promise-under-strip {
@@ -984,8 +986,8 @@
       <div class="stitch-form-card">
 
         <!-- Referral Indicator Banner -->
-        <div id="referralBanner" class="form-alert-banner" style="display:none;background:#F0FDF4;border:1px solid #BBF7D0;color:#166534;margin-bottom:18px;">
-          <span>🤝 Priority Admissions Routing Active (Referral: <strong id="refCodeText"></strong>)</span>
+        <div id="referralBanner" class="form-alert-banner" style="display:none;background:rgba(41, 105, 52, 0.09);border:1px solid rgba(41, 105, 52, 0.28);color:#296934;margin-bottom:18px;">
+          <span style="display:inline-flex;align-items:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg> Priority Admissions Routing Active (Referral: <strong id="refCodeText"></strong>)</span>
         </div>
 
         <!-- Alert Banner -->
@@ -1218,7 +1220,7 @@
                ================================================================= -->
           <div class="stitch-section-head">
             <span class="stitch-section-tag">03. Commitment &amp; Location</span>
-            <span class="stitch-pill-badge blue">⏱ 30 Hours Mandatory Curriculum</span>
+            <span class="stitch-pill-badge blue" style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 30 Hours Mandatory Curriculum</span>
           </div>
 
           <!-- Internship Period Segmented Chips -->
@@ -1681,7 +1683,7 @@
             <button type="button" class="promise-btn-prev" id="copy-cred-email" style="background:#ffffff;border:1px solid #CBD5E1;font-size:0.75rem;padding:5px 10px;">Copy</button>
           </div>
 
-          <div class="promise-row-item" style="background:#F0FDF4; border-color:#BBF7D0; justify-content:space-between;">
+          <div class="promise-row-item" style="background:rgba(41, 105, 52, 0.09); border-color:rgba(41, 105, 52, 0.28); justify-content:space-between;">
             <div style="display:flex;align-items:center;gap:12px;">
               <div class="promise-row-circle">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1693,7 +1695,7 @@
               </div>
               <div class="promise-row-text">
                 <strong>Password (DOB &middot; DDMMYYYY)</strong>
-                <span id="cred-pass-val" style="color:#0A8A54;font-weight:800;font-family:monospace;font-size:1rem;letter-spacing:0.06em;">15082004</span>
+                <span id="cred-pass-val" style="color:#296934;font-weight:800;font-family:monospace;font-size:1rem;letter-spacing:0.06em;">15082004</span>
               </div>
             </div>
             <button type="button" class="promise-btn-prev" id="copy-cred-pass" style="background:#ffffff;border:1px solid #CBD5E1;font-size:0.75rem;padding:5px 10px;">Copy</button>

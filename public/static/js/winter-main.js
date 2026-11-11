@@ -75,19 +75,29 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderDbCourses(courses) {
     const container = document.getElementById('dynamicDbCourses');
     if (!container) return;
-    
+
+    const staticHeadings = Array.from(document.querySelectorAll('#syllabusContainer .syllabus-card h3'));
+    const findMatchingStatic = title => {
+      const low = title.trim().toLowerCase();
+      return staticHeadings.find(h => {
+        const cur = h.textContent.trim().toLowerCase();
+        if (cur === low || low.includes(cur) || cur.includes(low)) return true;
+        if (cur.includes('web development') && low.includes('web development')) return true;
+        if (cur.includes('app development') && low.includes('app development')) return true;
+        if (cur.includes('digital operations') && low.includes('digital operations')) return true;
+        return cur.includes('business analysis') && low.includes('business analysis');
+      });
+    };
+
     courses.forEach(c => {
-      const existing = Array.from(document.querySelectorAll('.syllabus-card h3')).find(
-        h => h.textContent.trim().toLowerCase() === c.title.trim().toLowerCase()
-      );
-      
+      const existing = findMatchingStatic(c.title || '');
       const skillsArr = Array.isArray(c.skills)
         ? c.skills
         : (typeof c.skills === 'string' ? c.skills.split(/[\n,;]+|\s{2,}/).map(s => s.trim()).filter(Boolean) : []);
 
       if (existing) {
         const card = existing.closest('.syllabus-card');
-        if (card && c.description && c.description.length > 10) {
+        if (card && c.description && c.description.length > 10 && !c.title.includes('& Cloud') && !c.title.startsWith('Mobile ')) {
           const descEl = card.querySelector('.syllabus-desc');
           if (descEl) descEl.textContent = c.description;
         }
@@ -95,13 +105,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const card = document.createElement('article');
         card.className = 'frosted-card syllabus-card';
         card.setAttribute('data-track', 'technical');
-        
+
         const skillsHtml = skillsArr.map(s => `<li class="syllabus-skill">${s}</li>`).join('');
-        
+
         card.innerHTML = `
-          <span class="syllabus-track-badge badge-tech">Live Course Track</span>
+          <div class="syllabus-card-top">
+            <span class="syllabus-track-badge badge-tech">Live Course Track</span>
+            <span class="syllabus-duration">${c.duration || '10 Days &middot; 30 Hours'}</span>
+          </div>
           <h3>${c.title}</h3>
-          <p class="syllabus-duration">${c.duration || '10 Days &middot; 30 Hours'}</p>
           <p class="syllabus-desc">${c.description || ''}</p>
           <ul class="syllabus-skills-list">${skillsHtml}</ul>
         `;
@@ -114,7 +126,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 4. Interactive Track Switcher
   const trackBtns = document.querySelectorAll('.track-btn');
-  const syllabusCards = document.querySelectorAll('.syllabus-card');
 
   trackBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -122,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.classList.add('active');
 
       const filter = btn.getAttribute('data-filter');
-      syllabusCards.forEach(card => {
+      document.querySelectorAll('.syllabus-card').forEach(card => {
         const cardTrack = card.getAttribute('data-track');
         if (filter === 'all' || cardTrack === filter) {
           card.style.display = 'flex';

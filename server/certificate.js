@@ -98,7 +98,7 @@ export function buildCertificatePDF(data) {
       doc.save();
       doc.translate(x, y);
       doc.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-      doc.lineWidth(2).strokeColor('#2A6636');
+      doc.lineWidth(2).strokeColor('#296934');
       doc.moveTo(0, 0).lineTo(24, 0).stroke();
       doc.moveTo(0, 0).lineTo(0, 24).stroke();
       doc.lineWidth(1).strokeColor('#B9DDF5');
@@ -117,7 +117,7 @@ export function buildCertificatePDF(data) {
     doc.font('B').fontSize(20).fillColor('#101D35')
        .text('PLANT GREEN INERTIA PVT. LTD.', 44, topY, { align: 'center', width: W - 88 });
 
-    doc.font('R').fontSize(9.5).fillColor('#2A6636')
+    doc.font('R').fontSize(9.5).fillColor('#296934')
        .text('CENTRE FOR INDUSTRIAL APPLIED RESEARCH, SOFTWARE ENGINEERING & INNOVATION', 44, topY + 24, { align: 'center', width: W - 88 });
 
     doc.font('R').fontSize(8).fillColor('#536B82')
@@ -126,7 +126,7 @@ export function buildCertificatePDF(data) {
     // Decorative Winter Divider Line
     doc.lineWidth(1.2).strokeColor('#101D35')
        .moveTo(W / 2 - 140, topY + 54).lineTo(W / 2 + 140, topY + 54).stroke();
-    doc.circle(W / 2, topY + 54, 4).fillAndStroke('#2A6636', '#101D35');
+    doc.circle(W / 2, topY + 54, 4).fillAndStroke('#296934', '#101D35');
 
     // 4. Certificate Award Headline
     const certNum = data.certificateNumber || certificateNumber(data.studentId);
@@ -147,7 +147,7 @@ export function buildCertificatePDF(data) {
     // Student ID & Institution Subhead
     const sid = data.studentId || 'PGI-S26-0001';
     const coll = data.college || 'Department of Computer Science & Engineering';
-    doc.font('R').fontSize(11).fillColor('#2A6636')
+    doc.font('R').fontSize(11).fillColor('#296934')
        .text(`Student ID: ${sid}   |   ${coll}`, 44, topY + 168, { align: 'center', width: W - 88 });
 
     // 6. Citation & Accomplishment Statement
@@ -185,9 +185,9 @@ export function buildCertificatePDF(data) {
     // Center Seal: Official Verification Seal
     const sealX = W / 2;
     const sealY = sigY + 14;
-    doc.circle(sealX, sealY, 32).lineWidth(1.5).stroke('#2A6636');
+    doc.circle(sealX, sealY, 32).lineWidth(1.5).stroke('#296934');
     doc.circle(sealX, sealY, 28).lineWidth(0.8).stroke('#B9DDF5');
-    doc.font('B').fontSize(7).fillColor('#2A6636')
+    doc.font('B').fontSize(7).fillColor('#296934')
        .text('PLANT GREEN INERTIA', sealX - 35, sealY - 14, { width: 70, align: 'center' });
     doc.font('B').fontSize(10).fillColor('#101D35')
        .text('★ VERIFIED ★', sealX - 35, sealY - 4, { width: 70, align: 'center' });

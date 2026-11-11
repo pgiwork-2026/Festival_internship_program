@@ -10,9 +10,9 @@
   --winter-blue: #B9DDF5;
   --ice-white: #F5FAFF;
   --frost-blue: #DCEEFF;
-  --plant-green: #2A6636;
-  --plant-green-hover: #1E4E28;
-  --plant-green-light: #EBF7EE;
+  --plant-green: #296934;
+  --plant-green-hover: #296934;
+  --plant-green-light: rgba(41, 105, 52, 0.09);
   --soft-silver: #D8E2EC;
   --border-subtle: #E2ECF5;
   --text-main: #101D35;
@@ -133,10 +133,11 @@ input:focus {
 .btn-primary {
   background: var(--plant-green);
   color: #fff;
-  box-shadow: 0 3px 10px rgba(42, 102, 54, 0.25);
+  box-shadow: 0 3px 10px rgba(41, 105, 52, 0.25);
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--plant-green-hover);
+  filter: brightness(0.92);
   transform: translateY(-1px);
 }
 .btn-outline {
@@ -268,7 +269,7 @@ body.auth-stage::before {
 body.auth-stage::after {
   bottom: -140px;
   right: -80px;
-  background: radial-gradient(circle, rgba(167, 243, 208, 0.55) 0%, rgba(167, 243, 208, 0) 70%);
+  background: radial-gradient(circle, rgba(41, 105, 52, 0.12) 0%, rgba(41, 105, 52, 0) 70%);
 }
 body.auth-stage .portal-main {
   margin: 0 auto;
@@ -331,7 +332,7 @@ body.auth-stage .portal-main {
 .auth-brand-sub {
   font-size: 0.62rem;
   font-weight: 800;
-  color: #066E3C;
+  color: #296934;
   letter-spacing: 0.16em;
   margin-top: 2px;
 }
@@ -431,8 +432,8 @@ body.auth-stage .portal-main {
 }
 .auth-input-shell:focus-within {
   background: #FFFFFF;
-  border-color: #066E3C;
-  box-shadow: 0 0 0 3px rgba(6, 110, 60, 0.12);
+  border-color: #296934;
+  box-shadow: 0 0 0 3px rgba(41, 105, 52, 0.12);
 }
 .auth-input-ico {
   position: absolute;
@@ -489,13 +490,13 @@ body.auth-stage .portal-main {
   color: #64748B;
 }
 .auth-helper-line svg {
-  color: #059669;
+  color: #296934;
   flex-shrink: 0;
 }
 .auth-submit-btn {
   width: 100%;
   margin-top: 6px;
-  background: #066E3C;
+  background: #296934;
   color: #FFFFFF;
   border: none;
   border-radius: 10px;
@@ -508,13 +509,14 @@ body.auth-stage .portal-main {
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(6, 110, 60, 0.22);
+  box-shadow: 0 6px 18px rgba(41, 105, 52, 0.22);
   transition: background-color 0.15s, transform 0.12s, box-shadow 0.15s;
 }
 .auth-submit-btn:hover:not(:disabled) {
-  background: #04562F;
+  background: #296934;
+  filter: brightness(0.92);
   transform: translateY(-1px);
-  box-shadow: 0 8px 22px rgba(6, 110, 60, 0.28);
+  box-shadow: 0 8px 22px rgba(41, 105, 52, 0.28);
 }
 .auth-submit-btn:disabled {
   opacity: 0.65;
@@ -623,7 +625,7 @@ body.auth-stage .portal-main {
   cursor: pointer;
 }
 .auth-btn-lookup {
-  background: #066E3C;
+  background: #296934;
   color: #FFFFFF;
   border: none;
 }
@@ -854,7 +856,10 @@ body.auth-stage .portal-main {
   color: #CBD5E1;
 }
 .pv-telemetry-top b.ok {
-  color: #4ADE80;
+  background: #296934;
+  color: #FFFFFF;
+  padding: 1px 6px;
+  border-radius: 4px;
 }
 .pv-telemetry-top b.warn {
   color: #FBBF24;
@@ -876,8 +881,9 @@ body.auth-stage .portal-main {
 }
 .pv-reticle-tick {
   position: absolute;
-  background: #22C55E;
-  opacity: 0.7;
+  background: #296934;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.55);
+  opacity: 0.9;
 }
 .pv-reticle-tick.t { top: 0; left: 50%; transform: translateX(-50%); width: 22px; height: 2px; }
 .pv-reticle-tick.b { bottom: 0; left: 50%; transform: translateX(-50%); width: 22px; height: 2px; }
@@ -1097,7 +1103,7 @@ body.auth-stage .portal-main {
   background: #E0E7FF;
 }
 .pv-btn-begin {
-  background: #0A8A54;
+  background: #296934;
   border: none;
   color: #ffffff;
   font-weight: 700;
@@ -1108,11 +1114,12 @@ body.auth-stage .portal-main {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 14px rgba(10, 138, 84, 0.25);
+  box-shadow: 0 4px 14px rgba(41, 105, 52, 0.25);
   transition: all 0.15s;
 }
 .pv-btn-begin:hover:not(:disabled) {
-  background: #076E43;
+  background: #296934;
+  filter: brightness(0.92);
   transform: translateY(-1px);
 }
 .pv-btn-begin:disabled {
@@ -1174,7 +1181,7 @@ body.exam-fullscreen::before {
 body.exam-fullscreen::after {
   bottom: -140px;
   right: -80px;
-  background: radial-gradient(circle, rgba(167, 243, 208, 0.45) 0%, rgba(167, 243, 208, 0) 70%);
+  background: radial-gradient(circle, rgba(41, 105, 52, 0.10) 0%, rgba(41, 105, 52, 0) 70%);
 }
 body.exam-fullscreen .app-header,
 body.exam-fullscreen .app-footer,
@@ -1301,7 +1308,7 @@ body.exam-fullscreen .portal-main {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #066E3C;
+  background: #296934;
   animation: pulse 1.5s infinite;
 }
 .timer-chip.urgent {
@@ -1332,7 +1339,7 @@ body.exam-fullscreen .portal-main {
   margin-bottom: 6px;
 }
 #exam-velocity-status {
-  color: #066E3C;
+  color: #296934;
   font-weight: 700;
 }
 .exam-velocity-track {
@@ -1343,7 +1350,7 @@ body.exam-fullscreen .portal-main {
 }
 .exam-velocity-fill {
   height: 100%;
-  background: linear-gradient(90deg, #066E3C 0%, #10B981 100%);
+  background: linear-gradient(90deg, #296934 0%, #296934 100%);
   border-radius: 999px;
   transition: width 0.25s ease;
 }
@@ -1552,9 +1559,9 @@ body.exam-fullscreen .portal-main {
   border-color: #94A3B8;
 }
 .option-label.selected {
-  background: #ECFDF5;
-  border-color: #066E3C;
-  box-shadow: 0 0 0 1px #066E3C;
+  background: rgba(41, 105, 52, 0.09);
+  border-color: #296934;
+  box-shadow: 0 0 0 1px #296934;
   font-weight: 700;
   color: #0F172A;
 }
@@ -1584,8 +1591,8 @@ body.exam-fullscreen .portal-main {
   flex-shrink: 0;
 }
 .option-label.selected .opt-id {
-  background: #066E3C;
-  border-color: #066E3C;
+  background: #296934;
+  border-color: #296934;
   color: #FFFFFF;
 }
 .opt-right {
@@ -1599,7 +1606,7 @@ body.exam-fullscreen .portal-main {
   font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.05em;
-  color: #066E3C;
+  color: #296934;
   text-transform: uppercase;
 }
 .option-label.selected .opt-choice-tag {
@@ -1617,8 +1624,8 @@ body.exam-fullscreen .portal-main {
   color: transparent;
 }
 .option-label.selected .opt-radio-mark {
-  background: #066E3C;
-  border-color: #066E3C;
+  background: #296934;
+  border-color: #296934;
   color: #FFFFFF;
 }
 
@@ -1664,7 +1671,7 @@ body.exam-fullscreen .portal-main {
   color: #C2410C;
 }
 .btn-exam-next {
-  background: #066E3C;
+  background: #296934;
   color: #FFFFFF;
   border: none;
   padding: 11px 22px;
@@ -1673,10 +1680,11 @@ body.exam-fullscreen .portal-main {
   font-size: 0.86rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(6, 110, 60, 0.22);
+  box-shadow: 0 4px 12px rgba(41, 105, 52, 0.22);
 }
 .btn-exam-next:hover {
-  background: #04562F;
+  background: #296934;
+  filter: brightness(0.92);
 }
 
 /* Bottom Telemetry Strip */
@@ -1702,10 +1710,10 @@ body.exam-fullscreen .portal-main {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #10B981;
+  background: #296934;
 }
 .exam-proctor-flag {
-  color: #059669;
+  color: #296934;
   font-weight: 700;
 }
 .exam-uid-sep {
@@ -1781,8 +1789,8 @@ body.exam-fullscreen .portal-main {
   color: #0F172A;
 }
 .q-chip.answered {
-  background: #066E3C;
-  border-color: #066E3C;
+  background: #296934;
+  border-color: #296934;
   color: #FFFFFF;
 }
 .q-chip.review {
@@ -1798,7 +1806,7 @@ body.exam-fullscreen .portal-main {
   font-weight: 800;
 }
 .q-chip.answered.current {
-  background: #066E3C;
+  background: #296934;
   color: #FFFFFF;
   border-color: #0284C7;
 }
@@ -1834,7 +1842,7 @@ body.exam-fullscreen .portal-main {
   border-radius: 50%;
   display: inline-block;
 }
-.stat-dot.answered { background: #066E3C; }
+.stat-dot.answered { background: #296934; }
 .stat-dot.review { background: #F97316; }
 .stat-dot.pending { background: #94A3B8; }
 
@@ -1857,13 +1865,13 @@ body.exam-fullscreen .portal-main {
 }
 .consumed-fill {
   height: 100%;
-  background: linear-gradient(90deg, #10B981 0%, #F59E0B 100%);
+  background: linear-gradient(90deg, #296934 0%, #F59E0B 100%);
   border-radius: 999px;
 }
 
 .btn-matrix-submit {
   width: 100%;
-  background: #066E3C;
+  background: #296934;
   color: #FFFFFF;
   border: none;
   border-radius: 10px;
@@ -1876,10 +1884,11 @@ body.exam-fullscreen .portal-main {
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(6, 110, 60, 0.22);
+  box-shadow: 0 4px 12px rgba(41, 105, 52, 0.22);
 }
 .btn-matrix-submit:hover {
-  background: #04562F;
+  background: #296934;
+  filter: brightness(0.92);
 }
 
 /* Live Proctor Feed Card */
@@ -1909,8 +1918,8 @@ body.exam-fullscreen .portal-main {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: #ECFDF5;
-  color: #059669;
+  background: rgba(41, 105, 52, 0.09);
+  color: #296934;
   font-size: 0.65rem;
   font-weight: 800;
   padding: 3px 8px;
@@ -1920,7 +1929,7 @@ body.exam-fullscreen .portal-main {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #10B981;
+  background: #296934;
   animation: pulse 1.5s infinite;
 }
 .feed-video-stage {
@@ -1947,7 +1956,7 @@ body.exam-fullscreen .portal-main {
   position: absolute;
   width: 12px;
   height: 12px;
-  border-color: rgba(16, 185, 129, 0.75);
+  border-color: rgba(41, 105, 52, 0.75);
   border-style: solid;
   pointer-events: none;
 }
@@ -1965,9 +1974,9 @@ body.exam-fullscreen .portal-main {
   pointer-events: none;
 }
 .feed-hud-top .cam-status {
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(4px);
-  color: #6EE7B7;
+  color: #296934;
   font-size: 0.65rem;
   font-weight: 700;
   padding: 3px 8px;
@@ -2002,7 +2011,7 @@ body.exam-fullscreen .portal-main {
 }
 .feed-mic-bars i {
   width: 2px;
-  background: #10B981;
+  background: var(--winter-blue);
   border-radius: 2px;
   display: block;
 }
@@ -2018,7 +2027,7 @@ body.exam-fullscreen .portal-main {
   border-top: 1px solid #F1F5F9;
   font-size: 0.67rem;
   font-weight: 700;
-  color: #059669;
+  color: #296934;
   text-align: center;
 }
 
@@ -2104,7 +2113,7 @@ body.exam-fullscreen .portal-main {
   padding: 28px 20px 44px;
   background:
     radial-gradient(circle at 12% 18%, rgba(219, 234, 254, 0.6) 0%, transparent 42%),
-    radial-gradient(circle at 90% 72%, rgba(209, 250, 229, 0.55) 0%, transparent 45%);
+    radial-gradient(circle at 90% 72%, rgba(41, 105, 52, 0.08) 0%, transparent 45%);
 }
 
 .res-top-bar {
@@ -2120,9 +2129,9 @@ body.exam-fullscreen .portal-main {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #066E3C;
+  background: rgba(41, 105, 52, 0.09);
+  border: 1px solid rgba(41, 105, 52, 0.28);
+  color: #296934;
   font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -2233,7 +2242,7 @@ body.exam-fullscreen .portal-main {
 }
 
 .res-kicker-green {
-  color: #066E3C;
+  color: #296934;
 }
 
 .res-big-score {
@@ -2282,7 +2291,7 @@ body.exam-fullscreen .portal-main {
 
 .res-ring-fill {
   fill: none;
-  stroke: #066E3C;
+  stroke: #296934;
   stroke-width: 6;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.5s ease;
@@ -2329,7 +2338,7 @@ body.exam-fullscreen .portal-main {
 }
 
 .res-stat-box-val.is-green {
-  color: #066E3C;
+  color: #296934;
 }
 
 .res-stat-box-sub {
@@ -2373,7 +2382,7 @@ body.exam-fullscreen .portal-main {
 .res-bar-fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #066E3C 0%, #10b981 100%);
+  background: linear-gradient(90deg, #296934 0%, #296934 100%);
 }
 
 .res-bar-fill.is-blue {
@@ -2391,7 +2400,7 @@ body.exam-fullscreen .portal-main {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #0f172a 0%, #066E3C 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #296934 100%);
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -2436,9 +2445,9 @@ body.exam-fullscreen .portal-main {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #ecfdf5;
-  color: #066E3C;
-  border: 1px solid #a7f3d0;
+  background: rgba(41, 105, 52, 0.09);
+  color: #296934;
+  border: 1px solid rgba(41, 105, 52, 0.28);
   font-size: 0.75rem;
   font-weight: 700;
   padding: 5px 12px;
@@ -2537,9 +2546,9 @@ body.exam-fullscreen .portal-main {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: #ecfdf5;
-  color: #066E3C;
-  border: 1px solid #a7f3d0;
+  background: rgba(41, 105, 52, 0.09);
+  color: #296934;
+  border: 1px solid rgba(41, 105, 52, 0.28);
   border-radius: 999px;
   padding: 5px 11px;
   font-size: 0.75rem;
@@ -2577,7 +2586,7 @@ body.exam-fullscreen .portal-main {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: #066E3C;
+  background: #296934;
   color: #ffffff;
   border: none;
   border-radius: 999px;
@@ -2586,12 +2595,13 @@ body.exam-fullscreen .portal-main {
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 6px 18px rgba(6, 110, 60, 0.25);
+  box-shadow: 0 6px 18px rgba(41, 105, 52, 0.25);
   transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .res-btn-pay:hover {
-  background: #055830;
+  background: #296934;
+  filter: brightness(0.92);
   transform: translateY(-1px);
 }
 
@@ -2645,46 +2655,6 @@ body.exam-fullscreen .portal-main {
   text-decoration: underline;
 }
 
-.res-benefits-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.res-benefit-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 16px 14px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.03);
-}
-
-.res-benefit-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: #f0f9ff;
-  color: #0284c7;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 10px;
-  font-size: 0.9rem;
-}
-
-.res-benefit-card h4 {
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin-bottom: 4px;
-}
-
-.res-benefit-card p {
-  font-size: 0.74rem;
-  color: #64748b;
-  line-height: 1.4;
-}
-
 .res-track-footer {
   margin-top: 22px;
   padding: 18px 24px;
@@ -2705,8 +2675,8 @@ body.exam-fullscreen .portal-main {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #ecfdf5;
-  color: #066E3C;
+  background: rgba(41, 105, 52, 0.09);
+  color: #296934;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2735,9 +2705,9 @@ body.exam-fullscreen .portal-main {
 }
 
 .res-seats-pill {
-  background: #ecfdf5;
-  color: #066E3C;
-  border: 1px solid #a7f3d0;
+  background: rgba(41, 105, 52, 0.09);
+  color: #296934;
+  border: 1px solid rgba(41, 105, 52, 0.28);
   padding: 5px 12px;
   border-radius: 8px;
   font-size: 0.78rem;
@@ -2780,9 +2750,6 @@ body.exam-fullscreen .portal-main {
   .res-two-col {
     grid-template-columns: 1fr;
   }
-  .res-benefits-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 560px) {
@@ -2795,9 +2762,6 @@ body.exam-fullscreen .portal-main {
   .res-fee-col + .res-fee-col {
     border-left: none;
     border-top: 1px solid #e2e8f0;
-  }
-  .res-benefits-row {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -2897,9 +2861,9 @@ body.exam-fullscreen .portal-main {
 }
 
 .remit-sub-pill.is-applied {
-  background: #ecfdf5;
-  color: #066E3C;
-  border-color: #a7f3d0;
+  background: rgba(41, 105, 52, 0.09);
+  color: #296934;
+  border-color: rgba(41, 105, 52, 0.28);
 }
 
 .remit-back-link {
@@ -3057,7 +3021,7 @@ body.exam-fullscreen .portal-main {
 }
 
 .remit-btn-apply {
-  background: #066E3C;
+  background: #296934;
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -3068,7 +3032,8 @@ body.exam-fullscreen .portal-main {
 }
 
 .remit-btn-apply:hover:not(:disabled) {
-  background: #055830;
+  background: #296934;
+  filter: brightness(0.92);
 }
 
 .remit-btn-remove {
@@ -3089,7 +3054,7 @@ body.exam-fullscreen .portal-main {
 }
 
 .remit-coupon-hint code {
-  color: #066E3C;
+  color: #296934;
   font-weight: 700;
 }
 
@@ -3115,7 +3080,7 @@ body.exam-fullscreen .portal-main {
 }
 
 .remit-line.is-sub .lbl {
-  color: #066E3C;
+  color: #296934;
 }
 
 .remit-line .val {
@@ -3131,19 +3096,19 @@ body.exam-fullscreen .portal-main {
 }
 
 .remit-line.is-sub .val {
-  color: #066E3C;
+  color: #296934;
 }
 
 .remit-line .val.is-included {
-  color: #066E3C;
+  color: #296934;
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
 
 .remit-total-box {
-  background: #f0fdf4;
-  border: 1px solid #dcfce7;
+  background: rgba(41, 105, 52, 0.09);
+  border: 1px solid rgba(41, 105, 52, 0.24);
   border-radius: 12px;
   padding: 14px 16px;
   display: flex;
@@ -3163,7 +3128,7 @@ body.exam-fullscreen .portal-main {
 .remit-total-box span {
   display: block;
   font-size: 0.74rem;
-  color: #16a34a;
+  color: #296934;
   margin-top: 2px;
 }
 
@@ -3338,9 +3303,9 @@ body.exam-fullscreen .portal-main {
 }
 
 .remit-fastest-pill {
-  background: #ecfdf5;
-  color: #066E3C;
-  border: 1px solid #a7f3d0;
+  background: rgba(41, 105, 52, 0.09);
+  color: #296934;
+  border: 1px solid rgba(41, 105, 52, 0.28);
   font-size: 0.62rem;
   font-weight: 800;
   padding: 1px 7px;
@@ -3534,7 +3499,7 @@ body.exam-fullscreen .portal-main {
 .dash-nav-btn.active {
   background: var(--plant-green);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(42, 102, 54, 0.3);
+  box-shadow: 0 2px 8px rgba(41, 105, 52, 0.3);
 }
 .dash-nav-icon {
   font-size: 1.1rem;
@@ -3700,7 +3665,7 @@ body.exam-fullscreen .portal-main {
   font-weight: 700;
   text-transform: uppercase;
 }
-.att-pill.present { background: #DCFCE7; color: #166534; }
+.att-pill.present { background: rgba(41, 105, 52, 0.09); color: #296934; }
 .att-pill.absent { background: #FEE2E2; color: #991B1B; }
 .att-pill.holiday { background: #FEF3C7; color: #92400E; }
 .att-pill.late { background: #EDE9FE; color: #5B21B6; }
@@ -3801,13 +3766,13 @@ body.exam-fullscreen .portal-main {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #16a34a;
+  background: #296934;
   color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 14px;
-  box-shadow: 0 0 0 8px rgba(22, 163, 74, 0.14), 0 10px 24px rgba(22, 163, 74, 0.22);
+  box-shadow: 0 0 0 8px rgba(41, 105, 52, 0.14), 0 10px 24px rgba(41, 105, 52, 0.22);
 }
 
 .confirm-status-kicker {
@@ -3820,7 +3785,7 @@ body.exam-fullscreen .portal-main {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #066E3C;
+  color: #296934;
   margin-bottom: 6px;
 }
 
@@ -3872,7 +3837,7 @@ body.exam-fullscreen .portal-main {
 }
 
 .confirm-chip.is-amt svg {
-  color: #066E3C;
+  color: #296934;
 }
 
 .confirm-two-col {
@@ -3908,9 +3873,9 @@ body.exam-fullscreen .portal-main {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: #ecfdf5;
-  border: 1px solid #bbf7d0;
-  color: #066E3C;
+  background: rgba(41, 105, 52, 0.09);
+  border: 1px solid rgba(41, 105, 52, 0.28);
+  color: #296934;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3936,9 +3901,9 @@ body.exam-fullscreen .portal-main {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: #ecfdf5;
-  color: #066E3C;
-  border: 1px solid #bbf7d0;
+  background: rgba(41, 105, 52, 0.09);
+  color: #296934;
+  border: 1px solid rgba(41, 105, 52, 0.28);
   font-size: 0.74rem;
   font-weight: 700;
   padding: 4px 11px;
@@ -4041,7 +4006,7 @@ body.exam-fullscreen .portal-main {
 }
 
 .confirm-mini-box small.is-green {
-  color: #066E3C;
+  color: #296934;
   font-weight: 600;
 }
 
@@ -4067,7 +4032,7 @@ body.exam-fullscreen .portal-main {
 
 .confirm-ledger-row.is-sub .lbl,
 .confirm-ledger-row.is-sub .val {
-  color: #066E3C;
+  color: #296934;
   font-weight: 600;
 }
 
@@ -4142,7 +4107,7 @@ body.exam-fullscreen .portal-main {
 }
 
 .confirm-emailed-note svg {
-  color: #066E3C;
+  color: #296934;
 }
 
 .confirm-right-stack {
@@ -4181,7 +4146,7 @@ body.exam-fullscreen .portal-main {
 }
 
 .confirm-cred-val-row strong.is-green {
-  color: #066E3C;
+  color: #296934;
 }
 
 .confirm-cred-note {
@@ -4196,7 +4161,7 @@ body.exam-fullscreen .portal-main {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: #16a34a;
+  background: #296934;
   color: #ffffff !important;
   text-decoration: none;
   border-radius: 10px;
@@ -4204,12 +4169,13 @@ body.exam-fullscreen .portal-main {
   font-size: 0.94rem;
   font-weight: 700;
   white-space: nowrap;
-  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.24);
+  box-shadow: 0 6px 16px rgba(41, 105, 52, 0.24);
   transition: background-color 0.15s, transform 0.12s;
 }
 
 .confirm-open-btn:hover {
-  background: #15803d;
+  background: #296934;
+  filter: brightness(0.92);
   transform: translateY(-1px);
 }
 
@@ -4240,14 +4206,14 @@ body.exam-fullscreen .portal-main {
 }
 
 .confirm-step-ico {
-  color: #16a34a;
+  color: #296934;
   font-weight: 800;
 }
 
 .confirm-step-right {
   font-size: 0.78rem;
   font-weight: 700;
-  color: #066E3C;
+  color: #296934;
   white-space: nowrap;
 }
 
@@ -4326,9 +4292,9 @@ body.exam-fullscreen .portal-main {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #ecfdf5;
-  border: 1px solid #bbf7d0;
-  color: #066E3C;
+  background: rgba(41, 105, 52, 0.09);
+  border: 1px solid rgba(41, 105, 52, 0.28);
+  color: #296934;
   text-decoration: none;
   border-radius: 999px;
   padding: 7px 14px;

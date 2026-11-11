@@ -316,8 +316,8 @@
             <span class="pv-res-pill" id="pv-res">30 FPS &middot; HD</span>
           </div>
           <div class="pv-telemetry-top">
-            <span>&#9728; Lighting: <b id="pv-lighting" class="warn">Checking</b></span>
-            <span>&#9786; Face: <b id="pv-face-badge" class="warn">Waiting</b></span>
+            <span style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg> Lighting: <b id="pv-lighting" class="warn">Checking</b></span>
+            <span style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Face: <b id="pv-face-badge" class="warn">Waiting</b></span>
           </div>
         </div>
 
@@ -468,11 +468,11 @@
 
       <!-- Dual Bottom Action Buttons -->
       <div class="pv-actions-row">
-        <button type="button" class="pv-btn-retest" id="cam-go">&#8635; Verify / Retest Camera</button>
+        <button type="button" class="pv-btn-retest" id="cam-go" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Verify / Retest Camera</button>
         <button type="button" class="pv-btn-begin" id="begin" disabled>Start Assessment &rarr;</button>
       </div>
 
-      <div class="pv-warn-footer">&#9888; Exiting full screen or accumulating 4 violations triggers auto-submission.</div>
+      <div class="pv-warn-footer" style="display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Exiting full screen or accumulating 4 violations triggers auto-submission.</div>
 
       <div class="msg" id="cam-msg" style="text-align:center;"></div>
       <div class="msg" id="inst-msg" style="text-align:center;"></div>
@@ -708,9 +708,9 @@
             </div>
 
             <div class="feed-status-strip">
-              <span id="feed-pill-cam">&#10003; Webcam: OK</span>
-              <span id="feed-pill-mic">&#10003; Mic: Sync</span>
-              <span id="feed-pill-tab">&#128274; Tab Locked</span>
+              <span id="feed-pill-cam">Webcam: OK</span>
+              <span id="feed-pill-mic">Mic: Sync</span>
+              <span id="feed-pill-tab" style="display:inline-flex;align-items:center;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Tab Locked</span>
             </div>
           </div>
 
@@ -810,7 +810,7 @@
               <span class="val" id="cm-base-price">&#8377;9,999</span>
             </div>
             <div class="remit-line is-sub">
-              <span class="lbl">&#127991; Institutional Subsidy <small id="cm-coupon-code"></small></span>
+              <span class="lbl" style="display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> Institutional Subsidy <small id="cm-coupon-code"></small></span>
               <span class="val" id="cm-discount">&#8377;0</span>
             </div>
             <div class="remit-line">
@@ -828,8 +828,8 @@
           </div>
 
           <div class="remit-trust-row">
-            <div class="remit-trust-chip">&#128274; SSL 256-bit</div>
-            <div class="remit-trust-chip">&#129534; Instant Receipt</div>
+            <div class="remit-trust-chip" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> SSL 256-bit</div>
+            <div class="remit-trust-chip" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Instant Receipt</div>
             <div class="remit-trust-chip">&#10003; Verified</div>
           </div>
         </div>
@@ -838,13 +838,13 @@
         <div class="remit-card remit-pay-card">
           <div class="remit-card-head">
             <h2>Payment Options</h2>
-            <span class="remit-rzp-badge">&#9889; Razorpay Trusted</span>
+            <span class="remit-rzp-badge" style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Razorpay Trusted</span>
           </div>
 
           <div class="remit-rzp-frame">
             <div class="remit-rzp-navy">
               <div class="remit-rzp-brand">
-                <div class="remit-rzp-icon">&#9889;</div>
+                <div class="remit-rzp-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
                 <div>
                   <strong>Plant Green Inertia</strong>
                   <span>Winter Fellowship 2026</span>
@@ -857,14 +857,15 @@
             </div>
 
             <div class="remit-rzp-body">
-              <div class="remit-rzp-user">
-                <span id="co-rzp-user-info">&#128100; Candidate &middot; email</span>
+              <div class="remit-rzp-user" style="display:flex;align-items:center;gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span id="co-rzp-user-info">Candidate &middot; email</span>
               </div>
 
               <div class="remit-methods-list" id="co-methods-list">
                 <label class="remit-method-item is-selected" data-method="upi">
                   <input type="radio" name="rzp-method" value="upi" checked>
-                  <span class="remit-m-ico">&#128241;</span>
+                  <span class="remit-m-ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
                   <div class="remit-m-meta">
                     <div class="remit-m-title">UPI <span class="remit-fastest-pill">FASTEST</span></div>
                     <span>Google Pay, PhonePe, Paytm, QR</span>
@@ -874,7 +875,7 @@
 
                 <label class="remit-method-item" data-method="card">
                   <input type="radio" name="rzp-method" value="card">
-                  <span class="remit-m-ico">&#128179;</span>
+                  <span class="remit-m-ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>
                   <div class="remit-m-meta">
                     <div class="remit-m-title">Cards</div>
                     <span>Debit and Credit</span>
@@ -884,7 +885,7 @@
 
                 <label class="remit-method-item" data-method="netbanking">
                   <input type="radio" name="rzp-method" value="netbanking">
-                  <span class="remit-m-ico">&#127974;</span>
+                  <span class="remit-m-ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7 12 2"/></svg></span>
                   <div class="remit-m-meta">
                     <div class="remit-m-title">Netbanking</div>
                     <span>All Major Indian Banks</span>
@@ -894,7 +895,7 @@
 
                 <label class="remit-method-item" data-method="wallet">
                   <input type="radio" name="rzp-method" value="wallet">
-                  <span class="remit-m-ico">&#128188;</span>
+                  <span class="remit-m-ico" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg></span>
                   <div class="remit-m-meta">
                     <div class="remit-m-title">Wallets</div>
                     <span>Paytm, PhonePe, Amazon Pay</span>
@@ -903,10 +904,10 @@
                 </label>
               </div>
 
-              <button type="button" id="cm-pay-now" class="remit-pay-btn">&#128274; Pay &#8377;9,999</button>
+              <button type="button" id="cm-pay-now" class="remit-pay-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Pay &#8377;9,999</span></button>
 
               <div class="remit-rzp-foot">
-                <span>&#9889; Secured by <strong>Razorpay</strong></span>
+                <span style="display:inline-flex;align-items:center;gap:5px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Secured by <strong>Razorpay</strong></span>
                 <span>&#10003; TLS 1.3 &bull; PCI-DSS</span>
               </div>
             </div>
@@ -918,8 +919,8 @@
       </div>
 
       <div class="remit-help-bar">
-        <span>&#127911; Need Help? Call <strong>+91 82206 99083</strong></span>
-        <span>&#9993; Receipt sent to registered email</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg> Need Help? Call <strong>+91 82206 99083</strong></span>
+        <span style="display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,6 12,13 2,6"/></svg> Receipt sent to registered email</span>
       </div>
     </section>
   </main>

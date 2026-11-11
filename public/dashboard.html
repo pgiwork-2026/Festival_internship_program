@@ -73,7 +73,7 @@
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
-    .stat-badge.green { background: #DCFCE7; color: #166534; }
+    .stat-badge.green { background: rgba(41, 105, 52, 0.09); color: #296934; }
     .stat-badge.blue { background: #DBEAFE; color: #1E40AF; }
     .stat-badge.yellow { background: #FEF3C7; color: #92400E; }
     .quick-actions-bar {
@@ -161,19 +161,19 @@
 
         <!-- 13 Navigation Items -->
         <nav class="dash-nav" id="dash-nav-items">
-          <button class="dash-nav-btn active" onclick="switchModule('overview')"><span class="dash-nav-icon">&#128202;</span> Overview</button>
-          <button class="dash-nav-btn" onclick="switchModule('profile')"><span class="dash-nav-icon">&#128100;</span> My Profile</button>
-          <button class="dash-nav-btn" onclick="switchModule('internship')"><span class="dash-nav-icon">&#128188;</span> My Internship</button>
-          <button class="dash-nav-btn" onclick="switchModule('syllabus')"><span class="dash-nav-icon">&#128218;</span> Syllabus</button>
-          <button class="dash-nav-btn" onclick="switchModule('attendance')"><span class="dash-nav-icon">&#128197;</span> Attendance</button>
-          <button class="dash-nav-btn" onclick="switchModule('assignments')"><span class="dash-nav-icon">&#128221;</span> Assignments</button>
-          <button class="dash-nav-btn" onclick="switchModule('materials')"><span class="dash-nav-icon">&#128196;</span> Learning Materials</button>
-          <button class="dash-nav-btn" onclick="switchModule('project')"><span class="dash-nav-icon">&#128640;</span> Project</button>
-          <button class="dash-nav-btn" onclick="switchModule('progress')"><span class="dash-nav-icon">&#9201;</span> 30-Hour Progress</button>
-          <button class="dash-nav-btn" onclick="switchModule('report')"><span class="dash-nav-icon">&#128203;</span> Project Report</button>
-          <button class="dash-nav-btn" onclick="switchModule('certificates')"><span class="dash-nav-icon">&#127891;</span> Certificates</button>
-          <button class="dash-nav-btn" onclick="switchModule('notifications')"><span class="dash-nav-icon">&#128276;</span> Notifications</button>
-          <button class="dash-nav-btn" onclick="switchModule('support')"><span class="dash-nav-icon">&#128172;</span> Support</button>
+          <button class="dash-nav-btn active" onclick="switchModule('overview')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Overview</button>
+          <button class="dash-nav-btn" onclick="switchModule('profile')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span> My Profile</button>
+          <button class="dash-nav-btn" onclick="switchModule('internship')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span> My Internship</button>
+          <button class="dash-nav-btn" onclick="switchModule('syllabus')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span> Syllabus</button>
+          <button class="dash-nav-btn" onclick="switchModule('attendance')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> Attendance</button>
+          <button class="dash-nav-btn" onclick="switchModule('assignments')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span> Assignments</button>
+          <button class="dash-nav-btn" onclick="switchModule('materials')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span> Learning Materials</button>
+          <button class="dash-nav-btn" onclick="switchModule('project')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span> Project</button>
+          <button class="dash-nav-btn" onclick="switchModule('progress')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span> 30-Hour Progress</button>
+          <button class="dash-nav-btn" onclick="switchModule('report')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span> Project Report</button>
+          <button class="dash-nav-btn" onclick="switchModule('certificates')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg></span> Certificates</button>
+          <button class="dash-nav-btn" onclick="switchModule('notifications')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span> Notifications</button>
+          <button class="dash-nav-btn" onclick="switchModule('support')"><span class="dash-nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> Support</button>
         </nav>
       </aside>
 
@@ -235,10 +235,10 @@
             <!-- Quick Action Downloads -->
             <h3 style="font-size:1rem;color:var(--navy);margin:24px 0 12px;">Official Documents &amp; Quick Access</h3>
             <div class="quick-actions-bar">
-              <button onclick="downloadOfferLetter()" class="btn btn-primary">&#127881; Download Official Offer Letter (PDF)</button>
-              <button onclick="downloadReceipt()" class="btn btn-outline">&#128196; Download Payment Receipt (PDF)</button>
-              <button onclick="downloadReport()" class="btn btn-outline">&#128203; Generate 1-Page Project Report (PDF)</button>
-              <button onclick="switchModule('attendance')" class="btn btn-outline">&#128197; View Attendance Registers &rarr;</button>
+              <button onclick="downloadOfferLetter()" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg> Download Official Offer Letter (PDF)</button>
+              <button onclick="downloadReceipt()" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Download Payment Receipt (PDF)</button>
+              <button onclick="downloadReport()" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg> Generate 1-Page Project Report (PDF)</button>
+              <button onclick="switchModule('attendance')" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> View Attendance Registers &rarr;</button>
             </div>
             <div id="ov-action-msg" class="msg" style="margin-top:12px;"></div>
           </div>
@@ -414,7 +414,7 @@
               <div style="font-size:0.85rem;color:var(--navy);">
                 <strong>Central Attendance Database:</strong> Records synchronized in real time with the PGI Academic Registry.
               </div>
-              <button onclick="refreshAttendance()" class="btn btn-outline" style="padding:6px 12px;font-size:0.82rem;">&#8635; Refresh Attendance</button>
+              <button onclick="refreshAttendance()" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:0.82rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Refresh Attendance</button>
             </div>
           </div>
         </div>
@@ -525,7 +525,7 @@
                 <h2>Complimentary 1-Page Project Report</h2>
                 <p>Official publication-grade 1-page report issued on Plant Green Inertia corporate letterhead.</p>
               </div>
-              <button onclick="downloadReport()" class="btn btn-primary">&#128229; Download Official PDF</button>
+              <button onclick="downloadReport()" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Official PDF</button>
             </div>
 
             <!-- Preview Card of 1-Page Report -->
@@ -574,7 +574,7 @@
                   Security Stamp: <code style="color:var(--plant-green);">AUTHENTIC_ACADEMIC_CREDENTIAL</code>
                 </div>
                 <div style="text-align:right;">
-                  <button onclick="downloadReport()" class="btn btn-primary btn-sm">&#128196; Download PDF Report</button>
+                  <button onclick="downloadReport()" class="btn btn-primary btn-sm" style="display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Download PDF Report</button>
                 </div>
               </div>
             </div>
@@ -602,16 +602,16 @@
                   Awarded for successfully fulfilling all requirements of the 30-Hour Winter Internship &amp; Training Program in Full-Stack Web Development.
                 </p>
                 <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                  <button onclick="downloadCertificate()" class="btn btn-primary" id="btn-dl-cert">&#127891; Download Certificate (PDF)</button>
-                  <button onclick="viewCertificateQR()" class="btn btn-outline">&#128269; View QR Verification</button>
+                  <button onclick="downloadCertificate()" class="btn btn-primary" id="btn-dl-cert" style="display:inline-flex;align-items:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg> Download Certificate (PDF)</button>
+                  <button onclick="viewCertificateQR()" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> View QR Verification</button>
                 </div>
                 <div id="cert-msg" class="msg" style="margin-top:12px;"></div>
               </div>
 
               <!-- Digital Seal Box -->
               <div style="background:#fff;border:1px solid var(--border-subtle);border-radius:12px;padding:24px;text-align:center;">
-                <div style="width:120px;height:120px;margin:0 auto 16px;border-radius:50%;background:var(--ice-white);border:2px dashed var(--winter-blue);display:flex;align-items:center;justify-content:center;font-size:2.5rem;">
-                  &#10052;
+                <div style="width:120px;height:120px;margin:0 auto 16px;border-radius:50%;background:var(--ice-white);border:2px dashed var(--winter-blue);display:flex;align-items:center;justify-content:center;color:var(--navy);">
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
                 </div>
                 <h4 style="font-family:var(--font-display);color:var(--navy);margin:0 0 6px;">Tamper-Proof Verification</h4>
                 <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.5;">
@@ -630,7 +630,7 @@
                 <h2>Cohort Notifications &amp; Broadcasts</h2>
                 <p>Announcements from your academic coordinator and mentor team.</p>
               </div>
-              <button onclick="loadNotifications()" class="btn btn-outline" style="padding:6px 12px;font-size:0.85rem;">&#8635; Refresh Feed</button>
+              <button onclick="loadNotifications()" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:0.85rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Refresh Feed</button>
             </div>
             <div id="notifications-list" style="display:flex;flex-direction:column;gap:12px;">Loading announcements…</div>
           </div>
@@ -653,8 +653,8 @@
                 <p style="margin-bottom:8px;"><strong>Technical Support:</strong> +91 82206 99083</p>
                 <p style="margin-bottom:8px;"><strong>Email Helpline:</strong> info@plantgreeninertia.in</p>
                 <p style="margin-bottom:14px;"><strong>Support Hours:</strong> Mon &ndash; Sat, 9:00 AM &ndash; 7:00 PM IST</p>
-                <a href="https://wa.me/918220699083?text=Hello%20PGI%20Support,%20I%20am%20a%20Winter%20Intern" target="_blank" class="btn btn-outline" style="display:inline-block;padding:8px 16px;">
-                  &#128172; Open WhatsApp Support Desk
+                <a href="https://wa.me/918220699083?text=Hello%20PGI%20Support,%20I%20am%20a%20Winter%20Intern" target="_blank" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Open WhatsApp Support Desk
                 </a>
               </div>
 

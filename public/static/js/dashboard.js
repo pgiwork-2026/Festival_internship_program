@@ -220,7 +220,7 @@ async function loadSyllabusTrack(trackId) {
             <span class="stat-badge blue">${track.domainType} Track</span> &middot;
             <span style="font-size:0.85rem;color:var(--text-muted);">${track.duration}</span>
           </div>
-          <a href="/static/pdf/PGI_Winter_Internship_Syllabus.pdf" target="_blank" class="btn btn-outline" style="padding:6px 12px;font-size:0.82rem;">&#128196; Download Full Syllabus (PDF)</a>
+          <a href="/static/pdf/PGI_Winter_Internship_Syllabus.pdf" target="_blank" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:0.82rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Download Full Syllabus (PDF)</a>
         </div>
         <div class="module-list">
           ${(track.modules || []).map(m => `

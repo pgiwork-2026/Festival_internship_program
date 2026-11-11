@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { MAX_WARNINGS, VIOLATION_LABELS, STATUS_TEXT, formatINR, ADVISORY_TYPES } from './logic.js';
 
 const D = path.dirname(fileURLToPath(import.meta.url)), A = f => path.join(D, 'assets', f), FNT = f => path.join(D, 'fonts', f);
-const GREEN = '#2f5d3c', LEFT = 72, W = 612 - 2 * LEFT, BOTTOM = 725; // Letter page, 1" side margins like the template
+const GREEN = '#296934', LEFT = 72, W = 612 - 2 * LEFT, BOTTOM = 725; // Letter page, 1" side margins like the template
 const IST = { timeZone: 'Asia/Kolkata' };
 export const fmtDate = d => new Date(d).toLocaleDateString('en-GB', { ...IST, day: '2-digit', month: '2-digit', year: 'numeric' });
 export const fmtTime = d => new Date(d).toLocaleTimeString('en-IN', { ...IST, hour: '2-digit', minute: '2-digit', second: '2-digit' });

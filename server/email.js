@@ -39,7 +39,7 @@ export function buildConfirmationEmailHtml(app) {
     .table td.label { font-weight: 700; color: #627D98; width: 38%; }
     .table td.value { color: #101D35; font-weight: 600; }
     .cta-box { text-align: center; margin: 30px 0; padding: 24px; background: #F5FAFF; border: 1px dashed #B9DDF5; border-radius: 10px; }
-    .btn { display: inline-block; background: #2A6636; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 12px 28px; border-radius: 8px; }
+    .btn { display: inline-block; background: #296934; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 12px 28px; border-radius: 8px; }
     .footer { background: #F5FAFF; padding: 20px 24px; text-align: center; font-size: 12px; color: #627D98; border-top: 1px solid #EBF2F8; }
   </style>
 </head>
@@ -72,8 +72,8 @@ export function buildConfirmationEmailHtml(app) {
       </table>
 
       ${app.password ? `
-      <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; padding:18px 20px; margin:20px 0;">
-        <h3 style="margin:0 0 8px 0; color:#166534; font-size:15px;">Your Assessment Login Credentials</h3>
+      <div style="background:#F5FAFF; border:1px solid #296934; border-radius:10px; padding:18px 20px; margin:20px 0;">
+        <h3 style="margin:0 0 8px 0; color:#296934; font-size:15px;">Your Assessment Login Credentials</h3>
         <p style="margin:0 0 10px 0; font-size:13.5px; color:#1E293B;">Use these credentials to sign in to the proctored assessment portal:</p>
         <p style="margin:4px 0; font-size:14px;"><strong>Login Email:</strong> <code>${escapeHtml(app.email)}</code></p>
         <p style="margin:4px 0; font-size:14px;"><strong>Password (DOB · DDMMYYYY):</strong> <code>${escapeHtml(app.password)}</code></p>
@@ -163,11 +163,11 @@ export function buildCouponEmailHtml(student, coupon) {
     .header h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
     .header p { margin: 0; font-size: 13px; color: #B9DDF5; text-transform: uppercase; letter-spacing: 0.1em; }
     .content { padding: 30px 28px; line-height: 1.6; }
-    .coupon-card { text-align: center; margin: 24px 0; padding: 24px; background: linear-gradient(135deg, #F5FAFF 0%, #DCEEFF 100%); border: 2px dashed #2A6636; border-radius: 12px; }
-    .coupon-code { font-family: monospace; font-size: 28px; font-weight: 800; letter-spacing: 4px; color: #2A6636; margin: 10px 0; }
-    .badge { display: inline-block; background: #2A6636; color: #ffffff; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
+    .coupon-card { text-align: center; margin: 24px 0; padding: 24px; background: linear-gradient(135deg, #F5FAFF 0%, #DCEEFF 100%); border: 2px dashed #296934; border-radius: 12px; }
+    .coupon-code { font-family: monospace; font-size: 28px; font-weight: 800; letter-spacing: 4px; color: #296934; margin: 10px 0; }
+    .badge { display: inline-block; background: #296934; color: #ffffff; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
     .timer-alert { background: #FFF4E5; border: 1px solid #FFE0B2; color: #B76E00; padding: 12px 16px; border-radius: 8px; font-size: 14px; margin: 18px 0; text-align: center; }
-    .btn { display: inline-block; background: #2A6636; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 16px; padding: 14px 32px; border-radius: 8px; margin-top: 12px; }
+    .btn { display: inline-block; background: #296934; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 16px; padding: 14px 32px; border-radius: 8px; margin-top: 12px; }
     .footer { background: #F5FAFF; padding: 20px 24px; text-align: center; font-size: 12px; color: #627D98; border-top: 1px solid #EBF2F8; }
   </style>
 </head>
@@ -178,7 +178,7 @@ export function buildCouponEmailHtml(student, coupon) {
       <p>Winter Internship &amp; Training Program</p>
     </div>
     <div class="content">
-      <h2 style="color:#2A6636; margin-top:0;">&#127881; Scholarship Unlocked!</h2>
+      <h2 style="color:#296934; margin-top:0;">Scholarship Unlocked!</h2>
       <p>Dear <strong>${escapeHtml(student.fullName || student.name || 'Candidate')}</strong>,</p>
       <p>Congratulations! You have qualified in the Winter Internship Merit Assessment with a score of <strong>${student.score || coupon.score_percent || 0}%</strong>.</p>
       
@@ -298,7 +298,7 @@ export async function sendApplicationConfirmation(app) {
 export async function sendCouponEmail(student, coupon) {
   const html = buildCouponEmailHtml(student, coupon);
   const text = buildCouponEmailText(student, coupon);
-  const subject = `🎉 Scholarship Unlocked: Plant Green Inertia Winter Internship [${coupon.code}]`;
+  const subject = `Scholarship Unlocked: Plant Green Inertia Winter Internship [${coupon.code}]`;
 
   if (process.env.RESEND_API_KEY) {
     try {
@@ -352,7 +352,7 @@ export function buildEnrollmentReceiptEmailHtml(d) {
     .header h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
     .header p { margin: 0; font-size: 13px; color: #B9DDF5; text-transform: uppercase; letter-spacing: 0.1em; }
     .content { padding: 30px 28px; line-height: 1.6; }
-    .badge { display: inline-block; background: #2A6636; color: #ffffff; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
+    .badge { display: inline-block; background: #296934; color: #ffffff; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
     .cred-box { background: #F5FAFF; border: 1.5px solid #B9DDF5; border-radius: 10px; padding: 18px 20px; margin: 20px 0; }
     .cred-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #D8E2EC; font-size: 14px; }
     .cred-row:last-child { border-bottom: none; }
@@ -362,7 +362,7 @@ export function buildEnrollmentReceiptEmailHtml(d) {
     .table td { padding: 8px 12px; border-bottom: 1px solid #EBF2F8; }
     .table td.lbl { color: #536B82; font-weight: 600; width: 40%; }
     .table td.val { color: #101D35; font-weight: 700; }
-    .btn { display: inline-block; background: #2A6636; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 12px 24px; border-radius: 8px; margin: 6px; }
+    .btn { display: inline-block; background: #296934; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 12px 24px; border-radius: 8px; margin: 6px; }
     .btn-alt { display: inline-block; background: #101D35; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 12px 24px; border-radius: 8px; margin: 6px; }
     .footer { background: #F5FAFF; padding: 20px 24px; text-align: center; font-size: 12px; color: #627D98; border-top: 1px solid #EBF2F8; }
   </style>
@@ -455,7 +455,7 @@ Maduravoyal, Chennai - 600095
 export async function sendEnrollmentReceiptEmail(d) {
   const html = buildEnrollmentReceiptEmailHtml(d);
   const text = buildEnrollmentReceiptEmailText(d);
-  const subject = `🎉 Enrollment Confirmed & Payment Receipt: Winter Internship 2026 [${d.studentId}]`;
+  const subject = `Enrollment Confirmed & Payment Receipt: Winter Internship 2026 [${d.studentId}]`;
 
   if (process.env.RESEND_API_KEY) {
     try {
@@ -504,7 +504,7 @@ export function buildPasswordResetEmailHtml({ name, studentId, email, resetUrl }
     .header h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
     .header p { margin: 0; font-size: 13px; color: #B9DDF5; text-transform: uppercase; letter-spacing: 0.1em; }
     .content { padding: 30px 28px; line-height: 1.6; }
-    .btn { display: inline-block; background: #2A6636; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 14px 32px; border-radius: 8px; margin: 20px 0; }
+    .btn { display: inline-block; background: #296934; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 15px; padding: 14px 32px; border-radius: 8px; margin: 20px 0; }
     .cred-box { background: #F5FAFF; border: 1px solid #D8E2EC; border-radius: 8px; padding: 14px; margin: 18px 0; font-size: 13.5px; }
     .footer { background: #F5FAFF; padding: 20px 24px; text-align: center; font-size: 12px; color: #627D98; border-top: 1px solid #EBF2F8; }
   </style>
@@ -559,7 +559,7 @@ Maduravoyal, Chennai - 600095
 export async function sendPasswordResetEmail(d) {
   const html = buildPasswordResetEmailHtml(d);
   const text = buildPasswordResetEmailText(d);
-  const subject = `🔐 Password Recovery: Plant Green Inertia Student Portal`;
+  const subject = `Password Recovery: Plant Green Inertia Student Portal`;
 
   if (process.env.RESEND_API_KEY) {
     try {

@@ -623,7 +623,7 @@
       }
     } catch {
       if ($('diag-net')) {
-        $('diag-net').textContent = '⚠ Check link';
+        $('diag-net').textContent = 'Alert: Check link';
         $('diag-net').className = 'err';
       }
     }
@@ -794,8 +794,8 @@
     if ($('app-id-disp')) $('app-id-disp').textContent = storedAppId;
     if ($('feed-uid-disp')) $('feed-uid-disp').textContent = storedAppId;
     if ($('feed-name-disp')) $('feed-name-disp').textContent = candName;
-    if ($('feed-pill-cam')) $('feed-pill-cam').textContent = stream ? '✓ Webcam: OK' : '⚠ Webcam: Off';
-    if ($('feed-pill-mic')) $('feed-pill-mic').textContent = micStream ? '✓ Mic: Sync' : '⚠ Mic: Muted';
+    if ($('feed-pill-cam')) $('feed-pill-cam').textContent = stream ? '✓ Webcam: OK' : 'Alert: Webcam Off';
+    if ($('feed-pill-mic')) $('feed-pill-mic').textContent = micStream ? '✓ Mic: Sync' : 'Alert: Mic Muted';
 
     if ($('protocol-notice-text')) {
       const passMark = attempt.passMark || 30;
@@ -827,7 +827,7 @@
           $('mon').className = 'cam-status ' + (isOk ? 'ok' : 'err');
         }
         if ($('feed-video-stage')) $('feed-video-stage').classList.toggle('alert', !isOk);
-        if ($('feed-pill-cam')) $('feed-pill-cam').textContent = isOk ? '✓ Webcam: OK' : '⚠ Check Frame';
+        if ($('feed-pill-cam')) $('feed-pill-cam').textContent = isOk ? '✓ Webcam: OK' : 'Alert: Check Frame';
       }, micStream);
     } else if ($('mon')) {
       $('mon').textContent = stream ? 'Monitoring: Active' : 'Camera Required';
@@ -1311,7 +1311,7 @@
             <div class="res-auth-text">
               <h4>
                 <span>EVALUATION AUTHENTICITY</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#066E3C" stroke-width="2.5" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#296934" stroke-width="2.5" aria-hidden="true">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                 </svg>
               </h4>
@@ -1379,29 +1379,6 @@
               <div id="res-rep-msg" class="msg"></div>
             </div>
           ` : ''}
-
-          <div class="res-benefits-row">
-            <div class="res-benefit-card">
-              <div class="res-benefit-icon">&#128187;</div>
-              <h4>30-Hour Live Lab</h4>
-              <p>Hands-on winter project modules &amp; guided practice</p>
-            </div>
-            <div class="res-benefit-card">
-              <div class="res-benefit-icon">&#127942;</div>
-              <h4>Pre-Placement</h4>
-              <p>Eligible for Winter 2026 cohort review &amp; evaluation</p>
-            </div>
-            <div class="res-benefit-card">
-              <div class="res-benefit-icon">&#128737;</div>
-              <h4>Verified Certificate</h4>
-              <p>Official Plant Green Inertia completion credential</p>
-            </div>
-            <div class="res-benefit-card">
-              <div class="res-benefit-icon">&#129309;</div>
-              <h4>1-on-1 Mentor</h4>
-              <p>Structured cohort checkpoints &amp; project feedback</p>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -1569,10 +1546,10 @@
     try {
       const s = await api(`/attempts/${curAttemptId}/share`, {});
       if (platform === 'whatsapp') {
-        const text = `${s.text}\n\n📄 My Official Assessment Report: ${s.url}`;
+        const text = `${s.text}\n\nOfficial Assessment Report: ${s.url}`;
         window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
       } else {
-        const text = `${s.text}\n\n📄 Verification Link: ${s.url}`;
+        const text = `${s.text}\n\nVerification Link: ${s.url}`;
         window.open(`https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`, '_blank');
       }
     } catch (err) {
@@ -2270,7 +2247,7 @@
                 <span class="confirm-step-right">Ready Below</span>
               </div>
               <div class="confirm-step-item">
-                <span class="confirm-step-left"><span class="confirm-step-ico">&#128197;</span> Winter Cohort Curriculum</span>
+                <span class="confirm-step-left"><span class="confirm-step-ico" style="display:inline-flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> Winter Cohort Curriculum</span>
                 <span class="confirm-step-right">Active Now</span>
               </div>
             </div>
@@ -2301,8 +2278,8 @@
             <p style="font-size:0.84rem;color:var(--text-muted);margin:0;">Linked strictly by <strong>Student ID (<code style="color:var(--plant-green);">${escHtml(studentId)}</code>)</strong></p>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button type="button" id="btn-offer-letter" class="btn btn-outline">&#127881; Official Offer Letter (PDF)</button>
-            <button type="button" id="btn-portal-report" class="btn btn-outline">&#128203; 1-Page Project Report (PDF)</button>
+            <button type="button" id="btn-offer-letter" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg> Official Offer Letter (PDF)</button>
+            <button type="button" id="btn-portal-report" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> 1-Page Project Report (PDF)</button>
           </div>
         </div>
         <div id="dash-doc-msg" class="msg" style="margin-bottom:12px;"></div>

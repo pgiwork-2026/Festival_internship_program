@@ -4,7 +4,13 @@ const authH = () => 'Basic ' + Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${pro
 async function rz(path, opts = {}) {
   const r = await fetch(BASE + path, { ...opts, headers: { Authorization: authH(), 'Content-Type': 'application/json' } });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw Object.assign(new Error(j.error?.description || 'Razorpay error'), { status: 502 });
+  if (!r.ok) {
+    const desc = j.error?.description || 'Razorpay error';
+    const message = r.status === 401
+      ? 'Razorpay gateway authentication failed: check RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in server/.env.'
+      : desc;
+    throw Object.assign(new Error(message), { status: 502 });
+  }
   return j;
 }
 export const createOrder = ({ amount, receipt, notes }) => rz('/orders', { method: 'POST', body: JSON.stringify({ amount, currency: 'INR', receipt, notes }) });

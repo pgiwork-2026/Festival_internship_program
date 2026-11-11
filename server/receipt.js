@@ -61,20 +61,20 @@ export function buildReceiptPDF(data) {
     doc.rect(LEFT, metaY, W, 42).fillAndStroke('#F5FAFF', '#D8E2EC');
 
     doc.font('B').fontSize(9).fillColor('#101D35').text('RECEIPT NUMBER:', LEFT + 14, metaY + 8);
-    doc.font('B').fontSize(10).fillColor('#2A6636').text(data.receiptNo || 'REC-PGI-W26-0000', LEFT + 14, metaY + 22);
+    doc.font('B').fontSize(10).fillColor('#296934').text(data.receiptNo || 'REC-PGI-W26-0000', LEFT + 14, metaY + 22);
 
     doc.font('B').fontSize(9).fillColor('#101D35').text('PAYMENT DATE:', LEFT + 180, metaY + 8);
     doc.font('R').fontSize(9.5).fillColor('#101D35').text(fmtDate(data.paidAt || new Date()), LEFT + 180, metaY + 22);
 
     doc.font('B').fontSize(9).fillColor('#101D35').text('PAYMENT STATUS:', LEFT + 340, metaY + 8);
-    doc.font('B').fontSize(10).fillColor('#2A6636').text('PAID / SUCCESS ✓', LEFT + 340, metaY + 22);
+    doc.font('B').fontSize(10).fillColor('#296934').text('PAID / SUCCESS ✓', LEFT + 340, metaY + 22);
 
     doc.y = metaY + 54;
 
     // Student & Application Information
     doc.font('B').fontSize(11).fillColor('#101D35').text('STUDENT & REGISTRATION DETAILS', LEFT, doc.y);
     doc.y += 4;
-    doc.moveTo(LEFT, doc.y).lineTo(LEFT + W, doc.y).strokeColor('#2A6636').lineWidth(1.5).stroke();
+    doc.moveTo(LEFT, doc.y).lineTo(LEFT + W, doc.y).strokeColor('#296934').lineWidth(1.5).stroke();
     doc.y += 8;
 
     const rowY1 = doc.y;
@@ -82,7 +82,7 @@ export function buildReceiptPDF(data) {
     doc.font('B').fontSize(9.5).fillColor('#101D35').text(data.name || '-', LEFT + 110, rowY1);
 
     doc.font('B').fontSize(9.5).fillColor('#536B82').text('Student ID:', LEFT + 270, rowY1);
-    doc.font('B').fontSize(10).fillColor('#2A6636').text(data.studentId || '-', LEFT + 360, rowY1);
+    doc.font('B').fontSize(10).fillColor('#296934').text(data.studentId || '-', LEFT + 360, rowY1);
 
     doc.y = rowY1 + 18;
     const rowY2 = doc.y;
@@ -97,7 +97,7 @@ export function buildReceiptPDF(data) {
     // Course Track Details
     doc.font('B').fontSize(11).fillColor('#101D35').text('ENROLLED PROGRAM & COURSE TRACK', LEFT, doc.y);
     doc.y += 4;
-    doc.moveTo(LEFT, doc.y).lineTo(LEFT + W, doc.y).strokeColor('#2A6636').lineWidth(1.5).stroke();
+    doc.moveTo(LEFT, doc.y).lineTo(LEFT + W, doc.y).strokeColor('#296934').lineWidth(1.5).stroke();
     doc.y += 8;
 
     const cRowY1 = doc.y;
@@ -120,7 +120,7 @@ export function buildReceiptPDF(data) {
     // Payment & Fee Breakdown Table
     doc.font('B').fontSize(11).fillColor('#101D35').text('PAYMENT BREAKDOWN', LEFT, doc.y);
     doc.y += 4;
-    doc.moveTo(LEFT, doc.y).lineTo(LEFT + W, doc.y).strokeColor('#2A6636').lineWidth(1.5).stroke();
+    doc.moveTo(LEFT, doc.y).lineTo(LEFT + W, doc.y).strokeColor('#296934').lineWidth(1.5).stroke();
     doc.y += 6;
 
     // Table Header
@@ -158,16 +158,17 @@ export function buildReceiptPDF(data) {
     doc.rect(LEFT, tr1Y, W, 24).fillAndStroke('#FFFFFF', '#E2ECF5');
     doc.font('R').fontSize(9).fillColor('#101D35').text('Winter Internship Tuition (30 Hours)', LEFT + 12, tr1Y + 7);
     doc.text(rateStr, LEFT + 260, tr1Y + 7);
-    doc.font('B').fontSize(9).fillColor('#2A6636').text(grantLabel, LEFT + 336, tr1Y + 7);
+    doc.font('B').fontSize(9).fillColor('#296934').text(grantLabel, LEFT + 336, tr1Y + 7);
     doc.font('B').fontSize(9.5).fillColor('#101D35').text(paidStr, LEFT + 412, tr1Y + 7, { width: 58, align: 'right' });
 
     doc.y = tr1Y + 24;
 
     // Total Row
     const totY = doc.y;
-    doc.rect(LEFT, totY, W, 26).fillAndStroke('#EBF7EE', '#2A6636');
+    doc.save().fillOpacity(0.08).rect(LEFT, totY, W, 26).fill('#296934').restore();
+    doc.rect(LEFT, totY, W, 26).stroke('#296934');
     doc.font('B').fontSize(10).fillColor('#101D35').text('TOTAL AMOUNT PAID', LEFT + 12, totY + 8);
-    doc.font('B').fontSize(11).fillColor('#2A6636').text(paidStr, LEFT + 400, totY + 8, { width: 70, align: 'right' });
+    doc.font('B').fontSize(11).fillColor('#296934').text(paidStr, LEFT + 400, totY + 8, { width: 70, align: 'right' });
 
     doc.y = totY + 34;
 

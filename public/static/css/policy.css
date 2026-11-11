@@ -4,7 +4,7 @@
   --winter-blue: #B9DDF5;
   --ice-white: #F5FAFF;
   --frost-blue: #DCEEFF;
-  --plant-green: #2A6636;
+  --plant-green: #296934;
   --soft-silver: #D8E2EC;
   --slate-text: #33475B;
   --slate-muted: #627D98;
@@ -38,7 +38,7 @@ body {
 }
 
 .p-head a:hover {
-  color: #066E3C;
+  color: #296934;
 }
 
 .p-head a:focus-visible, .p-main a:focus-visible {
@@ -125,5 +125,5 @@ body {
 }
 
 .p-foot a:hover {
-  color: #066E3C;
+  color: #296934;
 }

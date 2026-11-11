@@ -59,20 +59,20 @@ export function buildProjectReportPDF(data) {
     doc.rect(LEFT, metaY, W, 38).fillAndStroke('#F5FAFF', '#D8E2EC');
 
     doc.font('B').fontSize(8.5).fillColor('#101D35').text('DOCUMENT ID:', LEFT + 12, metaY + 7);
-    doc.font('B').fontSize(9.5).fillColor('#2A6636').text(repNo, LEFT + 12, metaY + 20);
+    doc.font('B').fontSize(9.5).fillColor('#296934').text(repNo, LEFT + 12, metaY + 20);
 
     doc.font('B').fontSize(8.5).fillColor('#101D35').text('COMPLETION DATE:', LEFT + 175, metaY + 7);
     doc.font('R').fontSize(9).fillColor('#101D35').text(fmtDate(data.date || new Date()), LEFT + 175, metaY + 20);
 
     doc.font('B').fontSize(8.5).fillColor('#101D35').text('EVALUATION GRADE:', LEFT + 335, metaY + 7);
-    doc.font('B').fontSize(9.5).fillColor('#2A6636').text('GRADE A (EXEMPLARY) ✓', LEFT + 335, metaY + 20);
+    doc.font('B').fontSize(9.5).fillColor('#296934').text('GRADE A (EXEMPLARY) ✓', LEFT + 335, metaY + 20);
 
     doc.y = metaY + 48;
 
     // Student & Program Information
     doc.font('B').fontSize(10.5).fillColor('#101D35').text('CANDIDATE & COHORT CREDENTIALS', LEFT, doc.y);
     doc.y += 3;
-    doc.moveTo(LEFT, doc.y).lineTo(LEFT + W, doc.y).strokeColor('#2A6636').lineWidth(1.2).stroke();
+    doc.moveTo(LEFT, doc.y).lineTo(LEFT + W, doc.y).strokeColor('#296934').lineWidth(1.2).stroke();
     doc.y += 6;
 
     const rowY1 = doc.y;
@@ -80,7 +80,7 @@ export function buildProjectReportPDF(data) {
     doc.font('B').fontSize(9).fillColor('#101D35').text(data.name || '-', LEFT + 95, rowY1);
 
     doc.font('B').fontSize(9).fillColor('#536B82').text('Student ID:', LEFT + 260, rowY1);
-    doc.font('B').fontSize(9.5).fillColor('#2A6636').text(data.studentId || '-', LEFT + 345, rowY1);
+    doc.font('B').fontSize(9.5).fillColor('#296934').text(data.studentId || '-', LEFT + 345, rowY1);
 
     doc.y = rowY1 + 16;
     const rowY2 = doc.y;
@@ -95,7 +95,7 @@ export function buildProjectReportPDF(data) {
     // Project Details Box
     doc.font('B').fontSize(10.5).fillColor('#101D35').text('CAPSTONE PROJECT DETAILS', LEFT, doc.y);
     doc.y += 3;
-    doc.moveTo(LEFT, doc.y).lineTo(LEFT + W, doc.y).strokeColor('#2A6636').lineWidth(1.2).stroke();
+    doc.moveTo(LEFT, doc.y).lineTo(LEFT + W, doc.y).strokeColor('#296934').lineWidth(1.2).stroke();
     doc.y += 6;
 
     const projTitle = data.projectTitle || 'Autonomous Web Infrastructure & Service Delivery Portal';
@@ -125,7 +125,7 @@ export function buildProjectReportPDF(data) {
       'Successfully delivered a verifiable production artifact compliant with 30-hour curriculum specifications.'
     ];
     bullets.forEach(b => {
-      doc.font('B').fontSize(8.5).fillColor('#2A6636').text('• ', LEFT + 8, doc.y, { continued: true });
+      doc.font('B').fontSize(8.5).fillColor('#296934').text('• ', LEFT + 8, doc.y, { continued: true });
       doc.font('R').fontSize(8.5).fillColor('#101D35').text(b, { width: W - 14, lineGap: 1 });
       doc.y += 2;
     });
@@ -136,7 +136,7 @@ export function buildProjectReportPDF(data) {
     const sealY = doc.y;
     doc.rect(LEFT, sealY, W, 48).fillAndStroke('#F5FAFF', '#D8E2EC');
 
-    doc.font('B').fontSize(8.5).fillColor('#2A6636').text('OFFICIAL ACADEMIC VERIFICATION & ENDORSEMENT', LEFT + 12, sealY + 7);
+    doc.font('B').fontSize(8.5).fillColor('#296934').text('OFFICIAL ACADEMIC VERIFICATION & ENDORSEMENT', LEFT + 12, sealY + 7);
     doc.font('R').fontSize(7.8).fillColor('#536B82').text(
       'This 1-page report is an authentic record of the capstone project completed under mentorship at Plant Green Inertia Pvt. Ltd., ' +
       'Official Training Partner of TN Skills, TNSDC. Validated for institutional academic credit.',

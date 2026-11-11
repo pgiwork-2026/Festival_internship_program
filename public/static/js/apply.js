@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (isValid) {
         inputEl.classList.remove('is-invalid');
         const [y, m, d] = val.trim().split('-');
-        feedbackEl.style.color = '#0A8A54';
+        feedbackEl.style.color = '#296934';
         feedbackEl.textContent = `Password (DDMMYYYY): ${d}${m}${y}`;
         return true;
       }
