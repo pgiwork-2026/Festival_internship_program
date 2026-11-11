@@ -102,20 +102,36 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       receiptNo = `REC-PGI-W26-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
     }
 
-    const portalPassword = 'PGI-' + crypto.randomBytes(3).toString('hex').toUpperCase() + '!26';
+    let existingUser = null;
+    let userEmail = null;
     try {
-      if (db.auth?.admin?.updateUserById) {
-        await db.auth.admin.updateUserById(userId, { password: portalPassword });
+      const { data: u } = await db.auth.admin.getUserById(userId);
+      existingUser = u?.user || null;
+      userEmail = existingUser?.email || null;
+    } catch {}
+
+    const existingMeta = existingUser?.user_metadata || {};
+    const portalPassword = existingMeta.portal_access_key
+      || ('PGI-' + crypto.randomBytes(3).toString('hex').toUpperCase() + '!26');
+
+    try {
+      if (db.auth?.admin?.updateUserById && existingUser) {
+        const updatePayload = {
+          user_metadata: {
+            ...existingMeta,
+            portal_access_key: portalPassword,
+            student_id: studentId
+          }
+        };
+        // Only assign auth password when candidate has no DOB on file; otherwise keep their DOB login working
+        if (!existingMeta.dob) {
+          updatePayload.password = portalPassword;
+        }
+        await db.auth.admin.updateUserById(userId, updatePayload);
       }
     } catch (err) {
       console.warn('[Auth Admin Password Provisioning]', err?.message || err);
     }
-
-    let userEmail = null;
-    try {
-      const { data: u } = await db.auth.admin.getUserById(userId);
-      userEmail = u?.user?.email || null;
-    } catch {}
 
     return { prof, studentId, receiptNo, portalPassword, userEmail };
   }

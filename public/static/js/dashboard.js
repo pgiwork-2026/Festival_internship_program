@@ -1,12 +1,14 @@
 /**
- * Plant Green Inertia - Student Dashboard Application Logic
- * Powers all 13 Modules linked by Student ID
+ * Plant Green Inertia - Student Portal Dashboard Logic
+ * Strictly 7 modules driven by authoritative database data only.
  */
 
 let authToken = localStorage.getItem('pgi_student_token') || sessionStorage.getItem('pgi_student_token');
 let currentStudent = null;
 let currentTelemetry = null;
 let activeTrackId = 'tech-web';
+let cachedMaterialsPayload = null;
+let activePlayerSessionId = null;
 
 function getHeaders() {
   return {
@@ -22,28 +24,38 @@ function setMsg(id, text, isOk = false) {
   el.className = 'msg ' + (isOk ? 'ok' : 'err');
 }
 
-// Module Navigation Switcher
+function toggleMobileSidebar(open) {
+  const side = document.getElementById('hubSidebar');
+  const back = document.getElementById('hubSideBackdrop');
+  if (!side || !back) return;
+  side.classList.toggle('open', Boolean(open));
+  back.classList.toggle('show', Boolean(open));
+}
+
+// 7-Module Switcher: overview, syllabus, materials, assignments, mentors, certificates, support
 function switchModule(modId) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.dash-nav-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.hub-top-link').forEach(lnk => lnk.classList.remove('is-active'));
 
   const target = document.getElementById('mod-' + modId);
   if (target) target.classList.add('active');
 
-  const activeBtn = document.querySelector(`.dash-nav-btn[onclick*="${modId}"]`);
+  const activeBtn = document.querySelector(`.dash-nav-btn[onclick*="'${modId}'"]`);
   if (activeBtn) activeBtn.classList.add('active');
+  const activeTop = document.querySelector(`.hub-top-link[onclick*="'${modId}'"]`);
+  if (activeTop) activeTop.classList.add('is-active');
+
+  toggleMobileSidebar(false);
   window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 
-  // Trigger data refreshes on tab activation
-  if (modId === 'attendance') refreshAttendance();
   if (modId === 'syllabus') loadSyllabusTrack(activeTrackId);
-  if (modId === 'assignments') loadAssignments();
   if (modId === 'materials') loadMaterials();
-  if (modId === 'progress') loadProgress();
-  if (modId === 'notifications') loadNotifications();
+  if (modId === 'assignments') loadAssignments();
+  if (modId === 'mentors') loadMentors();
+  if (modId === 'certificates') loadCertificatesStatus();
 }
 
-// Sign Out
 function logoutStudent() {
   localStorage.removeItem('pgi_student_token');
   sessionStorage.removeItem('pgi_student_token');
@@ -52,9 +64,7 @@ function logoutStudent() {
   window.location.href = 'student-login.html';
 }
 
-// Initial Bootstrapper
 async function initDashboard() {
-  // Check for token in URL query (e.g. from password reset or redirect)
   const p = new URLSearchParams(window.location.search);
   const qToken = p.get('token');
   if (qToken) {
@@ -71,7 +81,7 @@ async function initDashboard() {
     const res = await fetch('/api/student/dashboard', { headers: getHeaders() });
     if (!res.ok) {
       if (res.status === 401) return logoutStudent();
-      throw new Error('Failed to load dashboard telemetry');
+      throw new Error('Failed to load dashboard data');
     }
 
     const data = await res.json();
@@ -79,128 +89,197 @@ async function initDashboard() {
     currentTelemetry = data.telemetry;
 
     renderStudentInfo(currentStudent, currentTelemetry);
-    // Preload attendance & syllabus
-    refreshAttendance();
-    loadSyllabusTrack('tech-web');
+
+    const domLower = String(currentStudent?.domainName || '').toLowerCase();
+    const initialTrack = domLower.includes('app') || domLower.includes('mobile')
+      ? 'tech-app'
+      : (domLower.includes('marketing') || domLower.includes('business') || domLower.includes('operations') ? 'nontech-marketing' : 'tech-web');
+
+    loadSyllabusTrack(initialTrack);
   } catch (err) {
     console.error('[Dashboard Boot Error]', err);
-    document.getElementById('welcome-heading').textContent = 'Unable to Load Portal Data';
-    document.getElementById('welcome-sub').textContent = err.message || 'Please sign in again.';
+    const h = document.getElementById('welcome-heading');
+    const sub = document.getElementById('welcome-sub');
+    if (h) h.textContent = 'Unable to Load Portal Data';
+    if (sub) sub.textContent = err.message || 'Please sign in again.';
   }
 }
 
-// Populate Topbar, Sidebar & Overview
+function initialsOf(name) {
+  return String(name || '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(w => w[0]?.toUpperCase() || '')
+    .join('') || 'PG';
+}
+
 function renderStudentInfo(s, t) {
-  const sid = s.studentId || 'PGI-S26-0001';
-  document.getElementById('hdr-student-id').textContent = sid;
-  document.getElementById('side-cand-id').textContent = sid;
-  document.getElementById('ov-student-id').textContent = sid;
-  document.getElementById('prof-student-id').textContent = sid;
-  document.getElementById('att-disp-id').textContent = sid;
-  document.getElementById('rep-sid').textContent = sid;
+  const sid = s.studentId || '—';
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
-  // Candidate Name
-  const name = s.name || 'Candidate';
-  document.getElementById('welcome-heading').textContent = `Welcome Back, ${name}`;
-  document.getElementById('side-cand-name').textContent = name;
-  document.getElementById('ov-cand-name').textContent = name;
-  document.getElementById('prof-name').textContent = name;
-  document.getElementById('rep-name').textContent = name;
+  setText('hdr-student-id', sid);
+  setText('side-cand-id', sid);
+  setText('ov-student-id', sid);
 
-  // Track & Mode
-  const track = s.domainName || 'Full-Stack Web Development Track';
-  document.getElementById('side-cand-track').textContent = track;
-  document.getElementById('ov-track-title').textContent = track;
-  document.getElementById('int-track-name').textContent = track;
-  document.getElementById('rep-domain').textContent = track;
-  document.getElementById('hdr-mode-badge').textContent = `${s.mode || 'Online'} Mode`;
-  document.getElementById('ov-track-mode').textContent = `${s.mode || 'Online'} · ${s.timing || '4:00 PM – 6:00 PM'}`;
-  document.getElementById('int-timings').textContent = s.timing || '4:00 PM – 6:00 PM';
-  document.getElementById('int-mode-label').textContent = `Mode: ${s.mode || 'Online'}`;
-  document.getElementById('int-ppo-status').textContent = s.mode === 'Offline' ? 'Active Guaranteed' : 'Eligible for Top Performers';
+  const name = s.name || 'Student';
+  const firstName = name.trim().split(/\s+/)[0] || name;
+  setText('side-cand-avatar', initialsOf(name));
+  setText('welcome-heading', `Welcome, ${firstName}`);
+  setText('side-cand-name', name);
+  setText('ov-cand-name', name);
+  setText('prof-name', name);
 
-  // Hours Progress
-  const completed = t.completedHours || 0;
+  const track = s.domainName || 'Not Assigned';
+  const modeShort = `${s.mode || 'Online'} · ${s.timing || 'Schedule TBA'}`;
+  setText('side-cand-track', track);
+  setText('ov-track-title', track);
+  setText('ov-spec-course', track);
+  setText('ov-active-track-heading', `${track}`);
+  setText('hdr-mode-badge', modeShort);
+  setText('ov-track-mode', s.internshipPeriod ? `${s.mode || 'Online'} · ${s.internshipPeriod}` : modeShort);
+  setText('ov-mentor-schedule', `${s.batchName || 'Winter Cohort 2026'} · ${s.timing || 'Schedule TBA'}`);
+
+  const completed = Number(t.completedHours || 0);
   const pct = Math.min(100, Math.round((completed / 30.0) * 100));
-  document.getElementById('side-cand-hours').textContent = `${completed.toFixed(1)}/30 hrs`;
-  document.getElementById('side-cand-bar').style.width = `${pct}%`;
-  document.getElementById('ov-hours-stat').textContent = `${completed.toFixed(1)} / 30.0 Hours Completed (${pct}%)`;
-  document.getElementById('ov-prog-fill').style.width = `${pct}%`;
-  document.getElementById('prog-hours-stat').textContent = `${completed.toFixed(1)} / 30.0 Hours`;
-  document.getElementById('prog-cockpit-bar-fill').style.width = `${pct}%`;
+  setText('side-cand-hours', `${completed.toFixed(1)}/30 hrs`);
+  const sideBar = document.getElementById('side-cand-bar');
+  if (sideBar) sideBar.style.width = `${pct}%`;
 
-  // Profile fields
-  document.getElementById('prof-email').textContent = s.email || '—';
-  document.getElementById('prof-phone').textContent = s.phone || '—';
-  document.getElementById('prof-college').textContent = s.college || '—';
-  document.getElementById('prof-dept').textContent = s.department || '—';
-  document.getElementById('prof-year').textContent = s.passedOutYear || '2026';
-  document.getElementById('rep-coll').textContent = s.college || 'College of Engineering';
+  setText('ov-kpi-pct', `${pct}%`);
+  setText('ov-hours-stat', `${completed.toFixed(1)} / 30 hrs`);
+  const ovProg = document.getElementById('ov-prog-fill');
+  if (ovProg) ovProg.style.width = `${pct}%`;
+  setText('ov-prog-status', completed > 0 ? `${pct}% of 30h completed` : 'Awaiting session hours');
 
-  // Telemetry Tiles
-  document.getElementById('ov-payment-status').textContent = t.paymentStatus || 'Paid (₹999 Verified)';
-  document.getElementById('ov-att-pct').textContent = `${t.attendancePercentage || 100}%`;
-  document.getElementById('ov-att-days').textContent = `Present: ${t.presentDays || 0} / ${t.totalDays || 0} Days`;
-  document.getElementById('cert-id-badge').textContent = t.certificateId || `PGI-W26-CERT-${sid.slice(-4)}`;
-  document.getElementById('rep-doc-id').textContent = `REP-PGI-W26-${sid.slice(-4)}`;
-}
-
-// ===================================================================
-// MODULE 5: ATTENDANCE (Linked by Student ID)
-// ===================================================================
-async function refreshAttendance() {
-  const tbody = document.getElementById('att-table-rows');
-  try {
-    const res = await fetch('/api/student/attendance', { headers: getHeaders() });
-    if (!res.ok) throw new Error('Attendance service unavailable');
-    const data = await res.json();
-    const stats = data.stats || {};
-    const records = data.records || [];
-
-    // Update Attendance Telemetry
-    document.getElementById('att-card-pct').textContent = `${stats.attendancePercentage || 100}%`;
-    document.getElementById('att-card-hours').textContent = `${stats.completedHours || 0} / 30.0 hrs`;
-    document.getElementById('att-card-rem').textContent = `${stats.remainingHours || 0} hours remaining`;
-    document.getElementById('att-card-present').textContent = `${stats.presentDays || 0} Days`;
-    document.getElementById('att-card-absent').textContent = `${stats.absentDays || 0} Day(s)`;
-
-    if (data.provider === 'external_merged') {
-      document.getElementById('att-provider-badge').textContent = 'External Merged System';
-    }
-
-    if (!records.length) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;">No attendance records found yet.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = records.map(r => {
-      const pillClass = r.status === 'present' ? 'present' : (r.status === 'absent' ? 'absent' : 'holiday');
-      return `
-        <tr>
-          <td><strong>Day ${r.day_number || 1}</strong></td>
-          <td>${r.date || '—'}</td>
-          <td>${r.session_title || 'Internship Training Lab'}</td>
-          <td>${r.mode || 'Online'}</td>
-          <td>${r.check_in || '16:00'} – ${r.check_out || '18:00'}</td>
-          <td><strong>${r.hours_logged || 3} hrs</strong></td>
-          <td><span class="att-pill ${pillClass}">${(r.status || 'present').toUpperCase()}</span></td>
-          <td><span style="font-size:0.75rem;color:var(--text-muted);">${r.verification_method || 'Biometric / Live Session'}</span></td>
-        </tr>
-      `;
-    }).join('');
-  } catch (err) {
-    console.error('[Attendance Fetch Error]', err);
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--danger);padding:20px;">${err.message}</td></tr>`;
+  if (t.attendancePercentage !== null && t.attendancePercentage !== undefined) {
+    setText('ov-att-pct', `${t.attendancePercentage}%`);
+    setText('ov-att-state', 'Recorded');
+    const attBar = document.getElementById('ov-att-bar');
+    if (attBar) attBar.style.width = `${t.attendancePercentage}%`;
+    setText('ov-att-days', `Present: ${t.presentDays || 0} / ${t.totalDays || 0} Days`);
+  } else {
+    setText('ov-att-pct', '—');
+    setText('ov-att-state', 'No logs yet');
+    const attBar = document.getElementById('ov-att-bar');
+    if (attBar) attBar.style.width = '0%';
+    setText('ov-att-days', 'No attendance recorded yet');
   }
+
+  // Remittance & Student Record
+  const payBadge = document.getElementById('hdr-scholarship-badge');
+  if (payBadge) {
+    payBadge.textContent = t.isTest
+      ? 'Test Enrollment (PGITEST1)'
+      : (t.amountPaise === 0 ? '100% Free Scholarship' : (t.enrollmentId ? 'Verified Enrollment' : 'Pending Enrollment'));
+  }
+  setText('ov-payment-status', t.paymentAmountLabel || '—');
+  setText('ov-payment-badge', t.enrollmentId ? 'Verified' : 'Pending');
+  setText('ov-receipt-short', t.receiptNo ? `Receipt: ${t.receiptNo}` : 'No receipt generated');
+  setText('ov-spec-receipt', t.receiptNo || '—');
+  const instSummary = [s.college, s.passedOutYear].filter(Boolean).join(' · ') || '—';
+  setText('ov-spec-cert', instSummary);
+  setText('ov-labs-pill', `${t.assignmentsCompleted || 0} / ${t.totalAssignments || 4} Submissions`);
+
+  // Mentor Summary Cards (Authoritative DB mentor or Pending)
+  const mentorObj = s.assignedMentorDetails;
+  if (mentorObj && mentorObj.name) {
+    setText('ov-kpi-mentor-av', initialsOf(mentorObj.name));
+    setText('ov-kpi-mentor-name', mentorObj.name);
+    setText('ov-kpi-mentor-role', mentorObj.title || mentorObj.domain || 'Cohort Mentor');
+    setText('ov-card-mentor-av', initialsOf(mentorObj.name));
+    setText('ov-card-mentor-name', mentorObj.name);
+    setText('ov-card-mentor-role', mentorObj.title || mentorObj.domain || 'Cohort Mentor');
+  } else {
+    setText('ov-kpi-mentor-av', 'PG');
+    setText('ov-kpi-mentor-name', 'Pending Assignment');
+    setText('ov-kpi-mentor-role', 'Assigned prior to start');
+    setText('ov-card-mentor-av', 'PG');
+    setText('ov-card-mentor-name', 'Mentor Not Assigned Yet');
+    setText('ov-card-mentor-role', 'Will be assigned by PGI Coordinator');
+  }
+
+  // Hero classroom CTA if real access_url configured
+  const heroCta = document.getElementById('ov-hero-cta');
+  if (heroCta && s.courseAccessUrl) {
+    heroCta.textContent = 'Open Classroom';
+    heroCta.onclick = () => window.open(s.courseAccessUrl, '_blank', 'noopener');
+  }
+
+  // Profile fields inside Support section
+  setText('prof-email', s.email || '—');
+  setText('prof-phone', s.phone || '—');
+  setText('prof-college', s.college || '—');
+  setText('prof-dept', s.department || '—');
+  setText('prof-year', s.passedOutYear || '—');
+  setText('ov-console-id', `$ pgi-verify --student ${sid} --track "${track}"`);
+}
+
+function copyFellowId() {
+  const sid = currentStudent?.studentId || '';
+  if (!sid || sid === '—') return;
+  const btn = document.getElementById('ov-copy-id-btn');
+  navigator.clipboard?.writeText(sid).then(() => {
+    if (btn) {
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy ID'; }, 1600);
+    }
+  }).catch(() => {});
 }
 
 // ===================================================================
-// MODULE 4: SYLLABUS
+// MODULE 2: MODULES (SYLLABUS) + OVERVIEW PREVIEW
 // ===================================================================
+function toggleModuleNotes(day) {
+  const drawer = document.getElementById(`mod-notes-${day}`);
+  if (!drawer) return;
+  drawer.classList.toggle('hidden');
+}
+
+function renderOverviewCurriculumPreview(track, completedHours) {
+  const modules = track?.modules || [];
+  const totalMods = modules.length || 1;
+  const doneCount = Math.min(totalMods, Math.floor((completedHours || 0) / 3));
+  const currentMod = modules[doneCount < totalMods ? doneCount : totalMods - 1];
+
+  const metaEl = document.getElementById('ov-current-lab-meta');
+  const titleEl = document.getElementById('ov-current-lab-title');
+  if (metaEl) {
+    metaEl.textContent = currentMod
+      ? `${doneCount === 0 ? 'Up Next' : 'In Progress'} · Module ${String(currentMod.day).padStart(2, '0')} (${currentMod.hours}h)`
+      : '30-Hour Curriculum';
+  }
+  if (titleEl && currentMod) {
+    titleEl.textContent = currentMod.title;
+  }
+
+  const listEl = document.getElementById('ov-checklist-rows');
+  if (!listEl) return;
+  const preview = modules.slice(0, 3);
+  listEl.innerHTML = preview.map((m, idx) => {
+    const done = idx < doneCount;
+    return `
+      <div class="hub-check-row">
+        <div class="hub-check-left">
+          <span class="hub-check-ico" style="color:${done ? 'var(--hub-green)' : 'var(--hub-muted)'};">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/>${done ? '<polyline points="16 8 10 15 8 13"/>' : '<polyline points="12 7 12 12 15 14"/>'}</svg>
+          </span>
+          <span>Module ${String(m.day).padStart(2, '0')}: ${m.title}</span>
+        </div>
+        <span class="hub-check-score" style="color:${done ? 'var(--hub-green)' : 'var(--hub-muted)'};">${done ? 'Completed' : `${m.hours}h Scheduled`}</span>
+      </div>
+    `;
+  }).join('');
+}
+
 async function loadSyllabusTrack(trackId) {
   activeTrackId = trackId;
+  document.querySelectorAll('.mod-track-btn').forEach(btn => {
+    btn.classList.toggle('is-active', btn.getAttribute('data-track-btn') === trackId);
+  });
+
   const box = document.getElementById('syllabus-container');
-  box.innerHTML = '<p>Loading track modules…</p>';
+  if (box) box.innerHTML = '<div class="dash-module"><p style="margin:0;color:var(--hub-muted);">Loading track modules…</p></div>';
 
   try {
     const res = await fetch('/api/student/syllabus', { headers: getHeaders() });
@@ -209,264 +288,997 @@ async function loadSyllabusTrack(trackId) {
     const track = (data.tracks || []).find(t => t.id === trackId) || data.tracks?.[0];
 
     if (!track) {
-      box.innerHTML = '<p>Track curriculum not found.</p>';
+      if (box) box.innerHTML = '<div class="dash-module"><p style="margin:0;">Track curriculum not found.</p></div>';
       return;
     }
 
-    box.innerHTML = `
-      <div class="track-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+    const completedHours = Number(currentTelemetry?.completedHours || 0);
+    renderOverviewCurriculumPreview(track, completedHours);
+
+    const subEl = document.getElementById('mod-track-subtitle');
+    if (subEl) subEl.textContent = `Winter Cohort 2026 · ${track.title}`;
+
+    const modules = track.modules || [];
+    const totalMods = modules.length || 1;
+    const doneCount = Math.min(totalMods, Math.floor(completedHours / 3));
+    const activeIndex = doneCount < totalMods ? doneCount : totalMods - 1;
+    const activeModule = modules[activeIndex] || modules[0];
+    const trackPct = Math.min(100, Math.round((doneCount / totalMods) * 100));
+    const activeSliceHrs = Math.max(0, completedHours - doneCount * 3);
+    const activePct = Math.min(100, Math.max(0, Math.round((activeSliceHrs / 3) * 100)));
+    const pad2 = n => String(n).padStart(2, '0');
+
+    const termSprint = document.getElementById('mod-term-sprint');
+    if (termSprint) termSprint.textContent = `${totalMods} Modules · ${track.duration || '30 Hours'}`;
+
+    const summaryHtml = `
+      <div class="mod-kpi-grid">
+        <div class="mod-kpi-card">
           <div>
-            <h3>${track.title}</h3>
-            <span class="stat-badge blue">${track.domainType} Track</span> &middot;
-            <span style="font-size:0.85rem;color:var(--text-muted);">${track.duration}</span>
-          </div>
-          <a href="/static/pdf/PGI_Winter_Internship_Syllabus.pdf" target="_blank" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:0.82rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Download Full Syllabus (PDF)</a>
-        </div>
-        <div class="module-list">
-          ${(track.modules || []).map(m => `
-            <div class="module-item">
-              <strong>Day ${m.day}: ${m.title} (${m.hours} Hours)</strong>
-              <p>${(m.topics || []).join(' &middot; ')}</p>
+            <div class="mod-kpi-top">
+              <span>Overall Progress</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--hub-green);" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             </div>
-          `).join('')}
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:1.35rem;font-weight:700;color:var(--hub-navy);margin:10px 0 8px;">${doneCount} of ${totalMods} Complete</div>
+            <div class="hub-bar-track"><div class="hub-bar-fill" style="width:${trackPct}%;"></div></div>
+          </div>
+          <div class="mod-kpi-foot-row">
+            <span>${trackPct}% Track Completion</span>
+            <strong>${doneCount > 0 ? 'In Progress' : 'Not Started'}</strong>
+          </div>
+        </div>
+
+        <div class="mod-kpi-card">
+          <div>
+            <div class="mod-kpi-top">
+              <span>${doneCount > 0 ? 'Current Focus' : 'Starting Module'}</span>
+              <span class="mod-active-tag">${doneCount > 0 ? 'Active' : 'Next'}</span>
+            </div>
+            <div style="font-size:0.72rem;font-weight:800;color:var(--hub-green);letter-spacing:0.06em;text-transform:uppercase;margin:10px 0 4px;">Module ${pad2(activeModule?.day || activeIndex + 1)}</div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:1.05rem;font-weight:700;color:var(--hub-navy);line-height:1.3;">${activeModule?.title || 'Core Track Module'}</div>
+          </div>
+          <div class="mod-kpi-foot-row" style="color:var(--hub-slate);justify-content:flex-start;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--hub-green);flex-shrink:0;" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>${activeModule?.topics?.[0] || 'Track Syllabus'}</span>
+          </div>
+        </div>
+
+        <div class="mod-kpi-card">
+          <div>
+            <div class="mod-kpi-top">
+              <span>Completion Criteria</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--hub-navy);" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+            </div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:1.25rem;font-weight:700;color:var(--hub-navy);margin:10px 0 4px;">30 Hours / Project</div>
+            <div style="font-size:0.82rem;color:var(--hub-slate);">Final Capstone &amp; 75% Attendance</div>
+          </div>
+          <div class="mod-kpi-foot-row">
+            <span>Verified Hours</span>
+            <strong>${completedHours.toFixed(1)} / 30.0h</strong>
+          </div>
         </div>
       </div>
     `;
-  } catch (err) {
-    box.innerHTML = `<p class="msg err">${err.message}</p>`;
-  }
-}
 
-// ===================================================================
-// MODULE 6: ASSIGNMENTS
-// ===================================================================
-async function loadAssignments() {
-  const box = document.getElementById('assignments-list');
-  box.innerHTML = '<p>Loading assignments…</p>';
+    const cardsHtml = modules.map((m, idx) => {
+      const isDone = idx < doneCount;
+      const isActive = idx === activeIndex && doneCount < totalMods;
+      const stateClass = isDone ? 'done' : (isActive ? 'active' : 'upcoming');
+      const stateLabel = isDone ? 'Completed' : (isActive ? 'Up Next' : 'Scheduled');
+      const topicsText = (m.topics || []).join(' &middot; ');
 
-  try {
-    const res = await fetch('/api/student/assignments', { headers: getHeaders() });
-    if (!res.ok) throw new Error('Assignments service unavailable');
-    const list = await res.json();
+      const iconSvg = isDone
+        ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="16 8 10 15 8 13"/></svg>'
+        : (isActive
+          ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>'
+          : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>');
 
-    if (!list.length) {
-      box.innerHTML = '<p>No pending assignments at this time.</p>';
-      return;
-    }
-
-    box.innerHTML = list.map(a => {
-      const isSub = a.status === 'submitted' || a.status === 'reviewed';
-      const pill = a.status === 'reviewed' ? 'green' : (a.status === 'submitted' ? 'blue' : 'yellow');
       return `
-        <div class="item-card">
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <span class="stat-badge ${pill}">${(a.status || 'pending').toUpperCase()}</span>
-              <span style="font-size:0.75rem;color:var(--text-muted);">Due: ${a.due_date || 'Day 10'}</span>
+        <article class="mod-seq-card ${isActive ? 'is-active' : ''}">
+          <div class="mod-seq-main">
+            <div class="mod-seq-left">
+              <span class="mod-seq-ico ${stateClass}" aria-hidden="true">${iconSvg}</span>
+              <div style="flex:1;min-width:0;">
+                <div class="mod-seq-meta-row">
+                  <span class="mod-num-tag">Module ${pad2(m.day)}</span>
+                  <span class="mod-state-pill ${stateClass}">${stateLabel}</span>
+                </div>
+                <h4 class="mod-seq-title">${m.title}</h4>
+                <p class="mod-seq-desc">${topicsText}</p>
+                ${isActive && activePct > 0 ? `
+                  <div class="mod-seq-prog-wrap">
+                    <div class="hub-bar-track" style="flex:1;"><div class="hub-bar-fill" style="width:${activePct}%;"></div></div>
+                    <span style="font-size:0.75rem;font-weight:700;color:var(--hub-green);">${activePct}%</span>
+                  </div>
+                ` : ''}
+              </div>
             </div>
-            <h4 style="font-size:1rem;color:var(--navy);margin:4px 0 6px;">${a.title}</h4>
-            <p style="font-size:0.85rem;color:var(--text-muted);">${a.description || 'Complete the hands-on lab and commit your code to GitHub.'}</p>
-            ${a.score != null ? `<div style="font-size:0.85rem;color:var(--plant-green);font-weight:700;margin-top:6px;">Score: ${a.score} / 100 &middot; Mentor: "${a.feedback || 'Well done'}"</div>` : ''}
-          </div>
-          <div style="margin-top:12px;border-top:1px solid var(--border-subtle);padding-top:10px;">
-            ${isSub ? `<span style="font-size:0.8rem;color:var(--plant-green);font-weight:600;">&#10003; Submitted: <a href="${a.submission_url}" target="_blank" style="text-decoration:underline;">View Code</a></span>` : `
-              <button onclick="promptSubmitAssignment('${a.id}', '${a.title.replace(/'/g, "\\'")}')" class="btn btn-outline" style="width:100%;font-size:0.82rem;padding:7px;">
-                Submit GitHub Repo &rarr;
+
+            <div class="mod-seq-right">
+              <div class="mod-seq-stat">
+                <small>Duration</small>
+                <strong>${m.hours} Hours</strong>
+              </div>
+              <button type="button" class="${isActive ? 'hub-btn-green' : 'mod-notes-btn'}" onclick="toggleModuleNotes(${m.day})">
+                ${isActive ? 'View Syllabus Topics' : 'View Notes'}
               </button>
-            `}
+            </div>
           </div>
-        </div>
+
+          <div class="mod-notes-drawer hidden" id="mod-notes-${m.day}">
+            <div class="mod-topic-chips">
+              ${(m.topics || []).map(t => `<span class="mod-topic-chip">${t}</span>`).join('')}
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <a href="${track.pdfUrl || '/static/pdf/PGI_Winter_Internship_Syllabus.pdf'}" target="_blank" class="mod-notes-btn" style="text-decoration:none;">Download Track PDF</a>
+              <button type="button" class="mod-notes-btn" onclick="switchModule('assignments')">Open Submissions</button>
+            </div>
+          </div>
+        </article>
       `;
     }).join('');
+
+    box.innerHTML = `
+      ${summaryHtml}
+      <div class="mod-seq-header">
+        <h3>Structured Sequence</h3>
+        <span>Winter 2026 Registry</span>
+      </div>
+      <div class="mod-seq-list">${cardsHtml}</div>
+      <div class="mod-archive-banner">
+        <div class="mod-archive-left">
+          <span class="mod-archive-ico" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          </span>
+          <div>
+            <strong>Recorded Lectures &amp; Program Documents</strong>
+            <small>Session archives &amp; downloadable syllabus guides</small>
+          </div>
+        </div>
+        <button type="button" class="mod-notes-btn" onclick="switchModule('materials')">
+          View Recorded Videos &rarr;
+        </button>
+      </div>
+    `;
   } catch (err) {
-    box.innerHTML = `<p class="msg err">${err.message}</p>`;
+    if (box) box.innerHTML = `<div class="dash-module"><p class="msg err" style="margin:0;">${err.message}</p></div>`;
   }
 }
 
-async function promptSubmitAssignment(id, title) {
-  const repoUrl = prompt(`Submit GitHub Repository URL for "${title}":\n\nMust start with https://github.com/`);
-  if (!repoUrl) return;
-  if (!repoUrl.startsWith('http')) return alert('Please enter a valid URL');
+// ===================================================================
+// MODULE 3: RECORDED VIDEOS (REAL DB RECORDINGS OR HONEST EMPTY STATE)
+// ===================================================================
+function getWatchedSessionIds() {
+  try { return new Set(JSON.parse(localStorage.getItem('pgi_watched_sessions') || '[]')); }
+  catch { return new Set(); }
+}
 
-  try {
-    const res = await fetch(`/api/student/assignments/${id}/submit`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ submissionUrl: repoUrl })
+function saveWatchedSessionId(id) {
+  const set = getWatchedSessionIds();
+  set.add(id);
+  try { localStorage.setItem('pgi_watched_sessions', JSON.stringify([...set])); } catch {}
+}
+
+function openLecturePlayer(sessionId) {
+  const recs = cachedMaterialsPayload?.recordings || [];
+  const rec = recs.find(r => r.id === sessionId);
+  if (!rec) return;
+  activePlayerSessionId = sessionId;
+  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setText('vp-tag', rec.sessionNumber || 'RECORDING');
+  setText('vp-title', rec.title);
+  setText('vp-meta', [rec.instructor, rec.recordedDate, rec.duration].filter(Boolean).join(' · '));
+  setText('vp-summary', rec.summary || 'Recorded cohort session.');
+  const chBox = document.getElementById('vp-chapters');
+  if (chBox) {
+    chBox.innerHTML = (rec.chapters || []).map(c =>
+      `<span style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);padding:4px 10px;border-radius:999px;font-size:0.74rem;color:#F8FAFC;">${c}</span>`
+    ).join('');
+  }
+  document.getElementById('vidPlayerModal')?.classList.remove('hidden');
+}
+
+function closeLecturePlayer() {
+  document.getElementById('vidPlayerModal')?.classList.add('hidden');
+  activePlayerSessionId = null;
+}
+
+function markCurrentSessionWatched() {
+  if (!activePlayerSessionId) return;
+  saveWatchedSessionId(activePlayerSessionId);
+  closeLecturePlayer();
+  renderMaterialsView();
+}
+
+function renderMaterialsView() {
+  if (!cachedMaterialsPayload) return;
+  const watchedIds = getWatchedSessionIds();
+  const query = String(document.getElementById('vid-search')?.value || '').trim().toLowerCase();
+  const filter = String(document.getElementById('vid-filter')?.value || 'all');
+
+  const rawRecs = (cachedMaterialsPayload.recordings || []).map(r => {
+    const forcedWatched = watchedIds.has(r.id);
+    const status = forcedWatched ? 'watched' : (r.status || 'new');
+    const progressPct = forcedWatched ? 100 : Number(r.progressPct || 0);
+    return { ...r, status, progressPct };
+  });
+
+  const totalSessions = rawRecs.length;
+  const watchedCount = rawRecs.filter(r => r.status === 'watched').length;
+  const watchPct = totalSessions ? Math.round((watchedCount / totalSessions) * 100) : 0;
+  const latest = rawRecs[0] || null;
+
+  const kpiBox = document.getElementById('vid-kpi-grid');
+  if (kpiBox) {
+    kpiBox.innerHTML = `
+      <div class="mod-kpi-card">
+        <div>
+          <div class="mod-kpi-top">
+            <span>Recorded Sessions</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--hub-green);" aria-hidden="true"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          </div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:1.35rem;font-weight:700;color:var(--hub-navy);margin:10px 0 4px;">${totalSessions} Uploaded</div>
+        </div>
+        <div class="mod-kpi-foot-row">
+          <span>${cachedMaterialsPayload.track || 'Winter Cohort'}</span>
+          <strong>${totalSessions ? 'Available' : 'Awaiting Cohort'}</strong>
+        </div>
+      </div>
+
+      <div class="mod-kpi-card">
+        <div>
+          <div class="mod-kpi-top">
+            <span>Sessions Watched</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--hub-slate);" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:1.35rem;font-weight:700;color:var(--hub-navy);margin:10px 0 8px;">${watchedCount} of ${totalSessions}</div>
+          <div class="hub-bar-track"><div class="hub-bar-fill" style="width:${watchPct}%;"></div></div>
+        </div>
+        <div class="mod-kpi-foot-row">
+          <span>Completion</span>
+          <strong>${watchPct}% Watched</strong>
+        </div>
+      </div>
+
+      <div class="mod-kpi-card">
+        <div>
+          <div class="mod-kpi-top">
+            <span>Latest Session</span>
+            <span class="mod-num-tag">${latest ? 'NEW' : 'PENDING'}</span>
+          </div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:1.05rem;font-weight:700;color:var(--hub-navy);margin:10px 0 4px;">${latest?.title || 'No sessions uploaded yet'}</div>
+        </div>
+        <div class="mod-kpi-foot-row">
+          <span>${latest?.recordedDate || 'Published after live session'}</span>
+          <strong>${latest ? 'Ready' : 'Upcoming'}</strong>
+        </div>
+      </div>
+    `;
+  }
+
+  const filtered = rawRecs.filter(r => {
+    if (filter !== 'all' && r.status !== filter) return false;
+    if (query) {
+      const hay = `${r.title} ${r.instructor || ''} ${r.summary || ''}`.toLowerCase();
+      if (!hay.includes(query)) return false;
+    }
+    return true;
+  });
+
+  const countBadge = document.getElementById('vid-count-badge');
+  if (countBadge) countBadge.textContent = `${filtered.length} Session${filtered.length === 1 ? '' : 's'} Uploaded`;
+
+  const listBox = document.getElementById('materials-list');
+  if (listBox) {
+    if (!filtered.length) {
+      listBox.innerHTML = `
+        <div class="dash-module" style="text-align:center;padding:28px 20px;">
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:1.05rem;color:var(--hub-navy);margin:0 0 6px;">No Recorded Videos Uploaded Yet</h3>
+          <p style="font-size:0.86rem;color:var(--hub-muted);max-width:480px;margin:0 auto;">
+            Recorded sessions for <strong>${cachedMaterialsPayload.track || 'your cohort'}</strong> will appear here once uploaded after your live classes. You can access the official curriculum documents below in the meantime.
+          </p>
+        </div>
+      `;
+    } else {
+      listBox.innerHTML = filtered.map(r => {
+        const isWatched = r.status === 'watched';
+        return `
+          <article class="vid-session-card">
+            <div class="vid-thumb" onclick="openLecturePlayer('${r.id}')" role="button" tabindex="0">
+              <span class="vid-play-circle"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="8 5 19 12 8 19 8 5"/></svg></span>
+              <span class="vid-dur-badge">${r.duration || 'HD'}</span>
+            </div>
+            <div class="vid-session-body">
+              <div class="vid-tags-row">
+                <span class="vid-sess-tag">${r.sessionNumber || 'SESSION'}</span>
+                <span class="vid-date-txt">${r.recordedDate || ''}</span>
+                ${isWatched ? '<span class="vid-status-pill watched">Watched</span>' : '<span class="vid-status-pill new">Available</span>'}
+              </div>
+              <h4 class="vid-session-title">${r.title}</h4>
+              <div class="vid-meta-line">
+                ${r.instructor ? `<span class="vid-meta-item">${r.instructor}</span>` : ''}
+              </div>
+            </div>
+            <button type="button" class="vid-action-btn ${isWatched ? 'outline' : 'primary'}" onclick="openLecturePlayer('${r.id}')">
+              ${isWatched ? 'Rewatch Video' : 'Watch Video'}
+            </button>
+          </article>
+        `;
+      }).join('');
+    }
+  }
+
+  const docsGrid = document.getElementById('materials-docs-grid');
+  if (docsGrid) {
+    const flatDocs = [];
+    (cachedMaterialsPayload.categories || []).forEach(cat => {
+      (cat.items || []).forEach(item => { if (item.url) flatDocs.push(item); });
     });
-    const d = await res.json();
-    if (!res.ok) throw new Error(d.error || 'Submission failed');
-    alert('Assignment successfully submitted! Mentor review will be posted shortly.');
-    loadAssignments();
-  } catch (err) {
-    alert(err.message);
+    docsGrid.innerHTML = flatDocs.map(d => `
+      <div class="hub-spec-box" style="display:flex;flex-direction:column;justify-content:space-between;gap:10px;background:#fff;border:1px solid var(--hub-line);padding:14px;">
+        <div>
+          <span class="stat-badge blue">${String(d.type || 'doc').toUpperCase()}</span>
+          <h4 style="font-size:0.9rem;color:var(--hub-navy);margin:8px 0 4px;">${d.title}</h4>
+          <p style="font-size:0.78rem;color:var(--hub-muted);margin:0;">${d.description || ''}</p>
+        </div>
+        <a href="${d.url}" target="_blank" class="mod-notes-btn" style="text-decoration:none;justify-content:center;">Access Resource &rarr;</a>
+      </div>
+    `).join('');
   }
 }
 
-// ===================================================================
-// MODULE 7: LEARNING MATERIALS
-// ===================================================================
 async function loadMaterials() {
-  const box = document.getElementById('materials-list');
-  box.innerHTML = '<p>Loading learning resources…</p>';
+  const listBox = document.getElementById('materials-list');
+  if (listBox) listBox.innerHTML = '<div class="dash-module"><p style="margin:0;color:var(--hub-muted);">Loading recordings…</p></div>';
+
+  const sEl = document.getElementById('vid-search');
+  const fEl = document.getElementById('vid-filter');
+  if (sEl && !sEl.dataset.bound) { sEl.dataset.bound = '1'; sEl.addEventListener('input', renderMaterialsView); }
+  if (fEl && !fEl.dataset.bound) { fEl.dataset.bound = '1'; fEl.addEventListener('change', renderMaterialsView); }
 
   try {
     const res = await fetch('/api/student/materials', { headers: getHeaders() });
     if (!res.ok) throw new Error('Materials service unavailable');
-    const mats = await res.json();
-
-    box.innerHTML = mats.map(m => `
-      <div class="item-card">
-        <div>
-          <span class="stat-badge blue">${m.type.toUpperCase()}</span>
-          <h4 style="font-size:1rem;color:var(--navy);margin:6px 0 4px;">${m.title}</h4>
-          <p style="font-size:0.82rem;color:var(--text-muted);">${m.description || ''}</p>
-        </div>
-        <div style="margin-top:12px;">
-          <a href="${m.url}" target="_blank" class="btn btn-outline" style="width:100%;text-align:center;font-size:0.82rem;padding:7px;display:block;">
-            Access Resource &rarr;
-          </a>
-        </div>
-      </div>
-    `).join('');
+    cachedMaterialsPayload = await res.json();
+    renderMaterialsView();
   } catch (err) {
-    box.innerHTML = `<p class="msg err">${err.message}</p>`;
+    if (listBox) listBox.innerHTML = `<div class="dash-module"><p class="msg err" style="margin:0;">${err.message}</p></div>`;
   }
 }
 
 // ===================================================================
-// MODULE 8: CAPSTONE PROJECT SUBMISSION
+// MODULE 4: SUBMISSIONS (STITCH WORKBENCH + ALL SUBMISSIONS LIST)
 // ===================================================================
-async function submitCapstoneProject() {
-  const repoUrl = document.getElementById('proj-repo-url').value.trim();
-  const demoUrl = document.getElementById('proj-demo-url').value.trim();
-  const notes = document.getElementById('proj-notes').value.trim();
-  const btn = document.getElementById('btn-submit-proj');
+let cachedAssignmentsList = [];
+let activeAssignmentId = null;
+let assignmentsViewMode = 'detail';
 
-  btn.disabled = true;
-  setMsg('proj-msg', 'Submitting capstone project…', true);
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function safeHref(url) {
+  const clean = String(url || '').trim();
+  return /^https?:\/\//i.test(clean) ? escHtml(clean) : '#';
+}
+
+function formatShortDate(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString('en-IN', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return '';
+  }
+}
+
+function statusMeta(status) {
+  if (status === 'reviewed') return { cls: 'reviewed', label: 'Reviewed', evalPill: 'REVIEWED' };
+  if (status === 'submitted') return { cls: 'submitted', label: 'Submitted', evalPill: 'SUBMITTED FOR REVIEW' };
+  if (status === 'draft') return { cls: 'draft', label: 'Draft Saved', evalPill: 'DRAFT IN PROGRESS' };
+  return { cls: 'pending', label: 'Pending', evalPill: 'PENDING SUBMISSION' };
+}
+
+async function loadAssignments(preserveMsg = false) {
+  const listBox = document.getElementById('assignments-list');
+  if (listBox && !cachedAssignmentsList.length) {
+    listBox.innerHTML = '<p style="color:var(--hub-muted);">Loading submissions…</p>';
+  }
 
   try {
-    const res = await fetch('/api/student/project/submit', {
+    const res = await fetch('/api/student/assignments', { headers: getHeaders() });
+    if (!res.ok) throw new Error('Submissions service unavailable');
+    const list = await res.json();
+    cachedAssignmentsList = Array.isArray(list) ? list : [];
+
+    if (!cachedAssignmentsList.length) {
+      if (listBox) listBox.innerHTML = '<div class="dash-module"><p style="margin:0;color:var(--hub-muted);">No deliverables configured yet.</p></div>';
+      return;
+    }
+
+    if (!activeAssignmentId || !cachedAssignmentsList.some(t => t.id === activeAssignmentId)) {
+      const pick = cachedAssignmentsList.find(t => t.status === 'draft')
+        || cachedAssignmentsList.find(t => t.status === 'pending')
+        || cachedAssignmentsList[cachedAssignmentsList.length - 1];
+      activeAssignmentId = pick.id;
+    }
+
+    renderSubmissionsList();
+    renderSubmissionWorkbench(activeAssignmentId, preserveMsg);
+
+    if (assignmentsViewMode === 'list') {
+      showSubmissionsList(false);
+    } else {
+      openSubmissionDetail(activeAssignmentId, false, preserveMsg);
+    }
+  } catch (err) {
+    if (listBox) listBox.innerHTML = `<div class="dash-module"><p class="msg err" style="margin:0;">${escHtml(err.message)}</p></div>`;
+    const msgEl = document.getElementById('asg-form-msg');
+    if (msgEl && !preserveMsg) setMsg('asg-form-msg', err.message, false);
+  }
+}
+
+function showSubmissionsList(shouldScroll = true) {
+  assignmentsViewMode = 'list';
+  const det = document.getElementById('asg-detail-view');
+  const lst = document.getElementById('asg-list-view');
+  if (det) det.classList.add('hidden');
+  if (lst) lst.classList.remove('hidden');
+  if (shouldScroll) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+}
+
+function openSubmissionDetail(taskId, shouldScroll = true, preserveMsg = false) {
+  activeAssignmentId = taskId;
+  assignmentsViewMode = 'detail';
+  renderSubmissionWorkbench(taskId, preserveMsg);
+  const det = document.getElementById('asg-detail-view');
+  const lst = document.getElementById('asg-list-view');
+  if (lst) lst.classList.add('hidden');
+  if (det) det.classList.remove('hidden');
+  if (shouldScroll) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+}
+
+function openFirstPendingSubmission() {
+  if (!cachedAssignmentsList.length) return;
+  const pick = cachedAssignmentsList.find(t => t.status === 'draft')
+    || cachedAssignmentsList.find(t => t.status === 'pending')
+    || cachedAssignmentsList[0];
+  openSubmissionDetail(pick.id);
+}
+
+function renderSubmissionsList() {
+  const listBox = document.getElementById('assignments-list');
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  const total = cachedAssignmentsList.length || 4;
+  const doneCount = cachedAssignmentsList.filter(a => a.status === 'submitted' || a.status === 'reviewed').length;
+  const draftCount = cachedAssignmentsList.filter(a => a.status === 'draft').length;
+  const reviewedCount = cachedAssignmentsList.filter(a => a.status === 'reviewed').length;
+  const cap = cachedAssignmentsList.find(a => a.id === 'capstone');
+  const pct = Math.round((doneCount / total) * 100);
+
+  setText('asg-kpi-done', `${doneCount} of ${total}`);
+  const bar = document.getElementById('asg-kpi-bar');
+  if (bar) bar.style.width = `${pct}%`;
+  setText('asg-kpi-done-sub', doneCount === total ? 'All completed' : `${pct}% complete`);
+  setText('asg-kpi-draft', `${draftCount} Draft${draftCount === 1 ? '' : 's'}`);
+  setText('asg-kpi-rev-count', `${reviewedCount} mentor review${reviewedCount === 1 ? '' : 's'}`);
+  setText('asg-kpi-capstone', cap ? statusMeta(cap.status).label : 'Pending');
+  setText('asg-kpi-track-foot', currentStudent?.domainName || 'Cohort Track');
+
+  if (!listBox) return;
+
+  listBox.innerHTML = cachedAssignmentsList.map((a, idx) => {
+    const meta = statusMeta(a.status);
+    const isNext = a.id === activeAssignmentId;
+    const isSub = a.status === 'submitted' || a.status === 'reviewed';
+    const hasDemo = Boolean(a.demo_url && /^https?:\/\//i.test(a.demo_url));
+    const hasRepo = Boolean(a.submission_url && /^https?:\/\//i.test(a.submission_url));
+
+    return `
+      <div class="mod-seq-card ${isNext ? 'is-active' : ''}">
+        <div class="mod-seq-main">
+          <div class="mod-seq-left">
+            <div class="mod-seq-ico ${isSub ? 'done' : (a.status === 'draft' ? 'active' : '')}">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                ${isSub
+                  ? '<polyline points="20 6 9 17 4 12"/>'
+                  : '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>'}
+              </svg>
+            </div>
+            <div>
+              <div class="mod-seq-meta-row">
+                <span class="mod-num-tag">${escHtml(a.code || ('TASK 0' + (idx + 1)))}</span>
+                <span class="asg-state-badge ${meta.cls}">${meta.label}</span>
+                <span style="font-size:0.74rem;color:var(--hub-muted);font-weight:600;">${escHtml(a.dueLabel || '')}</span>
+              </div>
+              <h4 class="mod-seq-title">${escHtml(a.title)}</h4>
+              <p class="mod-seq-desc">${escHtml(a.description || '')}</p>
+              ${hasRepo ? `<div style="margin-top:8px;font-size:0.76rem;color:var(--hub-green);font-weight:600;">Repo: <a href="${safeHref(a.submission_url)}" target="_blank" rel="noopener" style="color:var(--hub-green);text-decoration:underline;">${escHtml(a.submission_url)}</a></div>` : ''}
+              ${hasDemo ? `<div style="margin-top:3px;font-size:0.75rem;color:var(--hub-blue);font-weight:600;">Demo: <a href="${safeHref(a.demo_url)}" target="_blank" rel="noopener" style="color:var(--hub-blue);text-decoration:underline;">${escHtml(a.demo_url)}</a></div>` : ''}
+              ${a.feedback ? `<div style="margin-top:6px;padding:7px 10px;border-radius:8px;background:#F8FAFC;border:1px solid var(--hub-line);font-size:0.76rem;color:var(--hub-navy);"><strong>Mentor Feedback${a.score != null ? ` (${a.score}/${a.max_score || 100})` : ''}:</strong> ${escHtml(a.feedback)}</div>` : ''}
+            </div>
+          </div>
+
+          <div class="mod-seq-right">
+            <button type="button" onclick="openSubmissionDetail('${escHtml(a.id)}')" class="${isSub ? 'mod-notes-btn' : 'hub-btn-green'}">
+              ${isSub ? 'Edit Submission' : (a.status === 'draft' ? 'Resume Draft →' : 'Open Workbench →')}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderSubmissionWorkbench(taskId, preserveMsg = false) {
+  const task = cachedAssignmentsList.find(t => t.id === taskId) || cachedAssignmentsList[0];
+  if (!task) return;
+
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const meta = statusMeta(task.status);
+  const trackName = currentStudent?.domainName || task.track || 'Cohort Track';
+
+  const tabsEl = document.getElementById('asg-milestone-tabs');
+  if (tabsEl) {
+    tabsEl.innerHTML = cachedAssignmentsList.map((item, i) => {
+      const shortLbl = item.id === 'capstone' ? 'Final Capstone' : `Milestone 0${i + 1}`;
+      const isAct = item.id === task.id;
+      return `<button type="button" class="asg-ms-tab ${isAct ? 'active' : ''}" onclick="openSubmissionDetail('${escHtml(item.id)}')">${shortLbl}</button>`;
+    }).join('');
+  }
+
+  setText('asg-det-code', `${task.code || 'SUBMISSION'} // SUBMISSION`);
+  setText('asg-det-cohort', currentStudent?.batchName || 'Winter Cohort 2026');
+  setText('asg-det-title', task.title);
+  setText('asg-det-desc', task.description || 'Provide your public code repository and active deployment URL for mentor evaluation.');
+  setText('asg-det-window', `Window: ${task.dueLabel || 'Cohort Schedule'}`);
+  setText('asg-det-track', trackName);
+  setText('asg-spec-track', trackName);
+  setText('asg-sub-student-id', `${currentStudent?.studentId || '—'}${currentStudent?.name ? ' · ' + currentStudent.name : ''}`);
+
+  const stateBadge = document.getElementById('asg-det-state');
+  if (stateBadge) {
+    stateBadge.className = `asg-state-badge ${meta.cls}`;
+    stateBadge.textContent = meta.label;
+  }
+  const updatedEl = document.getElementById('asg-det-updated');
+  if (updatedEl) {
+    updatedEl.textContent = task.submittedAt ? `Updated ${formatShortDate(task.submittedAt)}` : '';
+  }
+
+  const repoInp = document.getElementById('asg-repo-url');
+  const branchSel = document.getElementById('asg-branch');
+  const commitInp = document.getElementById('asg-commit');
+  const demoInp = document.getElementById('asg-demo-url');
+  const notesInp = document.getElementById('asg-notes');
+
+  if (repoInp) repoInp.value = task.submission_url || '';
+  if (branchSel) branchSel.value = ['main', 'master', 'develop', 'production'].includes(task.branch) ? task.branch : 'main';
+  if (commitInp) commitInp.value = task.commit_ref || '';
+  if (demoInp) demoInp.value = task.demo_url || '';
+  if (notesInp) notesInp.value = task.notes || '';
+
+  const submitBtn = document.getElementById('asg-btn-submit');
+  if (submitBtn) {
+    submitBtn.innerHTML = (task.status === 'submitted' || task.status === 'reviewed')
+      ? 'Update Submission &rarr;'
+      : 'Submit Assignment &rarr;';
+  }
+
+  if (!preserveMsg) {
+    const msgEl = document.getElementById('asg-form-msg');
+    if (msgEl) { msgEl.textContent = ''; msgEl.className = ''; }
+  }
+
+  updateSubmissionLiveBadges();
+
+  // Evaluation status panel (100% real fields only)
+  const evalBadge = document.getElementById('asg-eval-status-badge');
+  if (evalBadge) {
+    evalBadge.className = `asg-state-badge ${meta.cls}`;
+    evalBadge.textContent = meta.evalPill;
+  }
+
+  const evalList = document.getElementById('asg-eval-list');
+  if (evalList) {
+    const hasRepo = Boolean(task.submission_url && /^https?:\/\//i.test(task.submission_url));
+    const hasDemo = Boolean(task.demo_url && /^https?:\/\//i.test(task.demo_url));
+    const isReviewed = task.status === 'reviewed';
+    const isSubmitted = task.status === 'submitted' || isReviewed;
+
+    const evalRows = [
+      {
+        done: hasRepo && isSubmitted,
+        title: 'Repository Link Submission',
+        sub: hasRepo
+          ? `<a href="${safeHref(task.submission_url)}" target="_blank" rel="noopener" style="color:var(--hub-green);text-decoration:underline;">${escHtml(task.submission_url)}</a>${task.branch ? ` (${escHtml(task.branch)})` : ''}`
+          : 'No public GitHub link submitted yet',
+        rightTop: isSubmitted ? 'Submitted' : (task.status === 'draft' ? 'Draft' : 'Pending'),
+        rightSub: task.submittedAt ? formatShortDate(task.submittedAt) : 'Awaiting submit'
+      },
+      {
+        done: hasDemo,
+        title: 'Live Deployment / Demo Endpoint',
+        sub: hasDemo
+          ? `<a href="${safeHref(task.demo_url)}" target="_blank" rel="noopener" style="color:var(--hub-blue);text-decoration:underline;">${escHtml(task.demo_url)}</a>`
+          : 'Optional live preview or demo link not added',
+        rightTop: hasDemo ? 'Attached' : 'Optional',
+        rightSub: hasDemo ? 'HTTPS Link' : '—'
+      },
+      {
+        done: isReviewed,
+        title: 'Mentor Review & Evaluation',
+        sub: isReviewed
+          ? escHtml(task.feedback || 'Evaluation completed by cohort mentor.')
+          : (isSubmitted ? 'Queued for cohort mentor review' : 'Submit deliverable to queue mentor review'),
+        rightTop: task.score != null ? `${task.score} / ${task.max_score || 100}` : (isSubmitted ? 'In Review' : 'Pending'),
+        rightSub: isReviewed ? 'Evaluated' : 'Not graded yet'
+      }
+    ];
+
+    evalList.innerHTML = evalRows.map(r => `
+      <div class="asg-eval-row">
+        <div class="asg-eval-left">
+          <span class="asg-eval-ico ${r.done ? 'done' : 'wait'}" aria-hidden="true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              ${r.done ? '<polyline points="20 6 9 17 4 12"/>' : '<circle cx="12" cy="12" r="7"/>'}
+            </svg>
+          </span>
+          <div>
+            <strong>${r.title}</strong>
+            <small>${r.sub}</small>
+          </div>
+        </div>
+        <div class="asg-eval-right">
+          <div>${escHtml(r.rightTop)}</div>
+          <div style="font-weight:500;color:var(--hub-muted);font-size:0.71rem;">${escHtml(r.rightSub)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Evaluator Sidebar Card (strictly real DB mentor or honest pending state)
+  const mentorBox = document.getElementById('asg-mentor-box');
+  if (mentorBox) {
+    const m = currentStudent?.assignedMentorDetails;
+    if (m && m.name) {
+      mentorBox.innerHTML = `
+        <div class="asg-card-head" style="margin-bottom:12px;">
+          <h3>Assigned Evaluator</h3>
+          <span class="asg-state-badge submitted">Assigned</span>
+        </div>
+        <div class="hub-mentor-row" style="margin-bottom:14px;">
+          <div class="hub-mentor-av">${escHtml(initialsOf(m.name))}</div>
+          <div>
+            <strong style="display:block;font-size:0.9rem;color:var(--hub-navy);">${escHtml(m.name)}</strong>
+            <small style="display:block;font-size:0.76rem;color:var(--hub-slate);">${escHtml(m.title || m.domain || 'Cohort Mentor')}</small>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button type="button" class="mod-notes-btn" style="width:100%;justify-content:center;" onclick="switchModule('support')">Ask Mentor / Support</button>
+          <button type="button" class="asg-btn-draft" style="width:100%;font-size:0.76rem;padding:7px;" onclick="switchModule('mentors')">View Mentors Directory</button>
+        </div>
+      `;
+    } else {
+      mentorBox.innerHTML = `
+        <div class="asg-card-head" style="margin-bottom:12px;">
+          <h3>Assigned Evaluator</h3>
+          <span class="asg-state-badge pending">Unassigned</span>
+        </div>
+        <div class="hub-mentor-row" style="margin-bottom:14px;">
+          <div class="hub-mentor-av unassigned">?</div>
+          <div>
+            <strong style="display:block;font-size:0.9rem;color:var(--hub-navy);">Pending Assignment</strong>
+            <small style="display:block;font-size:0.76rem;color:var(--hub-muted);">A mentor from your track will be assigned to evaluate cohort submissions.</small>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button type="button" class="mod-notes-btn" style="width:100%;justify-content:center;" onclick="switchModule('support')">Ask Support Team</button>
+          <button type="button" class="asg-btn-draft" style="width:100%;font-size:0.76rem;padding:7px;" onclick="switchModule('mentors')">View Mentors Directory</button>
+        </div>
+      `;
+    }
+  }
+}
+
+function updateSubmissionLiveBadges() {
+  const repoVal = String(document.getElementById('asg-repo-url')?.value || '').trim();
+  const demoVal = String(document.getElementById('asg-demo-url')?.value || '').trim();
+  const commitVal = String(document.getElementById('asg-commit')?.value || '').trim();
+
+  const repoBadge = document.getElementById('asg-repo-badge');
+  if (repoBadge) {
+    if (!repoVal) {
+      repoBadge.className = 'asg-live-pill muted';
+      repoBadge.textContent = 'REQUIRED';
+    } else if (/^https:\/\/\S+\.\S+/i.test(repoVal)) {
+      repoBadge.className = 'asg-live-pill ok';
+      repoBadge.textContent = 'VALID HTTPS';
+    } else if (/^http:\/\/\S+/i.test(repoVal)) {
+      repoBadge.className = 'asg-live-pill ok';
+      repoBadge.textContent = 'VALID URL';
+    } else {
+      repoBadge.className = 'asg-live-pill warn';
+      repoBadge.textContent = 'INVALID URL';
+    }
+  }
+
+  const demoBadge = document.getElementById('asg-demo-badge');
+  if (demoBadge) {
+    if (!demoVal) {
+      demoBadge.className = 'asg-live-pill muted';
+      demoBadge.textContent = 'OPTIONAL';
+    } else if (/^https?:\/\/\S+\.\S+/i.test(demoVal)) {
+      demoBadge.className = 'asg-live-pill ok';
+      demoBadge.textContent = /^https:\/\//i.test(demoVal) ? 'VALID HTTPS' : 'VALID URL';
+    } else {
+      demoBadge.className = 'asg-live-pill warn';
+      demoBadge.textContent = 'INVALID URL';
+    }
+  }
+
+  const commitBadge = document.getElementById('asg-commit-badge');
+  if (commitBadge) {
+    if (!commitVal) {
+      commitBadge.className = 'asg-live-pill muted';
+      commitBadge.textContent = 'OPTIONAL';
+    } else {
+      commitBadge.className = 'asg-live-pill ok';
+      commitBadge.textContent = 'SET';
+    }
+  }
+}
+
+async function submitActiveAssignment(isDraft) {
+  if (!activeAssignmentId) return;
+  const repoUrl = String(document.getElementById('asg-repo-url')?.value || '').trim();
+  const branch = String(document.getElementById('asg-branch')?.value || 'main').trim();
+  const commitRef = String(document.getElementById('asg-commit')?.value || '').trim();
+  const demoUrl = String(document.getElementById('asg-demo-url')?.value || '').trim();
+  const notes = String(document.getElementById('asg-notes')?.value || '').trim();
+
+  if (!isDraft && !repoUrl) {
+    return setMsg('asg-form-msg', 'Public GitHub repository URL is required to submit.', false);
+  }
+  if (isDraft && !repoUrl && !demoUrl && !notes) {
+    return setMsg('asg-form-msg', 'Enter a repository URL, demo link, or notes before saving a draft.', false);
+  }
+  if (repoUrl && !/^https?:\/\/\S+/i.test(repoUrl)) {
+    return setMsg('asg-form-msg', 'Repository URL must start with http:// or https://', false);
+  }
+  if (demoUrl && !/^https?:\/\/\S+/i.test(demoUrl)) {
+    return setMsg('asg-form-msg', 'Live demo URL must start with http:// or https://', false);
+  }
+
+  const draftBtn = document.getElementById('asg-btn-draft');
+  const submitBtn = document.getElementById('asg-btn-submit');
+  if (draftBtn) draftBtn.disabled = true;
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    const res = await fetch(`/api/student/assignments/${encodeURIComponent(activeAssignmentId)}/submit`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ repoUrl, demoUrl, notes })
+      body: JSON.stringify({
+        submissionUrl: repoUrl || null,
+        demoUrl: demoUrl || null,
+        branch,
+        commitRef: commitRef || null,
+        notes: notes || null,
+        isDraft: Boolean(isDraft)
+      })
     });
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || 'Submission failed');
 
-    setMsg('proj-msg', 'Capstone project successfully submitted! Your lead mentor will review your deliverables.', true);
-    document.getElementById('proj-status-badge').textContent = 'Submitted for Defense';
+    setMsg('asg-form-msg', d.message || (isDraft ? 'Draft saved.' : 'Submission recorded.'), true);
+    await loadAssignments(true);
+
+    // Refresh Overview KPI counts silently
+    try {
+      const dashRes = await fetch('/api/student/dashboard', { headers: getHeaders() });
+      if (dashRes.ok) {
+        const dash = await dashRes.json();
+        if (dash?.telemetry) {
+          currentStudent = dash.student;
+          currentTelemetry = dash.telemetry;
+          renderStudentInfo(dash.student, dash.telemetry);
+        }
+      }
+    } catch {}
   } catch (err) {
-    setMsg('proj-msg', err.message);
+    setMsg('asg-form-msg', err.message, false);
   } finally {
-    btn.disabled = false;
+    if (draftBtn) draftBtn.disabled = false;
+    if (submitBtn) submitBtn.disabled = false;
   }
 }
 
 // ===================================================================
-// MODULE 9: 30-HOUR PROGRESS
+// MODULE 5: MENTORS (COHORT MENTORS & ADVISORS - REAL DB DIRECTORY)
 // ===================================================================
-async function loadProgress() {
-  const box = document.getElementById('progress-milestones');
-  box.innerHTML = '<p>Loading progress milestones…</p>';
+function askMentorQuestion(mentorName, mentorDomain) {
+  switchModule('support');
+  const subj = document.getElementById('supp-subject');
+  const cat = document.getElementById('supp-category');
+  const msg = document.getElementById('supp-message');
+  if (cat) cat.value = 'academic';
+  if (subj) subj.value = `Mentor Query (${mentorName}${mentorDomain ? ' · ' + mentorDomain : ''})`;
+  if (msg) {
+    msg.placeholder = `Write your technical or cohort question for ${mentorName}…`;
+    msg.focus();
+  }
+}
+
+async function loadMentors() {
+  const box = document.getElementById('mentors-container');
+  const activeCountEl = document.getElementById('mentors-active-count');
+  const advCohortEl = document.getElementById('mentors-adv-cohort');
+  const batchPill = document.getElementById('mentors-batch-pill');
+  if (!box) return;
+  box.innerHTML = '<div class="dash-module"><p style="margin:0;color:var(--hub-muted);">Loading mentors…</p></div>';
 
   try {
-    const res = await fetch('/api/student/progress', { headers: getHeaders() });
-    if (!res.ok) throw new Error('Progress service unavailable');
+    const res = await fetch('/api/student/mentors', { headers: getHeaders() });
+    if (!res.ok) throw new Error('Mentors directory unavailable');
     const d = await res.json();
 
-    box.innerHTML = (d.breakdown || []).map(m => `
-      <div class="item-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <span class="stat-badge ${m.completed ? 'green' : 'yellow'}">${m.completed ? 'COMPLETED' : 'IN PROGRESS'}</span>
-          <strong style="color:var(--plant-green);">${m.hours} Hours</strong>
+    const mentors = Array.isArray(d.mentors) ? d.mentors : [];
+    const batchName = d.batchName || 'Winter Cohort 2026';
+
+    if (activeCountEl) {
+      activeCountEl.textContent = `${mentors.length} Active Mentor${mentors.length === 1 ? '' : 's'} Available`;
+    }
+    if (advCohortEl) {
+      advCohortEl.textContent = `${batchName.toUpperCase()} // ADVISORY`;
+    }
+    if (batchPill) {
+      batchPill.textContent = `${batchName} · ${d.mode || 'Online'}${d.timings ? ' · ' + d.timings : ''}`;
+    }
+
+    const assigned = d.assignedMentor;
+    const assignedBanner = assigned
+      ? `
+        <div class="men-assigned-strip">
+          <div>
+            <span class="men-tag primary" style="margin-bottom:4px;">Your Assigned Mentor</span>
+            <strong style="display:block;font-size:0.95rem;color:var(--hub-navy);margin-top:4px;">${escHtml(assigned.name)}</strong>
+            <small style="font-size:0.79rem;color:var(--hub-slate);">${escHtml(assigned.title || '')}${assigned.domain ? ' · ' + escHtml(assigned.domain) : ''}</small>
+          </div>
+          <button type="button" class="hub-btn-green" style="padding:8px 14px;font-size:0.78rem;" onclick="askMentorQuestion('${escHtml(assigned.name)}', '${escHtml(assigned.domain || '')}')">Ask Assigned Mentor</button>
         </div>
-        <h4 style="font-size:1rem;color:var(--navy);margin:4px 0;">${m.activity}</h4>
-        <p style="font-size:0.82rem;color:var(--text-muted);">${m.description || ''}</p>
-      </div>
-    `).join('');
+      `
+      : `
+        <div class="men-assigned-strip pending">
+          <div>
+            <strong style="font-size:0.88rem;color:var(--hub-navy);">Assigned Mentor: Pending Allocation</strong>
+            <p style="margin:3px 0 0;font-size:0.79rem;color:var(--hub-muted);">
+              Your primary mentor from the cohort faculty below will be linked prior to batch start (${escHtml(d.timings || 'Schedule TBA')}).
+            </p>
+          </div>
+          <span class="asg-state-badge pending">Pending</span>
+        </div>
+      `;
+
+    const cardsHtml = mentors.length
+      ? `<div class="men-grid">
+          ${mentors.map(m => {
+            const isMine = Boolean(d.assignedMentorId && m.id === d.assignedMentorId);
+            const domainTags = String(m.domain || '')
+              .split(/\s*[&,\/·]\s*/)
+              .map(s => s.trim())
+              .filter(Boolean);
+
+            return `
+              <article class="men-card ${isMine ? 'is-assigned' : ''}">
+                <div>
+                  <div class="men-card-head">
+                    <div class="men-avatar-box">
+                      <span>${escHtml(initialsOf(m.name))}</span>
+                      <span class="men-status-dot" title="Active Cohort Mentor"></span>
+                    </div>
+                    <div>
+                      <div class="men-name-row">
+                        <h3>${escHtml(m.name)}</h3>
+                        <span class="men-verified-ico" title="Verified PGI Cohort Mentor" aria-hidden="true">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2l2.4 2.4 3.4-.3 1.2 3.2 2.9 1.7-.7 3.3 2 2.7-2 2.7.7 3.3-2.9 1.7-1.2 3.2-3.4-.3L12 22l-2.4-2.4-3.4.3-1.2-3.2-2.9-1.7.7-3.3-2-2.7 2-2.7-.7-3.3 2.9-1.7 1.2-3.2 3.4.3L12 2z"/><polyline points="9 12 11.2 14.2 15.5 9.8"/></svg>
+                        </span>
+                      </div>
+                      <p class="men-role-txt">${escHtml(m.title || 'Cohort Mentor')}</p>
+                    </div>
+                  </div>
+
+                  <div class="men-tags-row" style="margin-top:12px;">
+                    ${isMine ? '<span class="men-tag primary">Primary Mentor</span>' : ''}
+                    ${domainTags.map(tag => `<span class="men-tag">${escHtml(tag)}</span>`).join('')}
+                  </div>
+
+                  <p class="men-bio" style="margin-top:12px;">${escHtml(m.bio || 'Cohort faculty mentor guiding student builds, code reviews, and project milestones.')}</p>
+                  ${m.email ? `<div class="men-email">${escHtml(m.email)}</div>` : ''}
+                </div>
+
+                <button type="button" class="men-ask-btn" onclick="askMentorQuestion('${escHtml(m.name)}', '${escHtml(m.domain || '')}')">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg>
+                  Ask a Question
+                </button>
+              </article>
+            `;
+          }).join('')}
+        </div>`
+      : '<div class="dash-module"><p style="margin:0;color:var(--hub-muted);">No active mentors configured yet.</p></div>';
+
+    box.innerHTML = assignedBanner + cardsHtml;
   } catch (err) {
-    box.innerHTML = `<p class="msg err">${err.message}</p>`;
+    box.innerHTML = `<div class="dash-module"><p class="msg err" style="margin:0;">${escHtml(err.message)}</p></div>`;
   }
 }
 
 // ===================================================================
-// MODULE 10: 1-PAGE PROJECT REPORT DOWNLOAD
+// MODULE 6: CERTIFICATES (REAL DB ELIGIBILITY & DOCUMENTS)
 // ===================================================================
-async function downloadReport() {
-  const btn = event?.currentTarget;
-  if (btn) btn.disabled = true;
-
+async function loadCertificatesStatus() {
   try {
-    const res = await fetch('/api/student/project-report.pdf', { headers: getHeaders() });
-    if (!res.ok) throw new Error('Report PDF generation failed');
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `PGI-Project-Report-${currentStudent?.studentId || 'Winter-2026'}.pdf`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  } catch (err) {
-    alert(err.message);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+    const res = await fetch('/api/student/certificates', { headers: getHeaders() });
+    if (!res.ok) return;
+    const d = await res.json();
+
+    const pill = document.getElementById('cert-status-pill');
+    const idBadge = document.getElementById('cert-id-badge');
+    const desc = document.getElementById('cert-eligibility-desc');
+
+    if (d.issued && d.certificateId) {
+      if (pill) { pill.textContent = 'Issued'; pill.className = 'stat-badge green'; }
+      if (idBadge) idBadge.textContent = d.certificateId;
+      if (desc) desc.textContent = `Certificate issued! Completed ${d.completedHours} / ${d.requiredHours} hours (${d.attendancePct}% attendance).`;
+    } else {
+      if (pill) { pill.textContent = d.eligible ? 'Ready for Issuance' : 'In Progress'; pill.className = 'stat-badge yellow'; }
+      if (idBadge) idBadge.textContent = 'Not Issued Yet';
+      if (desc) {
+        desc.textContent = `Verified hours logged: ${d.completedHours} / ${d.requiredHours} hours (${d.presentDays || 0} present day(s)). Requires 30 hours and ≥ 75% attendance.`;
+      }
+    }
+  } catch {}
 }
 
-// ===================================================================
-// MODULE 11: CERTIFICATES & QR
-// ===================================================================
 async function downloadCertificate() {
   try {
     const res = await fetch('/api/student/certificates', { headers: getHeaders() });
     const d = await res.json();
-    if (!d.eligible) {
-      alert(`Certificate requirements not yet completed.\nHours: ${d.completedHours}/30 hrs.\nAttendance: ${d.attendancePct}% (Min 75% required).`);
+    if (!d.issued || !d.downloadUrl) {
+      setMsg('cert-msg', `Certificate not issued yet. Verified hours logged: ${d.completedHours || 0} / 30 hours.`);
       return;
     }
-    // Delivers certificate document
-    alert(`Certificate ${d.certificateId} ready for issuance. Direct PDF download initiated.`);
+    window.open(d.downloadUrl, '_blank');
   } catch (err) {
-    alert(err.message);
+    setMsg('cert-msg', err.message);
   }
 }
 
-function viewCertificateQR() {
-  const sid = currentStudent?.studentId || 'PGI-S26-0001';
-  alert(`Plant Green Inertia Public Verification Record:\n\nStudent ID: ${sid}\nStatus: Verified Academic Credential\nVerification Hash: 8f9b2c4e1a0d3e5f\nURL: https://plantgreeninertia.com/verify/${sid}`);
-}
-
-// ===================================================================
-// MODULE 12: NOTIFICATIONS
-// ===================================================================
-async function loadNotifications() {
-  const box = document.getElementById('notifications-list');
-  box.innerHTML = '<p>Loading notifications…</p>';
-
+async function viewCertificateQR() {
   try {
-    const res = await fetch('/api/student/notifications', { headers: getHeaders() });
-    if (!res.ok) throw new Error('Notifications service unavailable');
-    const items = await res.json();
-
-    box.innerHTML = items.map(n => `
-      <div style="background:var(--ice-white);border:1px solid var(--border-subtle);border-radius:10px;padding:16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-          <strong style="color:var(--navy);font-size:0.95rem;">${n.title}</strong>
-          <span style="font-size:0.75rem;color:var(--text-muted);">${new Date(n.created_at || Date.now()).toLocaleDateString()}</span>
-        </div>
-        <p style="font-size:0.85rem;color:var(--text-main);margin:0;line-height:1.5;">${n.message}</p>
-      </div>
-    `).join('');
+    const res = await fetch('/api/student/certificates', { headers: getHeaders() });
+    const d = await res.json();
+    if (!d.issued || !d.certificateId) {
+      setMsg('cert-msg', 'Verification ID becomes active once your completion certificate is issued.');
+      return;
+    }
+    setMsg('cert-msg', `Verified Certificate ID: ${d.certificateId} (${d.verificationUrl || ''})`, true);
   } catch (err) {
-    box.innerHTML = `<p class="msg err">${err.message}</p>`;
+    setMsg('cert-msg', err.message);
   }
 }
 
 // ===================================================================
-// MODULE 13: SUPPORT TICKET SUBMISSION
+// MODULE 7: SUPPORT & PASSWORD UPDATE
 // ===================================================================
 async function submitSupportTicket() {
   const subject = document.getElementById('supp-subject').value.trim();
@@ -484,14 +1296,13 @@ async function submitSupportTicket() {
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || 'Support ticket submission failed');
 
-    setMsg('supp-msg', `Ticket #${d.ticketId} created successfully. Our academic mentor team will respond shortly.`, true);
+    setMsg('supp-msg', `Ticket #${d.ticketId} submitted. An academic coordinator will respond shortly.`, true);
     document.getElementById('form-support-ticket').reset();
   } catch (err) {
     setMsg('supp-msg', err.message);
   }
 }
 
-// Change Password Handler
 async function doChangePassword() {
   const currentPassword = document.getElementById('chg-curr-pw').value;
   const newPassword = document.getElementById('chg-new-pw').value;
@@ -519,7 +1330,6 @@ async function doChangePassword() {
   }
 }
 
-// Quick Action Downloads
 async function downloadOfferLetter() {
   try {
     const res = await fetch('/api/offer-letter', { headers: getHeaders() });
@@ -534,22 +1344,39 @@ async function downloadOfferLetter() {
 
 async function downloadReceipt() {
   try {
-    const res = await fetch('/api/student/receipt.pdf', { headers: getHeaders() });
-    if (!res.ok) {
-      // Fallback to sample receipt
-      window.open('/api/enrollments/sample/receipt.pdf');
+    const eid = currentTelemetry?.enrollmentId;
+    if (!eid) {
+      setMsg('ov-action-msg', 'No completed payment enrollment found for receipt download.');
       return;
     }
+    const res = await fetch(`/api/enrollments/${encodeURIComponent(eid)}/receipt.pdf`, { headers: getHeaders() });
+    if (!res.ok) throw new Error('Unable to download payment receipt PDF.');
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `PGI-Receipt-${currentStudent?.studentId || 'Winter-2026'}.pdf`;
     a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   } catch (err) {
     alert(err.message);
   }
 }
 
-// Kick off on page load
+async function downloadReport() {
+  try {
+    const res = await fetch('/api/student/project-report.pdf', { headers: getHeaders() });
+    if (!res.ok) throw new Error('Report PDF generation failed');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `PGI-Project-Report-${currentStudent?.studentId || 'Winter-2026'}.pdf`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
 window.addEventListener('DOMContentLoaded', initDashboard);

@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { sendPasswordResetEmail } from './email.js';
 import { buildProjectReportPDF } from './project_report.js';
-import { normalizeLoginPassword } from './logic.js';
+import { normalizeLoginPassword, parseDobCredentials } from './logic.js';
 
 // In-memory fallback stores for offline testing and development
 const localPasswordResets = new Map();
@@ -109,6 +109,68 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
   // ===================================================================
   // 1. STUDENT LOGIN (Candidate UID / Student ID / Email + DOB or Password)
   // ===================================================================
+  async function mintSessionViaSecondaryCredential(authClient, email, rawPassword, normalizedPassword) {
+    try {
+      const { data: uList } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const targetUser = (uList?.users || []).find(
+        u => String(u.email || '').toLowerCase() === email.toLowerCase()
+      );
+      if (!targetUser) return null;
+
+      const meta = targetUser.user_metadata || {};
+      const keyMatch = Boolean(
+        meta.portal_access_key &&
+        (rawPassword === meta.portal_access_key || normalizedPassword === meta.portal_access_key)
+      );
+
+      let dobStr = meta.dob || null;
+      if (!dobStr && !meta.password_customized) {
+        try {
+          const { data: appRec } = await db.from('internship_applications')
+            .select('dob')
+            .ilike('email', email)
+            .limit(1)
+            .maybeSingle();
+          dobStr = appRec?.dob || null;
+        } catch {}
+      }
+
+      const dobCreds = dobStr ? parseDobCredentials(dobStr) : null;
+      const dobMatch = Boolean(
+        !meta.password_customized &&
+        dobCreds?.password &&
+        normalizedPassword === dobCreds.password
+      );
+
+      if (!keyMatch && !dobMatch) return null;
+
+      // If logging in with DOB after an earlier checkout overwrote password, restore DOB auth password seamlessly
+      if (dobMatch && !meta.password_customized) {
+        try {
+          await db.auth.admin.updateUserById(targetUser.id, { password: dobCreds.password });
+          const repaired = await authClient.auth.signInWithPassword({ email, password: dobCreds.password });
+          if (!repaired.error && repaired.data?.session) return repaired;
+        } catch {}
+      }
+
+      if (db.auth?.admin?.generateLink) {
+        const { data: linkData, error: linkErr } = await db.auth.admin.generateLink({
+          type: 'magiclink',
+          email
+        });
+        const hashedToken = linkData?.properties?.hashed_token;
+        if (!linkErr && hashedToken && authClient.auth?.verifyOtp) {
+          const verified = await authClient.auth.verifyOtp({
+            token_hash: hashedToken,
+            type: 'magiclink'
+          });
+          if (!verified.error && verified.data?.session) return verified;
+        }
+      }
+    } catch {}
+    return null;
+  }
+
   const handleStudentLogin = wrap(async (req, res) => {
     const { identifier, password } = req.body || {};
     if (!identifier || !password) {
@@ -128,6 +190,13 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
       }
     } catch (err) {
       throw fail(401, 'Authentication failed: ' + (err.message || 'Invalid credentials'));
+    }
+
+    if (authRes?.error || !authRes?.data?.session) {
+      const secondaryRes = await mintSessionViaSecondaryCredential(authClient, email, password, normalizedPassword);
+      if (secondaryRes?.data?.session) {
+        authRes = secondaryRes;
+      }
     }
 
     if (authRes.error || !authRes.data?.session) {
@@ -257,7 +326,10 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
       const { data: users } = await db.auth.admin.listUsers();
       const u = (users?.users || []).find(x => x.email?.toLowerCase() === targetEmail.toLowerCase());
       if (u) {
-        await db.auth.admin.updateUserById(u.id, { password: newPassword });
+        await db.auth.admin.updateUserById(u.id, {
+          password: newPassword,
+          user_metadata: { ...(u.user_metadata || {}), password_customized: true }
+        });
         updated = true;
       }
     } catch (err) {
@@ -291,171 +363,191 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
     });
     if (signInErr) throw fail(401, 'Current password is incorrect');
 
-    // Update to new password
-    await db.auth.admin.updateUserById(req.user.id, { password: newPassword });
+    // Update to new password and mark password as customized
+    const existingMeta = req.user.user_metadata || {};
+    await db.auth.admin.updateUserById(req.user.id, {
+      password: newPassword,
+      user_metadata: { ...existingMeta, password_customized: true }
+    });
 
     res.json({ ok: true, message: 'Password changed successfully.' });
   }));
 
-  // ===================================================================
-  // 5. STUDENT DASHBOARD TELEMETRY (All 13 Modules Metadata)
-  // ===================================================================
-  app.get('/api/student/dashboard', auth, wrap(async (req, res) => {
+  // Shared helper to gather authoritative student enrollment, application, batch, and attendance data
+  async function loadStudentContext(req) {
     const u = req.user.id;
+    let profile = null, enrollment = null, appRecord = null, batch = null, assignedMentor = null, attempt = null, cert = null;
 
-    let profile = null, enrollment = null, appRecord = null;
     try {
-      const [{ data: pData }, { data: eData }, { data: aData }] = await Promise.all([
-        db.from('profiles').select('*').eq('id', u).single(),
-        db.from('enrollments').select('*, courses(*)').eq('user_id', u).maybeSingle(),
-        db.from('internship_applications').select('*').eq('email', req.user.email).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      const [{ data: pData }, { data: eData }, { data: aData }, { data: attData }] = await Promise.all([
+        db.from('profiles').select('*').eq('id', u).maybeSingle(),
+        db.from('enrollments').select('*, courses(*)').eq('user_id', u).order('enrolled_at', { ascending: false }).limit(1).maybeSingle(),
+        db.from('internship_applications').select('*').eq('email', req.user.email).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        db.from('assessment_attempts').select('score_percent,correct_count,total_questions,submitted_at,status').eq('user_id', u).neq('status', 'in_progress').order('submitted_at', { ascending: false }).limit(1).maybeSingle()
       ]);
       profile = pData;
       enrollment = eData;
       appRecord = aData;
+      attempt = attData;
+
+      const batchId = appRecord?.assigned_batch_id || enrollment?.batch_id;
+      if (batchId) {
+        const { data: bData } = await db.from('batches').select('*').eq('id', batchId).maybeSingle();
+        batch = bData;
+      } else {
+        const { data: activeB } = await db.from('batches').select('*').eq('status', 'active').limit(1).maybeSingle();
+        batch = activeB;
+      }
+
+      if (appRecord?.assigned_mentor_id) {
+        const { data: mData } = await db.from('mentors').select('id,name,title,domain,email,bio').eq('id', appRecord.assigned_mentor_id).maybeSingle();
+        assignedMentor = mData;
+      }
     } catch {}
 
-    const studentId = enrollment?.student_id || profile?.student_id || (appRecord?.application_id ? appRecord.application_id.replace('PGI-W26-', 'PGI-S26-') : 'PGI-S26-0001');
-    const course = enrollment?.courses || {
-      title: appRecord?.domain_name || 'Full-Stack Web Development Track',
-      duration: '30 Hours',
-      domain_type: appRecord?.domain_type || 'Technical'
-    };
+    const studentId = enrollment?.student_id || profile?.student_id || (appRecord?.application_id ? appRecord.application_id.replace('PGI-W26-', 'PGI-S26-') : '—');
     const mode = appRecord?.mode || 'Online';
 
-    // Calculate attendance summary
     let attRecords = [];
-    try {
-      const { data } = await db.from('student_attendance').select('*').eq('student_id', studentId).order('date', { ascending: true });
-      if (data && data.length) attRecords = data;
-    } catch {}
-
-    if (!attRecords.length) {
-      // Seed default 30-hour curriculum logs for this candidate
-      attRecords = generateDefaultAttendance(studentId, u, mode);
-      localAttendance.set(studentId, attRecords);
+    if (studentId && studentId !== '—') {
+      try {
+        const [{ data: attRows }, { data: certRow }] = await Promise.all([
+          db.from('student_attendance').select('*').eq('student_id', studentId).order('date', { ascending: true }),
+          db.from('certificates').select('*').eq('student_id', studentId).maybeSingle()
+        ]);
+        if (attRows && attRows.length) attRecords = attRows;
+        cert = certRow;
+      } catch {}
     }
 
     const presentDays = attRecords.filter(r => r.status === 'present').length;
     const absentDays = attRecords.filter(r => r.status === 'absent').length;
-    const completedHours = attRecords.filter(r => r.status === 'present').reduce((acc, r) => acc + Number(r.hours_logged || 0), 0);
-    const attendancePct = attRecords.length ? Math.round((presentDays / (presentDays + absentDays || 1)) * 100) : 100;
+    const completedHours = attRecords
+      .filter(r => r.status === 'present')
+      .reduce((acc, r) => acc + Number(r.hours_logged || 0), 0);
+    const totalMarked = presentDays + absentDays;
+    const attendancePct = totalMarked ? Math.round((presentDays / totalMarked) * 100) : null;
+
+    return {
+      u, profile, enrollment, appRecord, batch, assignedMentor, attempt, cert,
+      studentId, mode, attRecords, presentDays, absentDays, completedHours, attendancePct
+    };
+  }
+
+  // ===================================================================
+  // 5. STUDENT DASHBOARD TELEMETRY (Authoritative DB Data Only)
+  // ===================================================================
+  app.get('/api/student/dashboard', auth, wrap(async (req, res) => {
+    const ctx = await loadStudentContext(req);
+    const {
+      u, profile, enrollment, appRecord, batch, assignedMentor, attempt, cert,
+      studentId, mode, attRecords, presentDays, absentDays, completedHours, attendancePct
+    } = ctx;
+
+    const course = enrollment?.courses || {
+      title: appRecord?.domain_name || 'Not Assigned',
+      duration: '30 Hours',
+      domain_type: appRecord?.domain_type || 'Technical',
+      access_url: null
+    };
+
+    const paidPaise = enrollment ? Number(enrollment.amount_paise ?? 99900) : null;
+    const fmtAmountLabel = paise => {
+      if (paise === 0) return '₹0 (100% Free)';
+      if (paise === null || paise === undefined) return 'Unpaid';
+      const val = paise / 100;
+      return '₹' + val.toLocaleString('en-IN', { minimumFractionDigits: paise % 100 ? 2 : 0, maximumFractionDigits: 2 });
+    };
+    const paymentStatusText = enrollment
+      ? (paidPaise === 0 ? '100% Free Scholarship' : `Paid (${fmtAmountLabel(paidPaise)} Verified)`)
+      : 'Pending Payment';
+
+    const submissionsList = await loadStudentSubmissions(u, ctx);
+    const assignmentsDone = submissionsList.filter(s => s.status === 'submitted' || s.status === 'reviewed').length;
+    const capstoneTask = submissionsList.find(s => s.id === 'capstone');
+    const projectStatusLabel = capstoneTask?.status === 'reviewed'
+      ? 'Reviewed'
+      : (capstoneTask?.status === 'submitted'
+        ? 'Submitted'
+        : (capstoneTask?.status === 'draft' ? 'Draft Saved' : 'Pending'));
+
+    const defaultTiming = batch?.timings
+      || (mode === 'Offline' ? '9:00 AM – 6:00 PM IST' : '4:00 PM – 6:00 PM IST');
 
     res.json({
       student: {
         id: u,
         studentId,
+        applicationId: appRecord?.application_id || req.user.user_metadata?.application_id || null,
         email: req.user.email,
-        name: profile?.full_name || appRecord?.full_name || 'Candidate',
+        name: profile?.full_name || appRecord?.full_name || req.user.user_metadata?.full_name || 'Student',
         phone: profile?.phone || appRecord?.mobile || '',
-        college: appRecord?.college || profile?.college || 'National Institute of Technology',
-        department: appRecord?.department || 'Computer Science & Engineering',
-        passedOutYear: appRecord?.passed_out_year || '2026',
+        college: appRecord?.college || '',
+        department: appRecord?.department || '',
+        passedOutYear: appRecord?.passed_out_year || '',
         domainType: appRecord?.domain_type || 'Technical',
         domainName: course.title,
         mode,
-        timing: mode === 'Offline' ? '9:00 AM – 6:00 PM (Maduravoyal Campus)' : '4:00 PM – 6:00 PM IST (Remote Classroom)',
-        address: appRecord?.address || 'Maduravoyal, Chennai',
-        mentor: 'Dr. K. Ravindran, Lead Architect & Academic Mentor'
+        internshipPeriod: appRecord?.internship_period || '',
+        timing: defaultTiming,
+        batchName: batch?.name || 'Winter Cohort 2026',
+        batchDates: (batch?.starts_on && batch?.ends_on) ? `${batch.starts_on} to ${batch.ends_on}` : null,
+        courseAccessUrl: course.access_url || null,
+        address: appRecord?.address || '',
+        mentor: assignedMentor
+          ? `${assignedMentor.name}${assignedMentor.title ? `, ${assignedMentor.title}` : ''}`
+          : null,
+        assignedMentorDetails: assignedMentor || null
       },
       telemetry: {
         status: enrollment?.status || 'active',
-        enrolledAt: enrollment?.enrolled_at || appRecord?.created_at || new Date().toISOString(),
-        paymentStatus: enrollment ? 'Paid (₹999.00 Verified)' : 'Scholarship Unlocked (₹999 Payable)',
-        receiptNo: enrollment?.receipt_no || 'REC-PGI-W26-0001',
-        transactionRef: enrollment?.transaction_ref || 'pay_verified',
+        enrollmentId: enrollment?.id || null,
+        amountPaise: paidPaise,
+        couponCode: enrollment?.coupon_code || null,
+        isTest: Boolean(enrollment?.is_test || paidPaise === 100),
+        paymentAmountLabel: fmtAmountLabel(paidPaise),
+        enrolledAt: enrollment?.enrolled_at || null,
+        paymentStatus: paymentStatusText,
+        receiptNo: enrollment?.receipt_no || null,
+        transactionRef: enrollment?.transaction_ref || null,
+        assessmentScore: attempt?.score_percent != null ? Number(attempt.score_percent) : null,
         totalRequiredHours: 30,
-        completedHours: Math.min(30, completedHours),
+        completedHours: Math.min(30, Number(completedHours.toFixed(1))),
         progressPercentage: Math.min(100, Math.round((completedHours / 30) * 100)),
         attendancePercentage: attendancePct,
         presentDays,
         absentDays,
         totalDays: attRecords.length,
-        assignmentsCompleted: 3,
+        assignmentsCompleted: assignmentsDone,
         totalAssignments: 4,
-        projectStatus: completedHours >= 24 ? 'Review Pending' : 'In Progress',
-        certificateStatus: completedHours >= 30 ? 'Unlocked' : 'In Progress (Requires 30 Hours)',
-        certificateId: `PGI-W26-CERT-${studentId.slice(-4)}`
+        projectStatus: projectStatusLabel,
+        certificateIssued: Boolean(cert),
+        certificateStatus: cert ? 'Issued' : (completedHours >= 30 && (attendancePct ?? 0) >= 75 ? 'Eligible for Issuance' : 'In Progress'),
+        certificateId: cert?.certificate_id || null
       }
     });
   }));
 
   // ===================================================================
-  // 6. ATTENDANCE MODULE (Linked by Student ID, Merged Integration)
+  // 6. ATTENDANCE MODULE (Authoritative DB records only)
   // ===================================================================
   app.get('/api/student/attendance', auth, wrap(async (req, res) => {
-    let prof = null, enr = null, appRec = null;
-    try {
-      const [{ data: p }, { data: e }, { data: a }] = await Promise.all([
-        db.from('profiles').select('student_id').eq('id', req.user.id).maybeSingle(),
-        db.from('enrollments').select('student_id').eq('user_id', req.user.id).maybeSingle(),
-        db.from('internship_applications').select('mode, application_id').eq('email', req.user.email).maybeSingle()
-      ]);
-      prof = p; enr = e; appRec = a;
-    } catch {}
-
-    const studentId = enr?.student_id || prof?.student_id || (appRec?.application_id ? appRec.application_id.replace('PGI-W26-', 'PGI-S26-') : 'PGI-S26-0001');
-    const mode = appRec?.mode || 'Online';
-
-    // If external attendance API is configured, forward/sync
-    if (process.env.ATTENDANCE_API_URL) {
-      try {
-        const ext = await fetch(`${process.env.ATTENDANCE_API_URL}/students/${encodeURIComponent(studentId)}`, {
-          headers: {
-            Authorization: `Bearer ${process.env.ATTENDANCE_API_SECRET || ''}`,
-            'X-Student-Id': studentId
-          }
-        });
-        if (ext.ok) {
-          const extData = await ext.json();
-          return res.json({
-            provider: 'external_merged',
-            studentId,
-            ...extData
-          });
-        }
-      } catch (err) {
-        console.warn('[External Attendance API fallback]', err.message);
-      }
-    }
-
-    // Database lookup from student_attendance table
-    let records = [];
-    try {
-      const { data } = await db.from('student_attendance').select('*').eq('student_id', studentId).order('date', { ascending: true });
-      if (data && data.length) records = data;
-    } catch {}
-
-    if (!records.length && localAttendance.has(studentId)) {
-      records = localAttendance.get(studentId);
-    }
-
-    if (!records.length) {
-      records = generateDefaultAttendance(studentId, req.user.id, mode);
-      localAttendance.set(studentId, records);
-    }
-
-    const presentDays = records.filter(r => r.status === 'present').length;
-    const absentDays = records.filter(r => r.status === 'absent').length;
-    const totalHours = records.filter(r => r.status === 'present').reduce((acc, r) => acc + Number(r.hours_logged || 0), 0);
-    const pct = records.length ? ((presentDays / (presentDays + absentDays || 1)) * 100).toFixed(1) : '100.0';
-
+    const { studentId, mode, attRecords, presentDays, absentDays, completedHours, attendancePct } = await loadStudentContext(req);
     res.json({
       provider: 'pgi_integrated',
       studentId,
       mode,
       stats: {
-        totalDays: records.length,
+        totalDays: attRecords.length,
         presentDays,
         absentDays,
-        attendancePercentage: Number(pct),
-        completedHours: Number(totalHours.toFixed(1)),
+        attendancePercentage: attendancePct,
+        completedHours: Number(completedHours.toFixed(1)),
         totalRequiredHours: 30.0,
-        remainingHours: Math.max(0, Number((30.0 - totalHours).toFixed(1))),
-        progressPercentage: Math.min(100, Math.round((totalHours / 30.0) * 100))
+        remainingHours: Math.max(0, Number((30.0 - completedHours).toFixed(1))),
+        progressPercentage: Math.min(100, Math.round((completedHours / 30.0) * 100))
       },
-      records,
-      externalEmbedUrl: process.env.ATTENDANCE_EMBED_URL || null
+      records: attRecords
     });
   }));
 
@@ -525,173 +617,297 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
   }));
 
   // ===================================================================
-  // 8. ASSIGNMENTS MODULE
+  // 8. SUBMISSIONS / ASSIGNMENTS MODULE (Real DB + Fallback State Only)
   // ===================================================================
-  app.get('/api/student/assignments', auth, wrap(async (req, res) => {
-    res.json([
-      {
-        id: 'asg-01',
-        title: 'Assignment 1: Responsive Landing Page & Version Control',
-        deadline: '2026-11-15',
-        status: 'submitted',
-        submittedAt: '2026-11-14T18:30:00Z',
-        score: 95,
-        maxScore: 100,
-        feedback: 'Excellent structure, clean semantic HTML5, and proper CSS variables implementation.',
-        instructions: 'Build a corporate responsive landing page using mobile-first CSS Grid/Flexbox and commit all history to a public GitHub repo.'
-      },
-      {
-        id: 'asg-02',
-        title: 'Assignment 2: Asynchronous Data Fetching & Interactive UI',
-        deadline: '2026-11-20',
-        status: 'submitted',
-        submittedAt: '2026-11-19T20:15:00Z',
-        score: 92,
-        maxScore: 100,
-        feedback: 'Great handling of async/await promises and loading states.',
-        instructions: 'Consume a REST API with client-side caching and dynamic card rendering.'
-      },
-      {
-        id: 'asg-03',
-        title: 'Assignment 3: Backend API Endpoints & Data Modeling',
-        deadline: '2026-11-25',
-        status: 'pending',
-        submittedAt: null,
-        score: null,
-        maxScore: 100,
-        feedback: null,
-        instructions: 'Design Express.js endpoints with schema validation and transactional database operations.'
-      },
-      {
-        id: 'asg-04',
-        title: 'Capstone Assignment: Full-Stack Integrated Application',
-        deadline: '2026-11-30',
-        status: 'pending',
-        submittedAt: null,
-        score: null,
-        maxScore: 100,
-        feedback: null,
-        instructions: 'Deploy your end-to-end project on cloud infrastructure with verified certificate qualifications.'
+  const baseTasks = [
+    {
+      id: 'asg-01',
+      code: 'MILESTONE 01',
+      title: 'Milestone 1: Foundations & Version Control Setup',
+      description: 'Initialize your internship GitHub repository, commit clean baseline structure, and configure documentation.',
+      dueLabel: 'Module 01–03'
+    },
+    {
+      id: 'asg-02',
+      code: 'MILESTONE 02',
+      title: 'Milestone 2: Core Track Implementation',
+      description: 'Implement primary feature modules aligned with your selected cohort track and push clean commits.',
+      dueLabel: 'Module 04–06'
+    },
+    {
+      id: 'asg-03',
+      code: 'MILESTONE 03',
+      title: 'Milestone 3: Backend Integration & Testing',
+      description: 'Connect APIs/validation, verify end-to-end flows, and document test steps or edge cases.',
+      dueLabel: 'Module 07–08'
+    },
+    {
+      id: 'capstone',
+      code: 'FINAL CAPSTONE',
+      title: 'Final Capstone Project Repository & Demo',
+      description: 'Submit your completed GitHub repository URL and live deployment/demo link for final mentor evaluation.',
+      dueLabel: 'Final Review'
+    }
+  ];
+
+  function parseSubmissionNotes(raw) {
+    if (!raw || typeof raw !== 'string') return {};
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.__pgiMeta === 1) return parsed;
+    } catch {}
+    return { notes: raw };
+  }
+
+  function serializeSubmissionNotes(meta) {
+    return JSON.stringify({
+      __pgiMeta: 1,
+      taskKey: meta.taskKey,
+      branch: meta.branch || 'main',
+      commitRef: meta.commitRef || null,
+      demoUrl: meta.demoUrl || null,
+      notes: meta.notes || null,
+      isDraft: Boolean(meta.isDraft)
+    });
+  }
+
+  async function loadStudentSubmissions(userId, ctx) {
+    const subsMap = { ...(localAssignments.get(userId) || {}) };
+
+    try {
+      const { data: rows } = await db
+        .from('student_assignments')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
+
+      if (Array.isArray(rows)) {
+        for (const r of rows) {
+          const meta = parseSubmissionNotes(r.submission_notes);
+          const matchedTask = baseTasks.find(t => t.id === meta.taskKey || t.title === r.title);
+          if (!matchedTask) continue;
+
+          const effectiveStatus = r.status === 'reviewed'
+            ? 'reviewed'
+            : (r.status === 'submitted'
+              ? 'submitted'
+              : (meta.isDraft ? 'draft' : 'pending'));
+
+          subsMap[matchedTask.id] = {
+            dbRowId: r.id,
+            submissionUrl: r.submission_url || null,
+            demoUrl: meta.demoUrl || null,
+            branch: meta.branch || 'main',
+            commitRef: meta.commitRef || null,
+            notes: meta.notes || null,
+            submittedAt: r.submitted_at || null,
+            isDraft: effectiveStatus === 'draft',
+            status: effectiveStatus,
+            score: r.score ?? null,
+            maxScore: r.max_score || 100,
+            feedback: r.feedback || null
+          };
+        }
       }
-    ]);
+    } catch {}
+
+    return baseTasks.map(t => {
+      const s = subsMap[t.id] || null;
+      const derivedStatus = s?.status || (s ? (s.isDraft ? 'draft' : 'submitted') : 'pending');
+      return {
+        ...t,
+        track: ctx?.enrollment?.courses?.title || ctx?.appRecord?.domain_name || 'Cohort Track',
+        status: derivedStatus,
+        isDraft: derivedStatus === 'draft',
+        submission_url: s?.submissionUrl || null,
+        demo_url: s?.demoUrl || null,
+        branch: s?.branch || 'main',
+        commit_ref: s?.commitRef || null,
+        notes: s?.notes || null,
+        submittedAt: s?.submittedAt || null,
+        score: s?.score ?? null,
+        max_score: s?.maxScore || 100,
+        feedback: s?.feedback || null
+      };
+    });
+  }
+
+  app.get('/api/student/assignments', auth, wrap(async (req, res) => {
+    const ctx = await loadStudentContext(req);
+    const list = await loadStudentSubmissions(req.user.id, ctx);
+    res.json(list);
   }));
 
   app.post('/api/student/assignments/:id/submit', auth, wrap(async (req, res) => {
-    const { submissionUrl, notes } = req.body || {};
-    if (!submissionUrl) throw fail(400, 'Submission URL or repository link is required');
+    const task = baseTasks.find(t => t.id === req.params.id);
+    if (!task) throw fail(404, 'Unknown submission milestone');
+
+    const { submissionUrl, demoUrl, branch, commitRef, notes, isDraft } = req.body || {};
+    const draftMode = Boolean(isDraft);
+    const cleanRepo = submissionUrl ? String(submissionUrl).trim() : '';
+    const cleanDemo = demoUrl ? String(demoUrl).trim() : '';
+    const cleanBranch = branch ? String(branch).trim().slice(0, 80) : 'main';
+    const cleanCommit = commitRef ? String(commitRef).trim().slice(0, 80) : '';
+    const cleanNotes = notes ? String(notes).trim().slice(0, 2000) : '';
+
+    if (!draftMode && !cleanRepo) {
+      throw fail(400, 'Public GitHub repository URL is required to submit');
+    }
+    if (draftMode && !cleanRepo && !cleanDemo && !cleanNotes) {
+      throw fail(400, 'Enter a repository URL, demo link, or notes before saving a draft');
+    }
+    if (cleanRepo && !/^https?:\/\/\S+/i.test(cleanRepo)) {
+      throw fail(400, 'Repository URL must begin with http:// or https://');
+    }
+    if (cleanDemo && !/^https?:\/\/\S+/i.test(cleanDemo)) {
+      throw fail(400, 'Live demo URL must begin with http:// or https://');
+    }
+
+    const nowIso = new Date().toISOString();
+    const ctx = await loadStudentContext(req);
+    const dbStatus = draftMode ? 'pending' : 'submitted';
+    const submittedAt = draftMode ? null : nowIso;
+    const encodedNotes = serializeSubmissionNotes({
+      taskKey: task.id,
+      branch: cleanBranch || 'main',
+      commitRef: cleanCommit || null,
+      demoUrl: cleanDemo || null,
+      notes: cleanNotes || null,
+      isDraft: draftMode
+    });
+
+    const cached = localAssignments.get(req.user.id) || {};
+    cached[task.id] = {
+      submissionUrl: cleanRepo || null,
+      demoUrl: cleanDemo || null,
+      branch: cleanBranch || 'main',
+      commitRef: cleanCommit || null,
+      notes: cleanNotes || null,
+      submittedAt,
+      isDraft: draftMode,
+      status: draftMode ? 'draft' : 'submitted'
+    };
+    localAssignments.set(req.user.id, cached);
+
+    try {
+      const safeStudentId = (ctx.studentId && ctx.studentId !== '—')
+        ? ctx.studentId
+        : (ctx.appRecord?.application_id || req.user.email || req.user.id);
+      const dueDateIso = (ctx.batch?.ends_on && /^\d{4}-\d{2}-\d{2}/.test(String(ctx.batch.ends_on)))
+        ? String(ctx.batch.ends_on).slice(0, 10)
+        : '2026-12-31';
+
+      const { data: existingRow } = await db
+        .from('student_assignments')
+        .select('id, status')
+        .eq('user_id', req.user.id)
+        .eq('title', task.title)
+        .maybeSingle();
+
+      const payload = {
+        student_id: safeStudentId,
+        user_id: req.user.id,
+        title: task.title,
+        track: ctx.appRecord?.domain_name || ctx.appRecord?.domain_type || 'Technical',
+        description: task.description,
+        due_date: dueDateIso,
+        submission_url: cleanRepo || null,
+        submission_notes: encodedNotes,
+        submitted_at: submittedAt,
+        status: existingRow?.status === 'reviewed' && !draftMode ? 'reviewed' : dbStatus
+      };
+
+      if (existingRow?.id) {
+        await db.from('student_assignments').update(payload).eq('id', existingRow.id);
+      } else {
+        await db.from('student_assignments').insert(payload);
+      }
+    } catch {}
 
     res.json({
       ok: true,
-      assignmentId: req.params.id,
-      status: 'submitted',
-      submittedAt: new Date().toISOString(),
-      message: 'Assignment submitted successfully. Mentor review pending.'
+      assignmentId: task.id,
+      status: draftMode ? 'draft' : 'submitted',
+      isDraft: draftMode,
+      submission_url: cleanRepo || null,
+      demo_url: cleanDemo || null,
+      branch: cleanBranch || 'main',
+      commit_ref: cleanCommit || null,
+      notes: cleanNotes || null,
+      submittedAt,
+      message: draftMode
+        ? 'Draft saved. You can complete and submit whenever ready.'
+        : 'Submission recorded successfully for mentor evaluation.'
     });
   }));
 
   // ===================================================================
-  // 9. LEARNING MATERIALS MODULE
+  // 9. RECORDED VIDEOS & RESOURCES MODULE (Real Resources, No Fake Watch History)
   // ===================================================================
-  app.get('/api/student/materials', auth, wrap(async (_q, res) => {
-    res.json({
-      categories: [
-        {
-          category: 'Core Lecture Slides & Notes',
-          items: [
-            { title: 'Module 01: Modern Web Standards & Architecture (PDF)', type: 'pdf', url: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf', size: '2.4 MB' },
-            { title: 'Module 02: Responsive CSS & Token Systems (PDF)', type: 'pdf', url: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf', size: '1.8 MB' },
-            { title: 'Module 03: JavaScript Asynchronous Patterns (PDF)', type: 'pdf', url: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf', size: '3.1 MB' }
-          ]
-        },
-        {
-          category: 'Reference Code Repositories',
-          items: [
-            { title: 'PGI Starter Template & CSS Framework', type: 'github', url: 'https://github.com/pgiwork-2026/Festival_internship_program', tag: 'Public' },
-            { title: 'Full-Stack REST API Architecture Blueprint', type: 'github', url: 'https://github.com/pgiwork-2026/Festival_internship_program', tag: 'Node+Express' }
-          ]
-        },
-        {
-          category: 'Masterclass Recordings & Live Links',
-          items: [
-            { title: 'Session 01: Cohort Orientation & Toolchain Setup', type: 'video', duration: '1h 55m', recordedDate: '2026-11-02' },
-            { title: 'Session 02: Deep Dive into Modern Layout Architecture', type: 'video', duration: '2h 05m', recordedDate: '2026-11-04' },
-            { title: 'Live Virtual Classroom (Daily 4 PM – 6 PM IST)', type: 'live', url: 'https://meet.google.com/pgi-winter-class' }
-          ]
-        }
-      ]
-    });
-  }));
-
-  // ===================================================================
-  // 10. CAPSTONE PROJECT MODULE
-  // ===================================================================
-  app.get('/api/student/project', auth, wrap(async (req, res) => {
-    res.json({
-      project: {
-        id: 'proj-w26-01',
-        title: 'Industrial Environmental Telemetry & Energy Dashboard',
-        domain: 'Technical - Web Development',
-        mentor: 'Dr. K. Ravindran, Lead Architect',
-        status: 'In Progress (Review Pending)',
-        brief: 'Design and deploy an industrial-grade telemetry dashboard for monitoring renewable energy installations with live telemetry charts, alerts, and verified reporting.',
-        deliverables: [
-          'Responsive front-end dashboard matching Winter corporate theme tokens',
-          'RESTful backend with transactional database persistence',
-          'Automated 1-page PDF project report generation',
-          'CI/CD deployment on cloud infrastructure (Render)'
-        ],
-        submission: {
-          repoUrl: 'https://github.com/pgiwork-2026/Festival_internship_program',
-          demoUrl: 'http://localhost:8787',
-          submittedAt: '2026-11-08T14:30:00Z',
-          mentorFeedback: 'Outstanding architecture and high code quality. Complies with 30-hour curriculum specifications.'
-        }
+  app.get('/api/student/materials', auth, wrap(async (req, res) => {
+    const { enrollment, appRecord } = await loadStudentContext(req);
+    const recordings = [];
+    const items = [
+      {
+        title: 'Winter Internship Syllabus & Program Handbook (PDF)',
+        type: 'pdf',
+        url: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
+        description: 'Official 30-hour curriculum reference for Technical and Non-Technical tracks.'
       }
-    });
-  }));
+    ];
+    if (enrollment?.courses?.access_url) {
+      items.push({
+        title: `${enrollment.courses.title} — Course Classroom Link`,
+        type: 'live',
+        url: enrollment.courses.access_url,
+        description: 'Direct portal/classroom URL configured for your enrolled track.'
+      });
+    }
 
-  // ===================================================================
-  // 11. 30-HOUR PROGRESS COCKPIT
-  // ===================================================================
-  app.get('/api/student/progress', auth, wrap(async (req, res) => {
     res.json({
-      totalRequiredHours: 30,
-      completedHours: 24,
-      remainingHours: 6,
-      progressPercentage: 80,
-      breakdown: [
-        { activity: 'Live Interactive Masterclasses', completedHours: 12, targetHours: 12, status: 'Completed' },
-        { activity: 'Hands-on Labs & Coding Sprints', completedHours: 8, targetHours: 10, status: 'In Progress' },
-        { activity: 'Capstone Project Development', completedHours: 3, targetHours: 6, status: 'In Progress' },
-        { activity: 'Mentor Evaluation & Project Defense', completedHours: 1, targetHours: 2, status: 'Scheduled' }
-      ],
-      milestones: [
-        { label: 'Milestone 1: Orientation & Architecture', reached: true, hours: 10 },
-        { label: 'Milestone 2: Core Engineering Labs', reached: true, hours: 20 },
-        { label: 'Milestone 3: 30-Hour Certificate Qualification', reached: false, hours: 30 }
-      ]
+      track: enrollment?.courses?.title || appRecord?.domain_name || null,
+      recordings,
+      categories: [{ category: 'Program Documents', items }]
     });
   }));
 
   // ===================================================================
-  // 12. OFFICIAL COMPLIMENTARY 1-PAGE PROJECT REPORT PDF
+  // 10. MENTORS MODULE (Real DB Mentors Table Only)
   // ===================================================================
-  app.get('/api/student/project-report.pdf', auth, wrap(async (req, res) => {
-    let prof = null, enr = null;
+  app.get('/api/student/mentors', auth, wrap(async (req, res) => {
+    const { assignedMentor, batch, appRecord, mode } = await loadStudentContext(req);
+    let mentorsList = [];
     try {
-      const [{ data: p }, { data: e }] = await Promise.all([
-        db.from('profiles').select('full_name,student_id').eq('id', req.user.id).single(),
-        db.from('enrollments').select('*, courses(*)').eq('user_id', req.user.id).maybeSingle()
-      ]);
-      prof = p; enr = e;
+      const { data } = await db
+        .from('mentors')
+        .select('id,name,email,domain,title,bio,active')
+        .eq('active', true)
+        .order('created_at', { ascending: true });
+      if (data) mentorsList = data;
     } catch {}
 
-    const studentId = enr?.student_id || prof?.student_id || 'PGI-S26-0042';
+    res.json({
+      assignedMentorId: assignedMentor?.id || null,
+      assignedMentor: assignedMentor || null,
+      batchName: batch?.name || 'Winter Cohort 2026',
+      mode,
+      timings: batch?.timings || (mode === 'Offline' ? '9:00 AM – 6:00 PM IST' : '4:00 PM – 6:00 PM IST'),
+      track: appRecord?.domain_name || null,
+      mentors: mentorsList
+    });
+  }));
+
+  // ===================================================================
+  // 11. OFFICIAL COMPLIMENTARY 1-PAGE PROJECT REPORT PDF
+  // ===================================================================
+  app.get('/api/student/project-report.pdf', auth, wrap(async (req, res) => {
+    const { profile, enrollment, appRecord, assignedMentor, studentId, mode } = await loadStudentContext(req);
     const pdfBuf = await buildProjectReportPDF({
-      name: prof?.full_name || 'Candidate',
+      name: profile?.full_name || appRecord?.full_name || 'Student',
       studentId,
-      courseTitle: enr?.courses?.title || 'Full-Stack Web Development Track',
-      mode: 'Online (30 Hours)',
+      courseTitle: enrollment?.courses?.title || appRecord?.domain_name || 'Winter Internship Program',
+      mode: `${mode} (30 Hours)`,
+      mentorName: assignedMentor?.name || 'Plant Green Inertia Academic Team',
       date: new Date()
     });
 
@@ -703,30 +919,28 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
   }));
 
   // ===================================================================
-  // 13. CERTIFICATES & SUPPORT MODULES
+  // 12. CERTIFICATES & SUPPORT MODULES (Real DB Eligibility Check)
   // ===================================================================
   app.get('/api/student/certificates', auth, wrap(async (req, res) => {
+    const { studentId, cert, completedHours, attendancePct, presentDays, totalMarked } = {
+      ...await loadStudentContext(req),
+      totalMarked: 0
+    };
+    const eligible = Boolean(cert || (completedHours >= 30 && (attendancePct ?? 0) >= 75));
     res.json({
-      certificate: {
-        id: 'PGI-W26-CERT-0042',
-        title: 'Winter Internship & Training Program Certificate',
-        issuer: 'Plant Green Inertia Pvt. Ltd.',
-        accreditedBy: 'TN Skills, Tamil Nadu Skill Development Corporation (TNSDC)',
-        status: 'Unlocked',
-        durationHours: 30,
-        grade: 'Distinction (Grade A)',
-        issuedOn: '2026-11-10',
-        verificationUrl: `https://plantgreeninertia.com/verify?cert=PGI-W26-CERT-0042`
-      }
+      eligible,
+      issued: Boolean(cert),
+      certificateId: cert?.certificate_id || null,
+      completedHours: Number(completedHours.toFixed(1)),
+      requiredHours: 30,
+      attendancePct: attendancePct ?? 0,
+      presentDays,
+      issuedOn: cert?.issued_at || null,
+      verificationUrl: cert?.verification_url || null,
+      downloadUrl: cert?.certificate_id ? `/api/admin/certificates/${encodeURIComponent(cert.certificate_id)}/download.pdf` : null,
+      title: cert?.domain || 'Certificate of Internship Completion',
+      studentId
     });
-  }));
-
-  app.get('/api/student/notifications', auth, wrap(async (_q, res) => {
-    res.json([
-      { id: 'notif-1', date: '2026-11-10T09:00:00Z', title: 'Winter Internship Active Cohort', message: 'Welcome to your Winter 2026 internship! Review your 30-hour syllabus and daily attendance schedule.', unread: false },
-      { id: 'notif-2', date: '2026-11-09T16:00:00Z', title: 'Payment Receipt Ready', message: 'Your official Razorpay enrollment receipt (PDF) is now available for download.', unread: false },
-      { id: 'notif-3', date: '2026-11-08T18:00:00Z', title: 'Next Masterclass: REST APIs', message: 'Tomorrow evening session begins at 4:00 PM IST. Please ensure your VS Code environment is ready.', unread: true }
-    ]);
   }));
 
   app.post('/api/student/support', auth, wrap(async (req, res) => {
@@ -749,48 +963,7 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
     res.json({
       ok: true,
       ticketId: ticket.id,
-      message: 'Support ticket submitted. An academic coordinator will contact you within 4 hours.'
+      message: 'Support ticket submitted. An academic coordinator will contact you shortly.'
     });
   }));
-}
-
-// Helper: Seed default 30-hour attendance log
-function generateDefaultAttendance(studentId, userId, mode = 'Online') {
-  const dailyHours = mode === 'Offline' ? 6.0 : 2.0;
-  const sessions = [
-    { day: 1, title: 'Cohort Orientation & Winter Internship Toolchain Setup', status: 'present' },
-    { day: 2, title: 'Semantic Web Standards, Layout Principles & CSS Variables', status: 'present' },
-    { day: 3, title: 'Modern JavaScript (ES6+), Event Loops & Asynchronous Pipelines', status: 'present' },
-    { day: 4, title: 'Distributed Version Control, Git Branching & GitHub Collaboration', status: 'present' },
-    { day: 5, title: 'Server-Side Architecture, Express Pipelines & REST API Design', status: 'present' },
-    { day: 6, title: 'Relational Database Schema Modeling & Row-Level Security', status: 'present' },
-    { day: 7, title: 'Hands-on Lab: Component Architecture & State Management', status: 'present' },
-    { day: 8, title: 'Payment Gateway Integration, Razorpay Webhooks & Verification', status: 'absent' },
-    { day: 9, title: 'Industrial Testing, Cloud Deployment & Reverse Proxies on Render', status: 'present' },
-    { day: 10, title: 'Capstone Project Defense & 1-Page Project Report Audit', status: 'present' }
-  ];
-
-  const baseDate = new Date();
-  baseDate.setDate(baseDate.getDate() - 10);
-
-  return sessions.map((s, idx) => {
-    const d = new Date(baseDate);
-    d.setDate(baseDate.getDate() + idx);
-    const dateStr = d.toISOString().split('T')[0];
-
-    return {
-      id: `att_${studentId}_${s.day}`,
-      student_id: studentId,
-      user_id: userId,
-      date: dateStr,
-      day_number: s.day,
-      session_title: s.title,
-      mode,
-      status: s.status,
-      hours_logged: s.status === 'present' ? dailyHours : 0.0,
-      check_in: s.status === 'present' ? `${dateStr}T16:00:00Z` : null,
-      check_out: s.status === 'present' ? `${dateStr}T18:00:00Z` : null,
-      verification_method: 'biometric_and_portal'
-    };
-  });
 }
