@@ -280,25 +280,24 @@ function renderOverviewCurriculumPreview(track, completedHours) {
   }).join('');
 }
 
-async function loadSyllabusTrack(trackId) {
-  activeTrackId = trackId;
-  document.querySelectorAll('.mod-track-btn').forEach(btn => {
-    btn.classList.toggle('is-active', btn.getAttribute('data-track-btn') === trackId);
-  });
-
+async function loadSyllabusTrack() {
   const box = document.getElementById('syllabus-container');
-  if (box) box.innerHTML = '<div class="dash-module"><p style="margin:0;color:var(--hub-muted);">Loading track modules…</p></div>';
+  if (box) box.innerHTML = '<div class="dash-module"><p style="margin:0;color:var(--hub-muted);">Loading your track modules…</p></div>';
 
   try {
     const res = await fetch('/api/student/syllabus', { headers: getHeaders() });
     if (!res.ok) throw new Error('Syllabus service unavailable');
     const data = await res.json();
-    const track = (data.tracks || []).find(t => t.id === trackId) || data.tracks?.[0];
+    const track = data.tracks?.[0];
 
     if (!track) {
       if (box) box.innerHTML = '<div class="dash-module"><p style="margin:0;">Track curriculum not found.</p></div>';
       return;
     }
+
+    activeTrackId = track.id;
+    const pillEl = document.getElementById('mod-enrolled-track-pill');
+    if (pillEl) pillEl.textContent = data.enrolledDomain || currentStudent?.domainName || track.domainType || 'My Track';
 
     const completedHours = Number(currentTelemetry?.completedHours || 0);
     renderOverviewCurriculumPreview(track, completedHours);

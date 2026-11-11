@@ -553,67 +553,86 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
   }));
 
   // ===================================================================
-  // 7. SYLLABUS MODULE (Complete, By Domain)
+  // 7. SYLLABUS MODULE (Strictly Enrolled Student's Own Track Only)
   // ===================================================================
   app.get('/api/student/syllabus', auth, wrap(async (req, res) => {
+    const { enrollment, appRecord } = await loadStudentContext(req);
+    const enrolledDomain = enrollment?.courses?.title || appRecord?.domain_name || 'Web Development';
+    const domainType = appRecord?.domain_type || enrollment?.courses?.domain_type || 'Technical';
+    const domLower = String(enrolledDomain).toLowerCase();
+
+    const allTracks = [
+      {
+        id: 'tech-web',
+        domainType: 'Technical',
+        title: 'Full-Stack Web Development & Modern Architecture',
+        duration: '30 Hours (10 Comprehensive Modules)',
+        pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
+        modules: [
+          { day: 1, hours: 3, title: 'Web Fundamentals & Semantic HTML5', topics: ['DOM hierarchy', 'Accessibility standards', 'Modern HTML5 APIs', 'Meta viewports'] },
+          { day: 2, hours: 3, title: 'Modern CSS3, Flexbox & Grid Systems', topics: ['CSS variables', 'Responsive layout engineering', 'Fluid typography', 'Micro-animations'] },
+          { day: 3, hours: 3, title: 'JavaScript ES6+ & Asynchronous Pipelines', topics: ['Promises', 'Async/Await', 'Fetch API', 'Event loop mechanics'] },
+          { day: 4, hours: 3, title: 'Git & Distributed Version Control', topics: ['Branching models', 'Pull requests', 'Merge conflict resolution', 'GitHub Actions'] },
+          { day: 5, hours: 3, title: 'Node.js & Express API Microservices', topics: ['Middleware pipelines', 'Routing architecture', 'Request validation', 'Security headers'] },
+          { day: 6, hours: 3, title: 'Database Schema & Relational Integrity', topics: ['PostgreSQL', 'Supabase integration', 'Row-Level Security (RLS)', 'Indexing'] },
+          { day: 7, hours: 3, title: 'Component Engineering & UI Frameworks', topics: ['State management', 'Component lifecycles', 'Form validation', 'Interactive widgets'] },
+          { day: 8, hours: 3, title: 'Payment Gateways & Webhook Security', topics: ['Razorpay HMAC signatures', 'Idempotency patterns', 'Transaction handling', 'Receipt PDF generation'] },
+          { day: 9, hours: 3, title: 'Capstone Real-World Project Sprint', topics: ['Production deployment on Render', 'Reverse proxy configuration', 'Lighthouse optimization'] },
+          { day: 10, hours: 3, title: 'Project Report Defense & Certification', topics: ['1-page technical abstract defense', 'Code audit', 'Certificate verification issuance'] }
+        ]
+      },
+      {
+        id: 'tech-app',
+        domainType: 'Technical',
+        title: 'Android & Cross-Platform App Development',
+        duration: '30 Hours (10 Modules)',
+        pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
+        modules: [
+          { day: 1, hours: 3, title: 'Mobile OS Architecture & App Lifecycle', topics: ['Activity stack', 'Permissions model', 'Screen density adaptation'] },
+          { day: 2, hours: 3, title: 'MIT App Inventor & Visual Logic Blocks', topics: ['Event handlers', 'Component tree', 'UI layouts'] },
+          { day: 3, hours: 3, title: 'Sensors, Location & Hardware Integration', topics: ['GPS location', 'Accelerometer', 'Camera APIs'] },
+          { day: 4, hours: 3, title: 'Local Data Storage & TinyDB Mechanics', topics: ['Key-value stores', 'Offline caching', 'Persistent state'] },
+          { day: 5, hours: 3, title: 'RESTful API Connectivity for Mobile', topics: ['Web components', 'JSON parsing', 'Cloud backend sync'] },
+          { day: 6, hours: 3, title: 'UI/UX Design Patterns for Mobile', topics: ['Touch targets', 'Gesture navigation', 'Dark/light themes'] },
+          { day: 7, hours: 3, title: 'Push Notifications & Background Services', topics: ['Alert managers', 'Broadcast receivers', 'Timer events'] },
+          { day: 8, hours: 3, title: 'App Security & Permission Sandboxing', topics: ['Cryptographic storage', 'Secure transport HTTPS', 'Input sanitization'] },
+          { day: 9, hours: 3, title: 'APK Compilation, Testing & Debugging', topics: ['Logcat analysis', 'Package signing', 'Performance profiling'] },
+          { day: 10, hours: 3, title: 'Mobile Capstone Presentation', topics: ['Published APK demo', '1-page project report submission'] }
+        ]
+      },
+      {
+        id: 'nontech-marketing',
+        domainType: 'Non-Technical',
+        title: 'Digital Operations, Analytics & Growth Strategy',
+        duration: '30 Hours (10 Modules)',
+        pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
+        modules: [
+          { day: 1, hours: 3, title: 'Fundamentals of Digital Operations & Brand Funnels', topics: ['Customer journey', 'TOFU/MOFU/BOFU', 'Value proposition'] },
+          { day: 2, hours: 3, title: 'Search Engine Optimization (SEO)', topics: ['On-page optimization', 'Technical SEO', 'Keyword research methodologies'] },
+          { day: 3, hours: 3, title: 'Content Strategy & Creative Copywriting', topics: ['Editorial calendars', 'B2B storytelling', 'Conversion copywriting'] },
+          { day: 4, hours: 3, title: 'Social Media Strategy & Audience Engagement', topics: ['LinkedIn B2B outreach', 'Instagram growth strategies', 'Algorithm patterns'] },
+          { day: 5, hours: 3, title: 'Performance Marketing & Paid Ad Campaigns', topics: ['Google Ads search campaigns', 'Meta Ads Manager', 'Budgeting & ROAS'] },
+          { day: 6, hours: 3, title: 'Business Analytics & KPI Dashboards', topics: ['Google Analytics 4', 'UTM tracking parameters', 'Conversion funnels'] },
+          { day: 7, hours: 3, title: 'Email Marketing & Lead Nurturing Automations', topics: ['Drip sequences', 'Open rate optimization', 'Deliverability protocols'] },
+          { day: 8, hours: 3, title: 'Market Research & Competitive Intelligence', topics: ['Competitor benchmarking', 'SWOT analysis', 'Pricing strategy'] },
+          { day: 9, hours: 3, title: 'Growth Campaign Capstone Execution', topics: ['Live campaign simulation', 'A/B testing execution', 'Lead report'] },
+          { day: 10, hours: 3, title: 'Campaign Defense & Growth Presentation', topics: ['Executive pitch', '1-page campaign report presentation'] }
+        ]
+      }
+    ];
+
+    const selectedTrackId = (domLower.includes('app') || domLower.includes('mobile') || domLower.includes('android'))
+      ? 'tech-app'
+      : (domainType === 'Non-Technical' || domLower.includes('marketing') || domLower.includes('business') || domLower.includes('operations'))
+        ? 'nontech-marketing'
+        : 'tech-web';
+
+    const myTrack = allTracks.find(t => t.id === selectedTrackId) || allTracks[0];
+
     res.json({
-      tracks: [
-        {
-          id: 'tech-web',
-          domainType: 'Technical',
-          title: 'Full-Stack Web Development & Modern Architecture',
-          duration: '30 Hours (10 Comprehensive Modules)',
-          pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
-          modules: [
-            { day: 1, hours: 3, title: 'Web Fundamentals & Semantic HTML5', topics: ['DOM hierarchy', 'Accessibility standards', 'Modern HTML5 APIs', 'Meta viewports'] },
-            { day: 2, hours: 3, title: 'Modern CSS3, Flexbox & Grid Systems', topics: ['CSS variables', 'Responsive layout engineering', 'Fluid typography', 'Micro-animations'] },
-            { day: 3, hours: 3, title: 'JavaScript ES6+ & Asynchronous Pipelines', topics: ['Promises', 'Async/Await', 'Fetch API', 'Event loop mechanics'] },
-            { day: 4, hours: 3, title: 'Git & Distributed Version Control', topics: ['Branching models', 'Pull requests', 'Merge conflict resolution', 'GitHub Actions'] },
-            { day: 5, hours: 3, title: 'Node.js & Express API Microservices', topics: ['Middleware pipelines', 'Routing architecture', 'Request validation', 'Security headers'] },
-            { day: 6, hours: 3, title: 'Database Schema & Relational Integrity', topics: ['PostgreSQL', 'Supabase integration', 'Row-Level Security (RLS)', 'Indexing'] },
-            { day: 7, hours: 3, title: 'Component Engineering & UI Frameworks', topics: ['State management', 'Component lifecycles', 'Form validation', 'Interactive widgets'] },
-            { day: 8, hours: 3, title: 'Payment Gateways & Webhook Security', topics: ['Razorpay HMAC signatures', 'Idempotency patterns', 'Transaction handling', 'Receipt PDF generation'] },
-            { day: 9, hours: 3, title: 'Capstone Real-World Project Sprint', topics: ['Production deployment on Render', 'Reverse proxy configuration', 'Lighthouse optimization'] },
-            { day: 10, hours: 3, title: 'Project Report Defense & Certification', topics: ['1-page technical abstract defense', 'Code audit', 'Certificate verification issuance'] }
-          ]
-        },
-        {
-          id: 'tech-app',
-          domainType: 'Technical',
-          title: 'Android & Cross-Platform App Development',
-          duration: '30 Hours (10 Modules)',
-          modules: [
-            { day: 1, hours: 3, title: 'Mobile OS Architecture & App Lifecycle', topics: ['Activity stack', 'Permissions model', 'Screen density adaptation'] },
-            { day: 2, hours: 3, title: 'MIT App Inventor & Visual Logic Blocks', topics: ['Event handlers', 'Component tree', 'UI layouts'] },
-            { day: 3, hours: 3, title: 'Sensors, Location & Hardware Integration', topics: ['GPS location', 'Accelerometer', 'Camera APIs'] },
-            { day: 4, hours: 3, title: 'Local Data Storage & TinyDB Mechanics', topics: ['Key-value stores', 'Offline caching', 'Persistent state'] },
-            { day: 5, hours: 3, title: 'RESTful API Connectivity for Mobile', topics: ['Web components', 'JSON parsing', 'Cloud backend sync'] },
-            { day: 6, hours: 3, title: 'UI/UX Design Patterns for Mobile', topics: ['Touch targets', 'Gesture navigation', 'Dark/light themes'] },
-            { day: 7, hours: 3, title: 'Push Notifications & Background Services', topics: ['Alert managers', 'Broadcast receivers', 'Timer events'] },
-            { day: 8, hours: 3, title: 'App Security & Permission Sandboxing', topics: ['Cryptographic storage', 'Secure transport HTTPS', 'Input sanitization'] },
-            { day: 9, hours: 3, title: 'APK Compilation, Testing & Debugging', topics: ['Logcat analysis', 'Package signing', 'Performance profiling'] },
-            { day: 10, hours: 3, title: 'Mobile Capstone Presentation', topics: ['Published APK demo', '1-page project report submission'] }
-          ]
-        },
-        {
-          id: 'nontech-marketing',
-          domainType: 'Non-Technical',
-          title: 'Digital Marketing, Analytics & Growth Strategy',
-          duration: '30 Hours (10 Modules)',
-          modules: [
-            { day: 1, hours: 3, title: 'Fundamentals of Digital Marketing & Brand Funnels', topics: ['Customer journey', 'TOFU/MOFU/BOFU', 'Value proposition'] },
-            { day: 2, hours: 3, title: 'Search Engine Optimization (SEO)', topics: ['On-page optimization', 'Technical SEO', 'Keyword research methodologies'] },
-            { day: 3, hours: 3, title: 'Content Marketing & Creative Copywriting', topics: ['Editorial calendars', 'B2B storytelling', 'Conversion copywriting'] },
-            { day: 4, hours: 3, title: 'Social Media Strategy & Audience Engagement', topics: ['LinkedIn B2B outreach', 'Instagram growth strategies', 'Algorithm patterns'] },
-            { day: 5, hours: 3, title: 'Performance Marketing & Paid Ad Campaigns', topics: ['Google Ads search campaigns', 'Meta Ads Manager', 'Budgeting & ROAS'] },
-            { day: 6, hours: 3, title: 'Marketing Analytics & KPI Dashboards', topics: ['Google Analytics 4', 'UTM tracking parameters', 'Conversion funnels'] },
-            { day: 7, hours: 3, title: 'Email Marketing & Lead Nurturing Automations', topics: ['Drip sequences', 'Open rate optimization', 'Deliverability protocols'] },
-            { day: 8, hours: 3, title: 'Market Research & Competitive Intelligence', topics: ['Competitor benchmarking', 'SWOT analysis', 'Pricing strategy'] },
-            { day: 9, hours: 3, title: 'Growth Campaign Capstone Execution', topics: ['Live campaign simulation', 'A/B testing execution', 'Lead report'] },
-            { day: 10, hours: 3, title: 'Campaign Defense & Growth Presentation', topics: ['Executive pitch', '1-page campaign report presentation'] }
-          ]
-        }
-      ]
+      enrolledTrackId: myTrack.id,
+      enrolledDomain: enrolledDomain,
+      tracks: [myTrack]
     });
   }));
 
