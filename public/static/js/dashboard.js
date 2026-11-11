@@ -54,6 +54,7 @@ function switchModule(modId) {
   if (modId === 'assignments') loadAssignments();
   if (modId === 'mentors') loadMentors();
   if (modId === 'certificates') loadCertificatesStatus();
+  if (modId === 'support') loadSupportTickets();
 }
 
 function logoutStudent() {
@@ -212,6 +213,13 @@ function renderStudentInfo(s, t) {
   setText('prof-college', s.college || '—');
   setText('prof-dept', s.department || '—');
   setText('prof-year', s.passedOutYear || '—');
+  setText('supp-cohort-timing', s.timing || '4:00 PM – 6:00 PM IST');
+  setText('supp-ref-tag', sid && sid !== '—' ? `REF: ${sid}` : 'REF: STUDENT');
+  const suppEnroll = document.getElementById('supp-enroll-badge');
+  if (suppEnroll) {
+    suppEnroll.textContent = t.enrollmentId ? 'Enrolled' : 'Registered';
+    suppEnroll.className = `asg-state-badge ${t.enrollmentId ? 'submitted' : 'pending'}`;
+  }
   setText('ov-console-id', `$ pgi-verify --student ${sid} --track "${track}"`);
 }
 
@@ -1223,27 +1231,66 @@ async function loadMentors() {
 }
 
 // ===================================================================
-// MODULE 6: CERTIFICATES (REAL DB ELIGIBILITY & DOCUMENTS)
+// MODULE 6: CERTIFICATES (COMPLETION CREDENTIAL + VALIDATION CHECK)
 // ===================================================================
+let cachedCertPayload = null;
+
 async function loadCertificatesStatus() {
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   try {
     const res = await fetch('/api/student/certificates', { headers: getHeaders() });
     if (!res.ok) return;
     const d = await res.json();
+    cachedCertPayload = d;
 
     const pill = document.getElementById('cert-status-pill');
+    const valBadge = document.getElementById('cert-val-badge');
     const idBadge = document.getElementById('cert-id-badge');
     const desc = document.getElementById('cert-eligibility-desc');
+    const urlInput = document.getElementById('cert-val-url');
+    const wm = document.getElementById('cert-prev-wm');
+
+    const track = d.title || currentStudent?.domainName || 'Winter Internship & Training Program';
+    const batch = d.batchName || currentStudent?.batchName || 'Winter Cohort 2026';
+    const name = d.studentName || currentStudent?.name || 'Student';
+
+    setText('cert-hero-pill', `${batch.toUpperCase()} // CREDENTIALS`);
+    setText('cert-banner-program', track);
+    setText('cert-val-cohort', batch);
+    setText('cert-val-hours', `${d.completedHours ?? 0} / ${d.requiredHours ?? 30} hrs · ${d.attendancePct ?? 0}% attendance`);
+
+    // Populate real student details in portrait preview
+    setText('cert-prev-name', name);
+    setText('cert-prev-desc', `has successfully completed the ${track} with Plant Green Inertia during the student-mentioned dates. We appreciate their dedication and wish them success in all future endeavours.`);
+    setText('cert-prev-no', d.certificateId || 'Pending Issuance');
+    setText('cert-prev-period', d.internshipPeriod ? `Dates: ${d.internshipPeriod}` : 'Dates: Mentioned on record');
+    setText('cert-prev-hours', `Hours: ${d.completedHours ?? 0} / 30h`);
 
     if (d.issued && d.certificateId) {
-      if (pill) { pill.textContent = 'Issued'; pill.className = 'stat-badge green'; }
+      if (wm) wm.classList.add('hidden');
+      setText('cert-banner-issuer', 'Issued by Admin');
+      if (pill) { pill.textContent = 'Ready for Download'; pill.className = 'cert-ready-badge issued'; }
+      if (valBadge) { valBadge.textContent = 'Active & Issued'; valBadge.className = 'asg-state-badge submitted'; }
+      setText('cert-val-date', d.issuedOn ? new Date(d.issuedOn).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Issued');
       if (idBadge) idBadge.textContent = d.certificateId;
-      if (desc) desc.textContent = `Certificate issued! Completed ${d.completedHours} / ${d.requiredHours} hours (${d.attendancePct}% attendance).`;
+      if (urlInput) urlInput.value = d.verificationUrl || `https://plantgreeninertia.com/verify/${d.certificateId}`;
+      if (desc) desc.textContent = `Credential issued. Verified ${d.completedHours} / ${d.requiredHours} hours (${d.attendancePct}% attendance).`;
     } else {
-      if (pill) { pill.textContent = d.eligible ? 'Ready for Issuance' : 'In Progress'; pill.className = 'stat-badge yellow'; }
+      if (wm) wm.classList.remove('hidden');
+      setText('cert-banner-issuer', d.eligible ? 'Eligible for Issuance' : 'Pending Issuance');
+      if (pill) {
+        pill.textContent = d.eligible ? 'Eligible — Ready for Admin Issuance' : 'In Progress';
+        pill.className = `cert-ready-badge ${d.eligible ? 'eligible' : 'pending'}`;
+      }
+      if (valBadge) {
+        valBadge.textContent = d.eligible ? 'Eligible' : 'In Progress';
+        valBadge.className = `asg-state-badge ${d.eligible ? 'draft' : 'pending'}`;
+      }
+      setText('cert-val-date', 'Pending Admin Issuance');
       if (idBadge) idBadge.textContent = 'Not Issued Yet';
+      if (urlInput) urlInput.value = 'Not Issued Yet';
       if (desc) {
-        desc.textContent = `Verified hours logged: ${d.completedHours} / ${d.requiredHours} hours (${d.presentDays || 0} present day(s)). Requires 30 hours and ≥ 75% attendance.`;
+        desc.textContent = `Verified training hours logged: ${d.completedHours} / ${d.requiredHours} hours (${d.presentDays || 0} present day(s)). Requires 30 hours and ≥ 75% attendance.`;
       }
     }
   } catch {}
@@ -1254,36 +1301,116 @@ async function downloadCertificate() {
     const res = await fetch('/api/student/certificates', { headers: getHeaders() });
     const d = await res.json();
     if (!d.issued || !d.downloadUrl) {
-      setMsg('cert-msg', `Certificate not issued yet. Verified hours logged: ${d.completedHours || 0} / 30 hours.`);
+      setMsg('cert-msg', `Certificate not issued yet. Verified hours logged: ${d.completedHours || 0} / 30 hours (${d.attendancePct || 0}% attendance).`);
       return;
     }
-    window.open(d.downloadUrl, '_blank');
+
+    setMsg('cert-msg', 'Preparing your official certificate PDF…', true);
+    const pdfRes = await fetch(d.downloadUrl, { headers: getHeaders() });
+    if (!pdfRes.ok) {
+      const errJson = await pdfRes.json().catch(() => ({}));
+      throw new Error(errJson.error || 'Certificate PDF could not be generated');
+    }
+    const blob = await pdfRes.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `${d.certificateId || 'PGI-Certificate'}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+    setMsg('cert-msg', `Downloaded ${d.certificateId}.pdf`, true);
   } catch (err) {
-    setMsg('cert-msg', err.message);
+    setMsg('cert-msg', err.message, false);
   }
 }
 
-async function viewCertificateQR() {
+function openCertFullscreen() {
+  const srcCert = document.querySelector('#mod-certificates .cert-stage-frame .cert');
+  const modal = document.getElementById('certFullModal');
+  const slot = document.getElementById('certFullSlot');
+  if (!srcCert || !modal || !slot) return;
+  const clone = srcCert.cloneNode(true);
+  clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+  slot.innerHTML = '';
+  slot.appendChild(clone);
+  modal.classList.remove('hidden');
+}
+
+function closeCertFullscreen() {
+  const modal = document.getElementById('certFullModal');
+  const slot = document.getElementById('certFullSlot');
+  if (modal) modal.classList.add('hidden');
+  if (slot) slot.innerHTML = '';
+}
+
+function copyCredentialLink() {
+  const d = cachedCertPayload;
+  if (!d?.issued || !d?.certificateId) {
+    return setMsg('cert-msg', 'Public verification URL becomes active once Admin issues your certificate.', false);
+  }
+  const url = d.verificationUrl || `https://plantgreeninertia.com/verify/${d.certificateId}`;
+  navigator.clipboard?.writeText(url)
+    .then(() => setMsg('cert-msg', `Copied verification URL: ${url}`, true))
+    .catch(() => setMsg('cert-msg', `Verification URL: ${url}`, true));
+}
+
+// ===================================================================
+// MODULE 7: HELP & SUPPORT + PASSWORD SECURITY
+// ===================================================================
+function updateSuppAttachmentLabel() {
+  const fileInp = document.getElementById('supp-attachment');
+  const lbl = document.getElementById('supp-attach-name');
+  if (!lbl) return;
+  const f = fileInp?.files?.[0];
+  if (!f) {
+    lbl.textContent = 'Optional — reference file up to 10MB';
+    return;
+  }
+  const kb = Math.max(1, Math.round(f.size / 1024));
+  lbl.textContent = `${f.name} (${kb} KB)`;
+}
+
+async function loadSupportTickets() {
+  const listEl = document.getElementById('supp-tickets-list');
+  if (!listEl) return;
   try {
-    const res = await fetch('/api/student/certificates', { headers: getHeaders() });
+    const res = await fetch('/api/student/support', { headers: getHeaders() });
+    if (!res.ok) return;
     const d = await res.json();
-    if (!d.issued || !d.certificateId) {
-      setMsg('cert-msg', 'Verification ID becomes active once your completion certificate is issued.');
+    const tickets = Array.isArray(d.tickets) ? d.tickets : [];
+    if (!tickets.length) {
+      listEl.innerHTML = '';
       return;
     }
-    setMsg('cert-msg', `Verified Certificate ID: ${d.certificateId} (${d.verificationUrl || ''})`, true);
-  } catch (err) {
-    setMsg('cert-msg', err.message);
-  }
+    listEl.innerHTML = `
+      <div style="border-top:1px solid var(--hub-line);padding-top:12px;">
+        <div style="font-size:0.72rem;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:var(--hub-muted);margin-bottom:8px;">
+          Recent Session Queries (${tickets.length})
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${tickets.slice(0, 5).map(tk => `
+            <div style="background:#F8FAFC;border:1px solid var(--hub-line);border-radius:9px;padding:9px 11px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+              <div>
+                <strong style="font-size:0.8rem;color:var(--hub-navy);display:block;">${escHtml(tk.subject)}</strong>
+                <small style="font-size:0.72rem;color:var(--hub-muted);">${escHtml(tk.id)} · ${escHtml(tk.category || 'Academic')}${tk.attachmentNote ? ' · ' + escHtml(tk.attachmentNote) : ''}</small>
+              </div>
+              <span class="asg-state-badge submitted">${escHtml(tk.status || 'Open')}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  } catch {}
 }
 
-// ===================================================================
-// MODULE 7: SUPPORT & PASSWORD UPDATE
-// ===================================================================
 async function submitSupportTicket() {
   const subject = document.getElementById('supp-subject').value.trim();
   const category = document.getElementById('supp-category').value;
   const message = document.getElementById('supp-message').value.trim();
+  const fileObj = document.getElementById('supp-attachment')?.files?.[0];
+  const attachmentNote = fileObj ? `${fileObj.name} (${Math.max(1, Math.round(fileObj.size / 1024))} KB)` : null;
 
   setMsg('supp-msg', 'Submitting ticket…', true);
 
@@ -1291,13 +1418,15 @@ async function submitSupportTicket() {
     const res = await fetch('/api/student/support', {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ subject, category, message })
+      body: JSON.stringify({ subject, category, message, attachmentNote })
     });
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || 'Support ticket submission failed');
 
     setMsg('supp-msg', `Ticket #${d.ticketId} submitted. An academic coordinator will respond shortly.`, true);
     document.getElementById('form-support-ticket').reset();
+    updateSuppAttachmentLabel();
+    loadSupportTickets();
   } catch (err) {
     setMsg('supp-msg', err.message);
   }

@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { sendPasswordResetEmail } from './email.js';
 import { buildProjectReportPDF } from './project_report.js';
+import { buildCertificatePDF } from './certificate.js';
 import { normalizeLoginPassword, parseDobCredentials } from './logic.js';
 
 // In-memory fallback stores for offline testing and development
@@ -922,11 +923,11 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
   // 12. CERTIFICATES & SUPPORT MODULES (Real DB Eligibility Check)
   // ===================================================================
   app.get('/api/student/certificates', auth, wrap(async (req, res) => {
-    const { studentId, cert, completedHours, attendancePct, presentDays, totalMarked } = {
-      ...await loadStudentContext(req),
-      totalMarked: 0
-    };
+    const {
+      profile, enrollment, appRecord, batch, studentId, cert, completedHours, attendancePct, presentDays
+    } = await loadStudentContext(req);
     const eligible = Boolean(cert || (completedHours >= 30 && (attendancePct ?? 0) >= 75));
+    const studentName = profile?.full_name || appRecord?.full_name || req.user.user_metadata?.full_name || 'Student';
     res.json({
       eligible,
       issued: Boolean(cert),
@@ -937,23 +938,63 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
       presentDays,
       issuedOn: cert?.issued_at || null,
       verificationUrl: cert?.verification_url || null,
-      downloadUrl: cert?.certificate_id ? `/api/admin/certificates/${encodeURIComponent(cert.certificate_id)}/download.pdf` : null,
-      title: cert?.domain || 'Certificate of Internship Completion',
+      downloadUrl: cert?.certificate_id ? '/api/student/certificates/download.pdf' : null,
+      title: cert?.domain || enrollment?.courses?.title || appRecord?.domain_name || 'Winter Internship & Training Program',
+      batchName: batch?.name || 'Winter Cohort 2026',
+      internshipPeriod: appRecord?.internship_period || null,
+      studentName,
       studentId
     });
   }));
 
+  app.get('/api/student/certificates/download.pdf', auth, wrap(async (req, res) => {
+    const { cert, studentId, attendancePct } = await loadStudentContext(req);
+    if (!cert || !cert.certificate_id) {
+      throw fail(404, 'Certificate has not been issued yet.');
+    }
+
+    const pdfBuffer = await buildCertificatePDF({
+      certificateNumber: cert.certificate_id,
+      studentId: cert.student_id || studentId,
+      studentName: cert.student_name || 'Student',
+      domain: cert.domain || 'Winter Internship Program',
+      duration: cert.duration || '30 Hours',
+      attendancePercentage: cert.attendance_percentage ?? attendancePct ?? 0,
+      completionDate: new Date(cert.issued_at || Date.now()).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }),
+      verificationUrl: cert.verification_url
+    });
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="${cert.certificate_id}.pdf"`,
+      'Cache-Control': 'private, no-store'
+    }).send(pdfBuffer);
+  }));
+
+  app.get('/api/student/support', auth, wrap(async (req, res) => {
+    const tickets = localSupportTickets
+      .filter(t => t.userId === req.user.id)
+      .slice()
+      .reverse();
+    res.json({ tickets });
+  }));
+
   app.post('/api/student/support', auth, wrap(async (req, res) => {
-    const { subject, category, message, priority } = req.body || {};
+    const { subject, category, message, priority, attachmentNote } = req.body || {};
     if (!subject || !message) throw fail(400, 'Subject and message are required');
 
     const ticket = {
       id: 'TICK-' + crypto.randomBytes(3).toString('hex').toUpperCase(),
       userId: req.user.id,
       email: req.user.email,
-      subject,
+      subject: String(subject).trim(),
       category: category || 'Academic',
-      message,
+      message: String(message).trim(),
+      attachmentNote: attachmentNote ? String(attachmentNote).trim() : null,
       priority: priority || 'Normal',
       status: 'Open',
       createdAt: new Date().toISOString()
@@ -963,6 +1004,7 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
     res.json({
       ok: true,
       ticketId: ticket.id,
+      ticket,
       message: 'Support ticket submitted. An academic coordinator will contact you shortly.'
     });
   }));

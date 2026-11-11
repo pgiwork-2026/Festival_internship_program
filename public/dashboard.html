@@ -7,7 +7,7 @@
   <link rel="icon" href="static/images/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat+Brush&family=JetBrains+Mono:wght@500;600&family=Playfair+Display:wght@700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="static/css/theme-winter.css">
   <link rel="stylesheet" href="static/css/portal.css">
   <style>
@@ -2360,6 +2360,520 @@
     @media (max-width: 780px) {
       .men-grid { grid-template-columns: 1fr; }
     }
+
+    /* ================================================================
+       Sixth Screen: Completion Certificate & Credential (#mod-certificates)
+       ================================================================ */
+    .cert-top-tag {
+      background: #ffffff;
+      border: 1px solid var(--hub-line);
+      border-radius: 9px;
+      padding: 8px 13px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--hub-navy);
+      white-space: nowrap;
+    }
+
+    .cert-banner-card {
+      background: #ffffff;
+      border: 1px solid var(--hub-line);
+      border-radius: 12px;
+      padding: 13px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
+    }
+    .cert-banner-left {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex-wrap: wrap;
+      font-size: 0.85rem;
+      color: var(--hub-slate);
+    }
+    .cert-banner-left strong { color: var(--hub-navy); }
+    .cert-ready-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .cert-ready-badge.issued { background: #DCFCE7; color: var(--hub-green); border: 1px solid rgba(41,105,52,0.22); }
+    .cert-ready-badge.eligible { background: #E0F2FE; color: #075985; border: 1px solid #BAE6FD; }
+    .cert-ready-badge.pending { background: #F1F5F9; color: var(--hub-slate); border: 1px solid var(--hub-line); }
+
+    .cert-main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(270px, 0.85fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .cert-stage-frame {
+      border-radius: 14px;
+      padding: 26px 20px;
+      background: linear-gradient(135deg, #F6E7B9 0%, #DFBD5F 100%);
+      border: 1px solid rgba(184, 134, 11, 0.35);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45), 0 8px 24px rgba(15, 23, 42, 0.05);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .cert-stage-frame .cert {
+      width: 100%;
+      max-width: 390px;
+    }
+    .cert-actions-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+    .cert-actions-left {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .cert-copy-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: none;
+      color: var(--hub-green);
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 8px;
+    }
+    .cert-copy-link-btn:hover { background: var(--hub-green-soft); }
+
+    .cert-val-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .cert-val-tile {
+      background: #F8FAFC;
+      border: 1px solid var(--hub-line);
+      border-radius: 10px;
+      padding: 11px 13px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .cert-val-tile small {
+      display: block;
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--hub-muted);
+      margin-bottom: 2px;
+    }
+    .cert-val-tile strong {
+      display: block;
+      font-size: 0.86rem;
+      color: var(--hub-navy);
+    }
+    .cert-val-tile svg {
+      color: var(--hub-muted);
+      flex-shrink: 0;
+    }
+
+    .cert-url-box {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--hub-line);
+    }
+    .cert-url-box label {
+      display: block;
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--hub-muted);
+      margin-bottom: 6px;
+    }
+    .cert-url-copy-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #F8FAFC;
+      border: 1px solid var(--hub-line);
+      border-radius: 9px;
+      padding: 4px 6px 4px 10px;
+    }
+    .cert-url-copy-row input {
+      border: none;
+      background: transparent;
+      outline: none;
+      width: 100%;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.74rem;
+      color: var(--hub-navy);
+      font-weight: 600;
+    }
+    .cert-url-copy-row button {
+      border: 1px solid var(--hub-line);
+      background: #ffffff;
+      color: var(--hub-slate);
+      border-radius: 7px;
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .cert-url-copy-row button:hover {
+      border-color: var(--hub-green);
+      color: var(--hub-green);
+    }
+
+    .cert-full-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .cert-full-panel {
+      width: 100%;
+      max-width: 560px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .cert-full-panel .cert {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    @media (max-width: 960px) {
+      .cert-main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ================================================================
+       Seventh Screen: Help & Support (#mod-support)
+       ================================================================ */
+    .supp-hours-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: #ffffff;
+      border: 1px solid var(--hub-line);
+      border-radius: 9px;
+      padding: 8px 13px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--hub-slate);
+      white-space: nowrap;
+    }
+    .supp-main-grid {
+      display: grid;
+      grid-template-columns: minmax(270px, 0.92fr) minmax(0, 1.38fr);
+      gap: 18px;
+      align-items: start;
+      margin-bottom: 20px;
+    }
+    .supp-card {
+      background: #ffffff;
+      border: 1px solid var(--hub-line);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.025);
+    }
+    .supp-eyebrow {
+      display: block;
+      font-size: 0.66rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--hub-muted);
+      margin-bottom: 3px;
+    }
+    .supp-card-title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .supp-card-title-row h3 {
+      margin: 0;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--hub-navy);
+    }
+    .supp-icon-pill {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      background: var(--hub-green-soft);
+      color: var(--hub-green);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .supp-channel-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .supp-channel-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: #F4F7FB;
+      border: 1px solid #E8EEF5;
+      border-radius: 11px;
+      padding: 12px 13px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+    a.supp-channel-item:hover {
+      background: #ffffff;
+      border-color: var(--hub-green);
+    }
+    .supp-ch-ico {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid var(--hub-line);
+      color: var(--hub-slate);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .supp-channel-item strong {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--hub-navy);
+      margin-bottom: 2px;
+    }
+    .supp-ch-val {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.77rem;
+      color: var(--hub-green);
+      font-weight: 600;
+      word-break: break-all;
+    }
+    .supp-channel-item small {
+      display: block;
+      font-size: 0.73rem;
+      color: var(--hub-muted);
+      margin-top: 2px;
+    }
+
+    .supp-card-foot {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--hub-line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.73rem;
+      color: var(--hub-muted);
+      font-weight: 600;
+    }
+
+    .supp-record-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 10px;
+    }
+    .supp-record-cell {
+      background: #F8FAFC;
+      border: 1px solid var(--hub-line);
+      border-radius: 9px;
+      padding: 8px 10px;
+    }
+    .supp-record-cell small {
+      display: block;
+      font-size: 0.64rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--hub-muted);
+      margin-bottom: 2px;
+    }
+    .supp-record-cell span {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--hub-navy);
+      word-break: break-word;
+    }
+
+    .supp-ref-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.69rem;
+      font-weight: 700;
+      color: var(--hub-slate);
+      background: #EEF2F7;
+      padding: 4px 9px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .supp-field-row {
+      margin-bottom: 13px;
+    }
+    .supp-field-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--hub-navy);
+      margin-bottom: 5px;
+    }
+    .supp-field-label span {
+      font-weight: 600;
+      font-size: 0.71rem;
+      color: var(--hub-muted);
+    }
+    .supp-input,
+    .supp-select,
+    .supp-textarea {
+      width: 100%;
+      border: 1px solid var(--hub-line);
+      border-radius: 10px;
+      background: #F4F7FB;
+      color: var(--hub-navy);
+      font-family: inherit;
+      font-size: 0.83rem;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+    .supp-input:focus,
+    .supp-select:focus,
+    .supp-textarea:focus {
+      background: #ffffff;
+      border-color: var(--hub-green);
+      box-shadow: 0 0 0 3px rgba(41, 105, 52, 0.1);
+    }
+
+    .supp-attach-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .supp-file-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      border-radius: 8px;
+      border: 1px solid var(--hub-line);
+      background: #F4F7FB;
+      color: var(--hub-navy);
+      font-size: 0.77rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .supp-file-label:hover {
+      border-color: var(--hub-green);
+      color: var(--hub-green);
+      background: #ffffff;
+    }
+
+    .supp-submit-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+      padding-top: 13px;
+      border-top: 1px solid var(--hub-line);
+    }
+
+    .supp-faq-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .supp-faq-card {
+      background: #ffffff;
+      border: 1px solid var(--hub-line);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
+    }
+    .supp-faq-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 7px;
+    }
+    .supp-faq-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: #DCFCE7;
+      color: var(--hub-green);
+      font-size: 0.72rem;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .supp-faq-head strong {
+      font-size: 0.88rem;
+      color: var(--hub-navy);
+      line-height: 1.35;
+    }
+    .supp-faq-card p {
+      margin: 0 0 0 34px;
+      font-size: 0.79rem;
+      color: var(--hub-slate);
+      line-height: 1.55;
+    }
+
+    @media (max-width: 960px) {
+      .supp-main-grid { grid-template-columns: 1fr; }
+      .supp-record-grid { grid-template-columns: 1fr; }
+    }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -2998,118 +3512,382 @@
 
         <!-- 6. CERTIFICATES & OFFICIAL DOCUMENTS -->
         <div id="mod-certificates" class="tab-content">
-          <div class="dash-module">
-            <div class="module-header">
-              <div>
-                <h2>Certificates &amp; Verified Credentials</h2>
-                <p>Track completion eligibility for your Certificate of Internship and download official documents.</p>
+          <div class="men-hero-head">
+            <div>
+              <div class="men-adv-pill"><span class="hub-dot"></span> <span id="cert-hero-pill">COHORT CREDENTIALS // WINTER 2026</span></div>
+              <h2>Completion Certificate &amp; Credential</h2>
+              <p>Official certificate of internship and verification credential issued upon program completion.</p>
+            </div>
+            <span class="cert-top-tag">Verified Cohort Registry</span>
+          </div>
+
+          <div class="cert-banner-card">
+            <div class="cert-banner-left">
+              <span class="hub-dot" id="cert-banner-dot"></span>
+              <strong id="cert-banner-issuer">Pending Issuance</strong>
+              <span>&middot;</span>
+              <span id="cert-banner-program">Winter Internship &amp; Training Program</span>
+            </div>
+            <span class="cert-ready-badge pending" id="cert-status-pill">Checking Eligibility…</span>
+          </div>
+
+          <div class="cert-main-grid">
+            <!-- Left Showcase Certificate Preview + Actions -->
+            <div>
+              <div class="cert-stage-frame">
+                <div class="cert" role="img" aria-label="Plant Green Inertia Completion Certificate Preview">
+                  <div class="cert-b1"></div>
+                  <div class="cert-b2"></div>
+                  <svg class="cc tl" viewBox="0 0 60 60" aria-hidden="true">
+                    <path d="M1 59A58 58 0 0 1 59 1" fill="none" stroke="#b8860b" stroke-width="2.4"/>
+                    <path d="M9 59A50 50 0 0 1 59 9" fill="none" stroke="#296934" stroke-width="1.4"/>
+                  </svg>
+                  <svg class="cc tr" viewBox="0 0 60 60" aria-hidden="true">
+                    <path d="M1 59A58 58 0 0 1 59 1" fill="none" stroke="#b8860b" stroke-width="2.4"/>
+                    <path d="M9 59A50 50 0 0 1 59 9" fill="none" stroke="#296934" stroke-width="1.4"/>
+                  </svg>
+                  <svg class="cc bl" viewBox="0 0 60 60" aria-hidden="true">
+                    <path d="M1 59A58 58 0 0 1 59 1" fill="none" stroke="#b8860b" stroke-width="2.4"/>
+                    <path d="M9 59A50 50 0 0 1 59 9" fill="none" stroke="#296934" stroke-width="1.4"/>
+                  </svg>
+                  <svg class="cc br" viewBox="0 0 60 60" aria-hidden="true">
+                    <path d="M1 59A58 58 0 0 1 59 1" fill="none" stroke="#b8860b" stroke-width="2.4"/>
+                    <path d="M9 59A50 50 0 0 1 59 9" fill="none" stroke="#296934" stroke-width="1.4"/>
+                  </svg>
+                  <div class="cert-wm" id="cert-prev-wm" aria-hidden="true">PREVIEW COPY</div>
+                  <div class="cert-in">
+                    <div class="cert-stars" aria-hidden="true">
+                      <span>&#9733;</span><span>&#9733;</span><b>&#9733;</b><span>&#9733;</span><span>&#9733;</span>
+                    </div>
+                    <img class="cert-logo" src="static/images/Plant Green Inertia Logo.png" alt="Plant Green Inertia logo" onerror="this.src='static/images/pgi-logo.jpg'">
+                    <h3 class="cert-h">Certificate<br>of Internship</h3>
+                    <p class="cert-t">This certificate is given to</p>
+                    <div class="cert-dv" aria-hidden="true"><i></i></div>
+                    <p class="cert-name" id="cert-prev-name">Student</p>
+                    <p class="cert-d" id="cert-prev-desc">
+                      has successfully completed the Winter Internship and Training Program during the student-mentioned dates with Plant Green Inertia. We appreciate their dedication and wish them success in all future endeavours.
+                    </p>
+                    <div class="cert-row">
+                      <span>No: <span id="cert-prev-no">Pending</span></span>
+                      <span id="cert-prev-period">Dates: Mentioned on record</span>
+                      <span id="cert-prev-hours">Hours: 0 / 30h</span>
+                    </div>
+                    <div class="cert-foot">
+                      <div class="cert-seal" aria-hidden="true">
+                        <span>PLANT<br>GREEN<br>INERTIA</span>
+                      </div>
+                      <div class="cert-sig">
+                        <img src="static/images/founder-signature.png" alt="Founder signature">
+                        <b>Founder</b>
+                        <small>Plant Green Inertia</small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <span class="stat-badge blue" id="cert-status-pill">Checking Eligibility…</span>
+
+              <div class="cert-actions-bar">
+                <div class="cert-actions-left">
+                  <button type="button" onclick="downloadCertificate()" class="hub-btn-green" id="btn-dl-cert">Download Certificate (PDF)</button>
+                  <button type="button" onclick="openCertFullscreen()" class="asg-btn-draft" id="btn-qr-cert">View Fullscreen</button>
+                </div>
+                <button type="button" onclick="copyCredentialLink()" class="cert-copy-link-btn" id="btn-copy-cert-url">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  Copy Credential Link
+                </button>
+              </div>
+              <div id="cert-msg" style="margin-top:10px;"></div>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:20px;align-items:start;">
-              <div style="background:#F8FAFC;border:1px solid var(--hub-line);border-radius:12px;padding:24px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                  <span class="stat-badge green">Completion Credential</span>
-                  <code id="cert-id-badge" style="font-weight:700;color:var(--hub-navy);">Not Issued Yet</code>
+            <!-- Right Validation Check + Official Student Documents -->
+            <aside class="asg-col-stack">
+              <section class="asg-card">
+                <div class="asg-card-head">
+                  <h3>Validation Check</h3>
+                  <span class="asg-state-badge pending" id="cert-val-badge">In Progress</span>
                 </div>
-                <h3 style="font-family:'Space Grotesk',sans-serif;color:var(--hub-navy);font-size:1.18rem;margin:0 0 8px;">Certificate of Internship Completion</h3>
-                <p style="font-size:0.86rem;color:var(--hub-muted);line-height:1.5;margin-bottom:14px;" id="cert-eligibility-desc">
+
+                <div class="cert-val-stack">
+                  <div class="cert-val-tile">
+                    <div>
+                      <small>Cohort Term</small>
+                      <strong id="cert-val-cohort">Winter Cohort 2026</strong>
+                    </div>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </div>
+
+                  <div class="cert-val-tile">
+                    <div>
+                      <small>Issue Date &amp; ID</small>
+                      <strong id="cert-val-date">Pending Issuance</strong>
+                      <div style="font-size:0.72rem;color:var(--hub-muted);font-family:'JetBrains Mono',monospace;margin-top:2px;" id="cert-id-badge">Not Issued Yet</div>
+                    </div>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+                  </div>
+
+                  <div class="cert-val-tile">
+                    <div>
+                      <small>Hours &amp; Attendance</small>
+                      <strong id="cert-val-hours">0 / 30 hrs &middot; 0% attendance</strong>
+                    </div>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  </div>
+                </div>
+
+                <p style="font-size:0.77rem;color:var(--hub-muted);line-height:1.5;margin:10px 0 0;" id="cert-eligibility-desc">
                   Requires 30 verified training hours and at least 75% attendance.
                 </p>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
-                  <button onclick="downloadCertificate()" class="btn btn-primary" id="btn-dl-cert">Download Certificate (PDF)</button>
-                  <button onclick="viewCertificateQR()" class="btn btn-outline" id="btn-qr-cert">Verification Status</button>
-                </div>
-                <div id="cert-msg" class="msg" style="margin-top:8px;"></div>
-              </div>
 
-              <div style="background:#fff;border:1px solid var(--hub-line);border-radius:12px;padding:24px;">
-                <h4 style="font-family:'Space Grotesk',sans-serif;color:var(--hub-navy);margin:0 0 8px;">Enrolled Student Documents</h4>
-                <p style="font-size:0.84rem;color:var(--hub-muted);line-height:1.5;margin-bottom:16px;">
-                  Download your verified enrollment offer letter, payment receipt, or 1-page project report.
-                </p>
-                <div style="display:flex;flex-direction:column;gap:9px;">
-                  <button type="button" onclick="downloadOfferLetter()" class="mod-notes-btn" style="justify-content:center;">Download Offer Letter (PDF)</button>
-                  <button type="button" onclick="downloadReceipt()" class="mod-notes-btn" style="justify-content:center;">Download Payment Receipt (PDF)</button>
-                  <button type="button" onclick="downloadReport()" class="mod-notes-btn" style="justify-content:center;">Download 1-Page Project Report (PDF)</button>
+                <div class="cert-url-box">
+                  <label for="cert-val-url">Public Verification URL</label>
+                  <div class="cert-url-copy-row">
+                    <input type="text" readonly id="cert-val-url" value="Pending Admin Issuance">
+                    <button type="button" onclick="copyCredentialLink()" title="Copy verification link" aria-label="Copy verification link">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </button>
+                  </div>
+                  <p style="font-size:0.72rem;color:var(--hub-muted);line-height:1.45;margin:7px 0 0;">
+                    Third-party recruiters can verify credential status using this permanent registry link once issued.
+                  </p>
                 </div>
-              </div>
-            </div>
+              </section>
+
+              <section class="asg-card">
+                <div class="asg-card-head" style="margin-bottom:8px;">
+                  <h3>Enrolled Student Documents</h3>
+                </div>
+                <p style="font-size:0.78rem;color:var(--hub-muted);margin:0 0 12px;line-height:1.45;">
+                  Download official program documents linked to your verified student record.
+                </p>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                  <button type="button" onclick="downloadOfferLetter()" class="mod-notes-btn" style="width:100%;justify-content:center;">Download Offer Letter (PDF)</button>
+                  <button type="button" onclick="downloadReceipt()" class="mod-notes-btn" style="width:100%;justify-content:center;">Download Payment Receipt (PDF)</button>
+                  <button type="button" onclick="downloadReport()" class="mod-notes-btn" style="width:100%;justify-content:center;">Download 1-Page Project Report (PDF)</button>
+                </div>
+              </section>
+            </aside>
           </div>
         </div>
 
-        <!-- 7. SUPPORT -->
+        <!-- Certificate Fullscreen Preview Modal -->
+        <div class="cert-full-modal hidden" id="certFullModal" role="dialog" aria-modal="true" aria-label="Fullscreen Certificate Preview" onclick="if(event.target===this) closeCertFullscreen()">
+          <div class="cert-full-panel">
+            <div style="width:100%;display:flex;justify-content:flex-end;">
+              <button type="button" onclick="closeCertFullscreen()" class="asg-btn-draft" style="background:#fff;border-color:#fff;">Close Preview</button>
+            </div>
+            <div id="certFullSlot" style="width:100%;display:flex;justify-content:center;"></div>
+          </div>
+        </div>
+
+        <!-- 7. HELP & SUPPORT -->
         <div id="mod-support" class="tab-content">
-          <div class="dash-module">
-            <div class="module-header">
-              <div>
-                <h2>Academic &amp; Technical Support</h2>
-                <p>Contact the PGI coordination team, submit a support query, or update your account password.</p>
-              </div>
+          <div class="men-hero-head">
+            <div>
+              <div class="men-adv-pill"><span class="hub-dot"></span> Help &amp; Assistance // Winter 2026</div>
+              <h2>Help &amp; Support</h2>
+              <p>Have a question or facing an issue? Our academic and technical coordinators are here to help.</p>
+            </div>
+            <span class="supp-hours-pill">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Support Desk: Mon &ndash; Sat &middot; 9 AM &ndash; 7 PM IST
+            </span>
+          </div>
+
+          <div class="supp-main-grid">
+            <!-- Left Column: Channels + Verified Student Record -->
+            <div class="asg-col-stack">
+              <section class="supp-card">
+                <div class="supp-card-title-row">
+                  <div>
+                    <span class="supp-eyebrow">Channels</span>
+                    <h3>Quick Help &amp; Contact</h3>
+                  </div>
+                  <span class="supp-icon-pill" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+                  </span>
+                </div>
+
+                <div class="supp-channel-stack">
+                  <a href="mailto:info@plantgreeninertia.in" class="supp-channel-item">
+                    <span class="supp-ch-ico" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    </span>
+                    <div>
+                      <strong>Academic Coordinator</strong>
+                      <span class="supp-ch-val">info@plantgreeninertia.in</span>
+                      <small>Direct email support for cohort &amp; curriculum queries</small>
+                    </div>
+                  </a>
+
+                  <a href="https://wa.me/918220699083?text=Hello%20PGI%20Support,%20I%20am%20a%20Winter%20Intern" target="_blank" rel="noopener" class="supp-channel-item">
+                    <span class="supp-ch-ico" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                    </span>
+                    <div>
+                      <strong>WhatsApp Support Desk</strong>
+                      <span class="supp-ch-val">+91 82206 99083</span>
+                      <small>Quick student helpline &amp; coordinator chat</small>
+                    </div>
+                  </a>
+
+                  <div class="supp-channel-item">
+                    <span class="supp-ch-ico" aria-hidden="true">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </span>
+                    <div>
+                      <strong>Cohort Support &amp; Schedule</strong>
+                      <span class="supp-ch-val" id="supp-cohort-timing">4:00 PM &ndash; 6:00 PM IST</span>
+                      <small>Desk Hours: Mon &ndash; Sat, 9:00 AM &ndash; 7:00 PM IST</small>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="supp-card-foot">
+                  <span style="display:inline-flex;align-items:center;gap:6px;"><span class="hub-dot"></span> Support Desk Available</span>
+                  <span>PGI Academy</span>
+                </div>
+              </section>
+
+              <section class="supp-card">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                  <div>
+                    <strong style="display:block;font-size:0.9rem;color:var(--hub-navy);">Verified Student Record</strong>
+                    <small style="font-size:0.74rem;color:var(--hub-muted);">Official registration profile on file</small>
+                  </div>
+                  <span class="asg-state-badge submitted" id="supp-enroll-badge">Active</span>
+                </div>
+
+                <div class="supp-record-grid">
+                  <div class="supp-record-cell"><small>Full Name</small><span id="prof-name">—</span></div>
+                  <div class="supp-record-cell"><small>Email</small><span id="prof-email">—</span></div>
+                  <div class="supp-record-cell"><small>Phone</small><span id="prof-phone">—</span></div>
+                  <div class="supp-record-cell"><small>College</small><span id="prof-college">—</span></div>
+                  <div class="supp-record-cell"><small>Department</small><span id="prof-dept">—</span></div>
+                  <div class="supp-record-cell"><small>Passed Out</small><span id="prof-year">—</span></div>
+                </div>
+              </section>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:20px;">
-              <div style="background:#F8FAFC;border:1px solid var(--hub-line);border-radius:12px;padding:20px;">
-                <h3 style="font-size:1rem;color:var(--hub-navy);margin-bottom:12px;">Direct Helplines &amp; Student Record</h3>
-                <p style="margin-bottom:8px;"><strong>Academic Desk:</strong> +91 82206 99083</p>
-                <p style="margin-bottom:8px;"><strong>Email Support:</strong> info@plantgreeninertia.in</p>
-                <p style="margin-bottom:14px;"><strong>Support Hours:</strong> Mon &ndash; Sat, 9:00 AM &ndash; 7:00 PM IST</p>
-                <div style="border-top:1px solid var(--hub-line);padding-top:12px;margin-top:12px;font-size:0.84rem;color:var(--hub-slate);">
-                  <div><strong>Name:</strong> <span id="prof-name">—</span></div>
-                  <div><strong>Email:</strong> <span id="prof-email">—</span></div>
-                  <div><strong>Phone:</strong> <span id="prof-phone">—</span></div>
-                  <div><strong>College:</strong> <span id="prof-college">—</span></div>
-                  <div><strong>Department / Year:</strong> <span id="prof-dept">—</span> (<span id="prof-year">—</span>)</div>
-                </div>
-                <a href="https://wa.me/918220699083?text=Hello%20PGI%20Support,%20I%20am%20a%20Winter%20Intern" target="_blank" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;margin-top:14px;">
-                  Open WhatsApp Support Desk
-                </a>
-              </div>
-
-              <div style="background:#fff;border:1px solid var(--hub-line);border-radius:12px;padding:20px;">
-                <h3 style="font-size:1rem;color:var(--hub-navy);margin-bottom:12px;">Submit a Support Query</h3>
-                <form id="form-support-ticket" onsubmit="event.preventDefault(); submitSupportTicket();">
-                  <div class="form-group">
-                    <label for="supp-subject">Query Subject</label>
-                    <input id="supp-subject" type="text" required placeholder="e.g. Mentor assignment or module question">
+            <!-- Right Column: Ticket Portal + Password Security -->
+            <div class="asg-col-stack">
+              <section class="supp-card">
+                <div class="supp-card-title-row">
+                  <div>
+                    <span class="supp-eyebrow">Ticket Portal</span>
+                    <h3>Submit a Query / Raise Ticket</h3>
                   </div>
-                  <div class="form-group">
-                    <label for="supp-category">Category</label>
-                    <select id="supp-category" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--hub-line);">
+                  <span class="supp-ref-tag" id="supp-ref-tag">REF: STUDENT</span>
+                </div>
+
+                <form id="form-support-ticket" onsubmit="event.preventDefault(); submitSupportTicket();">
+                  <div class="supp-field-row">
+                    <div class="supp-field-label"><label for="supp-subject">Query Subject *</label></div>
+                    <input id="supp-subject" class="supp-input" type="text" required placeholder="e.g. Mentor assignment, session link, or submission help">
+                  </div>
+
+                  <div class="supp-field-row">
+                    <div class="supp-field-label"><label for="supp-category">Issue Category *</label></div>
+                    <select id="supp-category" class="supp-select">
                       <option value="academic">Academic / Mentor Assistance</option>
-                      <option value="attendance">Attendance Query</option>
+                      <option value="attendance">Attendance &amp; Hours Query</option>
                       <option value="technical">Technical / Submission Issue</option>
                       <option value="certificate">Certification &amp; Documents</option>
                     </select>
                   </div>
-                  <div class="form-group">
-                    <label for="supp-message">Message Details</label>
-                    <textarea id="supp-message" rows="3" required placeholder="Provide specific details so our coordinators can assist you…"></textarea>
+
+                  <div class="supp-field-row">
+                    <div class="supp-field-label"><label for="supp-message">Description *</label><span>Min. 10 chars</span></div>
+                    <textarea id="supp-message" class="supp-textarea" rows="4" required minlength="10" placeholder="Describe your query or issue concisely so our coordinators can assist you…"></textarea>
                   </div>
-                  <button type="submit" class="btn btn-primary" style="width:100%;">Submit Support Query &rarr;</button>
-                  <div id="supp-msg" class="msg" style="margin-top:10px;"></div>
+
+                  <div class="supp-field-row">
+                    <div class="supp-field-label"><label for="supp-attachment">Attachment Note (Optional)</label><span>PNG, JPG, or PDF filename</span></div>
+                    <div class="supp-attach-row">
+                      <label for="supp-attachment" class="supp-file-label">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                        Attach Screenshot / File Reference
+                      </label>
+                      <input id="supp-attachment" type="file" accept=".png,.jpg,.jpeg,.pdf" style="display:none;" onchange="updateSuppAttachmentLabel()">
+                      <span id="supp-attach-name" style="font-size:0.74rem;color:var(--hub-muted);">Optional — reference file up to 10MB</span>
+                    </div>
+                  </div>
+
+                  <div class="supp-submit-bar">
+                    <span class="asg-identity-note">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      Authenticated Student Session
+                    </span>
+                    <button type="submit" class="hub-btn-green">Submit Ticket &rarr;</button>
+                  </div>
+                  <div id="supp-msg" style="margin-top:10px;"></div>
                 </form>
 
-                <hr style="border:none;border-top:1px solid var(--hub-line);margin:18px 0;">
-                <h4 style="font-size:0.9rem;color:var(--hub-navy);margin:0 0 10px;">Change Account Password</h4>
+                <div id="supp-tickets-list" style="margin-top:14px;"></div>
+              </section>
+
+              <section class="supp-card">
+                <div class="supp-card-title-row" style="margin-bottom:10px;">
+                  <div>
+                    <span class="supp-eyebrow">Account Security</span>
+                    <h3 style="font-size:0.96rem;">Change Login Password</h3>
+                  </div>
+                </div>
                 <form id="form-change-pw" onsubmit="event.preventDefault(); doChangePassword();">
-                  <div class="form-group">
-                    <label for="chg-curr-pw">Current Password</label>
-                    <input id="chg-curr-pw" type="password" required placeholder="Current DOB or password">
+                  <div class="supp-field-row">
+                    <div class="supp-field-label"><label for="chg-curr-pw">Current Password</label></div>
+                    <input id="chg-curr-pw" class="supp-input" type="password" required placeholder="Current DOB (DDMMYYYY) or password">
                   </div>
-                  <div class="form-group">
-                    <label for="chg-new-pw">New Password (min 8 chars)</label>
-                    <input id="chg-new-pw" type="password" required minlength="8" placeholder="New password">
+                  <div class="asg-subgrid-2" style="margin-bottom:12px;">
+                    <div>
+                      <div class="supp-field-label"><label for="chg-new-pw">New Password</label></div>
+                      <input id="chg-new-pw" class="supp-input" type="password" required minlength="8" placeholder="Min. 8 chars">
+                    </div>
+                    <div>
+                      <div class="supp-field-label"><label for="chg-conf-pw">Confirm Password</label></div>
+                      <input id="chg-conf-pw" class="supp-input" type="password" required minlength="8" placeholder="Repeat password">
+                    </div>
                   </div>
-                  <div class="form-group">
-                    <label for="chg-conf-pw">Confirm New Password</label>
-                    <input id="chg-conf-pw" type="password" required minlength="8" placeholder="Confirm password">
-                  </div>
-                  <button type="submit" class="btn btn-outline" style="width:100%;">Update Password</button>
-                  <div id="chg-pw-msg" class="msg" style="margin-top:8px;"></div>
+                  <button type="submit" class="asg-btn-draft" style="width:100%;">Update Account Password</button>
+                  <div id="chg-pw-msg" style="margin-top:8px;"></div>
                 </form>
+              </section>
+            </div>
+          </div>
+
+          <!-- Direct Answers / Frequently Asked Questions -->
+          <div>
+            <div class="men-hero-head" style="margin-bottom:12px;">
+              <div>
+                <span class="supp-eyebrow">Direct Answers</span>
+                <h3 style="margin:0;font-family:'Space Grotesk',sans-serif;font-size:1.1rem;color:var(--hub-navy);">Frequently Asked Questions</h3>
               </div>
+              <span style="font-size:0.78rem;color:var(--hub-muted);font-weight:600;">3 common topics</span>
+            </div>
+
+            <div class="supp-faq-grid">
+              <article class="supp-faq-card">
+                <div class="supp-faq-head">
+                  <span class="supp-faq-num">01</span>
+                  <strong>When are attendance hours &amp; assignment reviews updated?</strong>
+                </div>
+                <p>Cohort attendance hours and milestone evaluations are updated directly in your Dashboard and Submissions tabs once your mentor or coordinator logs session records.</p>
+              </article>
+
+              <article class="supp-faq-card">
+                <div class="supp-faq-head">
+                  <span class="supp-faq-num">02</span>
+                  <strong>How do I download my Completion Certificate?</strong>
+                </div>
+                <p>Open the Certificates tab once you log 30 verified training hours, maintain at least 75% attendance, and Admin issues your credential ID and PDF.</p>
+              </article>
+
+              <article class="supp-faq-card">
+                <div class="supp-faq-head">
+                  <span class="supp-faq-num">03</span>
+                  <strong>Can I update my temporary Date-of-Birth login password?</strong>
+                </div>
+                <p>Yes. Use the Change Login Password card above with your current DOB password (DDMMYYYY) to set a new custom password of at least 8 characters.</p>
+              </article>
             </div>
           </div>
         </div>
