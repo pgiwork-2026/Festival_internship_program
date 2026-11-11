@@ -1,5 +1,19 @@
 import crypto from 'node:crypto';
-import { couponState, winterPayablePaise, BASE_PRICE_PAISE } from './logic.js';
+import {
+  couponState,
+  winterPayablePaise,
+  BASE_PRICE_PAISE,
+  TEST_COUPON_CODE,
+  TEST_COUPON_PAISE,
+  isTestCoupon,
+  isTestCouponEnabled
+} from './logic.js';
+import {
+  resolveCouponByCode,
+  resolveCouponById,
+  isSchemaColumnError,
+  isTestTransactionRecord
+} from './test-coupon.js';
 import { buildOfferPDF, offerId } from './offer.js';
 import { buildReceiptPDF, receiptId } from './receipt.js';
 import { sendEnrollmentReceiptEmail } from './email.js';
@@ -11,6 +25,11 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 // Local in-memory fallback stores for tests and offline development
 const localOrders = new Map();
 const localEnrollments = new Map();
+
+export function clearLocalPaymentStores() {
+  localOrders.clear();
+  localEnrollments.clear();
+}
 
 export function registerPayments(app, { db, auth, wrap, fail }) {
   const { activeBatch } = batchTools(db, fail);
@@ -102,29 +121,42 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
   }
 
   // Idempotent enrollment persistence
-  async function enroll({ userId, course, coupon, kind, orderId, amount, txRef, studentId, receiptNo }) {
+  async function enroll({ userId, course, coupon, kind, orderId, amount, txRef, studentId, receiptNo, batchId, isTest }) {
+    const testCoupon = isTestCoupon(coupon);
+    const testTx = Boolean(isTest || testCoupon || Number(amount) === TEST_COUPON_PAISE);
     const enrRecord = {
       user_id: userId,
-      batch_id: coupon.batch_id || null,
+      batch_id: batchId ?? coupon.batch_id ?? null,
       course_id: course.id,
-      coupon_id: coupon.id,
+      coupon_id: coupon._virtual ? null : coupon.id,
       payment_order_id: orderId || null,
       amount_paise: amount,
       kind,
       transaction_ref: txRef,
       student_id: studentId || null,
       receipt_no: receiptNo || null,
-      status: 'active'
+      status: 'active',
+      is_test: testTx,
+      coupon_code: coupon.code || null
     };
 
     let enr = null;
     try {
-      const { data, error } = await db.from('enrollments').insert(enrRecord).select().single();
-      if (!error && data) {
-        enr = data;
-      } else {
+      let res = await db.from('enrollments').insert(enrRecord).select().single();
+      if (res.error && isSchemaColumnError(res.error)) {
+        const legacyRecord = { ...enrRecord, coupon_id: coupon.id };
+        delete legacyRecord.is_test;
+        delete legacyRecord.coupon_code;
+        res = await db.from('enrollments').insert(legacyRecord).select().single();
+      }
+      if (!res.error && res.data) {
+        enr = { ...res.data, is_test: res.data.is_test ?? testTx, coupon_code: res.data.coupon_code ?? coupon.code };
+      } else if (!testTx) {
         const { data: ex } = await db.from('enrollments').select('*').eq('coupon_id', coupon.id).maybeSingle();
         if (ex) enr = ex;
+      } else {
+        const { data: exUser } = await db.from('enrollments').select('*').eq('user_id', userId).maybeSingle();
+        if (exUser) enr = { ...exUser, is_test: exUser.is_test ?? testTx, coupon_code: exUser.coupon_code ?? coupon.code };
       }
     } catch (err) {
       console.warn('DB enrollment insert fell back to local store:', err.message);
@@ -132,17 +164,19 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
 
     if (!enr) {
       const fallbackId = 'enr_' + crypto.randomUUID();
-      enr = { id: fallbackId, ...enrRecord, enrolled_at: new Date().toISOString() };
-      localEnrollments.set(coupon.id, enr);
+      enr = { id: fallbackId, ...enrRecord, coupon_id: coupon.id, enrolled_at: new Date().toISOString() };
+      localEnrollments.set(userId, enr);
     }
 
-    // Mark coupon as redeemed
-    try {
-      await db.from('scholarship_coupons')
-        .update({ status: 'redeemed', redeemed_at: new Date().toISOString(), course_id: course.id })
-        .eq('id', coupon.id)
-        .eq('status', 'active');
-    } catch {}
+    // Mark normal single-use coupon as redeemed (never exhaust reusable test coupons)
+    if (!testCoupon && !coupon._virtual) {
+      try {
+        await db.from('scholarship_coupons')
+          .update({ status: 'redeemed', redeemed_at: new Date().toISOString(), course_id: course.id })
+          .eq('id', coupon.id)
+          .eq('status', 'active');
+      } catch {}
+    }
 
     // Privacy: remove proctoring snapshots once enrolled
     try {
@@ -163,6 +197,9 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
     let b = null;
     try { b = await activeBatch(); } catch {}
 
+    if (localEnrollments.has(req.user.id)) {
+      throw fail(409, 'You are already enrolled');
+    }
     try {
       const { data: exEnr } = await db.from('enrollments').select('id').eq('user_id', req.user.id).maybeSingle();
       if (exEnr) throw fail(409, 'You are already enrolled');
@@ -178,29 +215,54 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
     const rawCode = String(req.body?.couponCode || '').trim().toUpperCase();
     let appliedCoupon = null;
     if (rawCode) {
-      const { data: found } = await db.from('scholarship_coupons').select('*').eq('code', rawCode).maybeSingle();
-      if (!found) throw fail(400, 'Invalid scholarship coupon code.');
-      const userEmail = String(req.user.email || '').toLowerCase();
-      if (found.user_id !== req.user.id && (!found.student_email || found.student_email.toLowerCase() !== userEmail)) {
-        throw fail(403, 'This coupon belongs to a different candidate account.');
+      if (rawCode === TEST_COUPON_CODE && !isTestCouponEnabled()) {
+        throw fail(400, 'Invalid scholarship coupon code.');
       }
-      if (couponState(found) !== 'active') {
-        throw fail(410, 'Your scholarship coupon has expired or was already used.');
+      const found = await resolveCouponByCode(db, rawCode);
+      if (!found) throw fail(400, 'Invalid scholarship coupon code.');
+
+      const testCoupon = isTestCoupon(found);
+      if (testCoupon) {
+        if (!isTestCouponEnabled()) {
+          throw fail(400, 'Invalid scholarship coupon code.');
+        }
+        if (found.status === 'disabled' || found.status === 'revoked') {
+          throw fail(403, 'This coupon has been disabled.');
+        }
+      } else {
+        const userEmail = String(req.user.email || '').toLowerCase();
+        if (found.user_id !== req.user.id && (!found.student_email || found.student_email.toLowerCase() !== userEmail)) {
+          throw fail(403, 'This coupon belongs to a different candidate account.');
+        }
+        if (couponState(found) !== 'active') {
+          throw fail(410, 'Your scholarship coupon has expired or was already used.');
+        }
       }
       appliedCoupon = found;
     }
 
-    // DB payment_orders/enrollments require non-null coupon_id FK: use appliedCoupon or candidate's existing voucher record for full ₹9,999 payment
+    const isTestOrder = isTestCoupon(appliedCoupon);
+
+    // DB payment_orders/enrollments require non-null coupon_id FK (except 016+ test coupons)
     const fkCoupon = appliedCoupon || await eligibleCoupon(req.user.id, b?.id);
     const coupon = fkCoupon;
 
     const basePaise = Number(course.base_price_paise) || BASE_PRICE_PAISE;
-    const amount = appliedCoupon ? winterPayablePaise(appliedCoupon) : basePaise;
-    const effectiveDiscountPercent = appliedCoupon
-      ? (Number(appliedCoupon.discount_percent) === 85 ? 88 : Number(appliedCoupon.discount_percent))
-      : 0;
+    // Server-side authoritative pricing: never trust any amount sent from frontend
+    let amount = appliedCoupon ? winterPayablePaise(appliedCoupon) : basePaise;
+    if (isTestOrder) {
+      if (!isTestCouponEnabled()) throw fail(400, 'Invalid scholarship coupon code.');
+      amount = TEST_COUPON_PAISE;
+    }
+
+    const effectiveDiscountPercent = isTestOrder
+      ? 99
+      : (appliedCoupon
+        ? (Number(appliedCoupon.discount_percent) === 85 ? 88 : Number(appliedCoupon.discount_percent))
+        : 0);
 
     if (amount === 0) {
+      if (isTestOrder) throw fail(403, 'Test coupon requires ₹1 payment verification');
       // 100% full scholarship waiver
       if (coupon.discount_percent !== 100 || Number(coupon.score_percent) !== 100) {
         throw fail(403, 'Not eligible for 100% tuition waiver');
@@ -215,7 +277,9 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
         amount: 0,
         txRef,
         studentId,
-        receiptNo
+        receiptNo,
+        batchId: coupon.batch_id || b?.id || null,
+        isTest: false
       });
       if (userEmail) {
         sendEnrollmentReceiptEmail({
@@ -227,7 +291,10 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
           duration: course.duration,
           receiptNo,
           transactionRef: txRef,
-          enrollmentId: enr.id
+          enrollmentId: enr.id,
+          amountPaise: 0,
+          basePricePaise: basePaise,
+          couponCode: coupon.code
         }).catch(err => console.error('[Enrollment Receipt Email Error]', err));
       }
       return res.json({
@@ -241,19 +308,32 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       });
     }
 
-    // Reuse existing open order for this coupon to prevent double charges on retries
+    // Reuse existing open order for this user+coupon to prevent double charges on retries
     let openOrders = [];
     try {
-      const { data } = await db.from('payment_orders').select('*').eq('coupon_id', coupon.id).eq('status', 'created');
+      const { data } = await db
+        .from('payment_orders')
+        .select('*')
+        .eq('user_id', req.user.id)
+        .eq('coupon_id', coupon.id)
+        .eq('status', 'created');
       if (data) openOrders = data;
     } catch {}
+    for (const lo of localOrders.values()) {
+      if (lo.user_id === req.user.id && lo.coupon_id === coupon.id && lo.status === 'created') {
+        openOrders.push(lo);
+      }
+    }
 
-    const same = openOrders.find(o => o.course_id === course.id && o.amount_paise === amount);
+    const same = openOrders.find(o => o.course_id === course.id && Number(o.amount_paise) === amount && isTestTransactionRecord(o) === isTestOrder);
     for (const o of openOrders) {
       if (o !== same) {
         try {
           await db.from('payment_orders').update({ status: 'cancelled' }).eq('id', o.id).eq('status', 'created');
         } catch {}
+        if (localOrders.has(o.razorpay_order_id)) {
+          localOrders.get(o.razorpay_order_id).status = 'cancelled';
+        }
       }
     }
 
@@ -264,11 +344,12 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
         rz = await createOrder({
           amount,
-          receipt: 'c_' + coupon.id.slice(0, 30),
+          receipt: 'c_' + String(coupon.id).slice(0, 30),
           notes: {
             coupon: coupon.code,
             course: course.id,
-            userId: req.user.id
+            userId: req.user.id,
+            is_test: isTestOrder ? 'true' : 'false'
           }
         });
       } else {
@@ -278,25 +359,37 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
 
       const orderRow = {
         user_id: req.user.id,
-        batch_id: coupon.batch_id || null,
+        batch_id: coupon.batch_id || b?.id || null,
         course_id: course.id,
-        coupon_id: coupon.id,
+        coupon_id: coupon._virtual ? null : coupon.id,
         amount_paise: amount,
         currency: 'INR',
         razorpay_order_id: rz.id,
-        status: 'created'
+        status: 'created',
+        is_test: isTestOrder,
+        coupon_code: coupon.code
       };
 
       try {
-        const { data: ins, error } = await db.from('payment_orders').insert(orderRow).select().single();
-        if (!error && ins) {
-          order = ins;
+        let resIns = await db.from('payment_orders').insert(orderRow).select().single();
+        if (resIns.error && isSchemaColumnError(resIns.error)) {
+          const legacyRow = { ...orderRow, coupon_id: coupon.id };
+          delete legacyRow.is_test;
+          delete legacyRow.coupon_code;
+          resIns = await db.from('payment_orders').insert(legacyRow).select().single();
+        }
+        if (!resIns.error && resIns.data) {
+          order = {
+            ...resIns.data,
+            is_test: resIns.data.is_test ?? isTestOrder,
+            coupon_code: resIns.data.coupon_code ?? coupon.code
+          };
         } else {
-          localOrders.set(rz.id, { id: 'po_' + rz.id, ...orderRow, created_at: new Date().toISOString() });
+          localOrders.set(rz.id, { id: 'po_' + rz.id, ...orderRow, coupon_id: coupon.id, created_at: new Date().toISOString() });
           order = localOrders.get(rz.id);
         }
       } catch {
-        localOrders.set(rz.id, { id: 'po_' + rz.id, ...orderRow, created_at: new Date().toISOString() });
+        localOrders.set(rz.id, { id: 'po_' + rz.id, ...orderRow, coupon_id: coupon.id, created_at: new Date().toISOString() });
         order = localOrders.get(rz.id);
       }
     }
@@ -312,6 +405,7 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
         discountPercent: effectiveDiscountPercent,
         payablePaise: amount,
         couponCode: appliedCoupon ? appliedCoupon.code : null,
+        isTest: isTestOrder,
         courseTitle: course.title,
         methods: ['upi', 'card', 'netbanking', 'wallet']
       }
@@ -323,7 +417,13 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       return 'captured';
     }
     const p = await fetchPayment(paymentId);
-    if (p.order_id !== order.razorpay_order_id || p.amount !== order.amount_paise || p.currency !== 'INR') {
+    const isTestOrder = isTestTransactionRecord(order);
+    if (
+      p.order_id !== order.razorpay_order_id ||
+      Number(p.amount) !== Number(order.amount_paise) ||
+      p.currency !== 'INR' ||
+      (isTestOrder && Number(p.amount) !== TEST_COUPON_PAISE)
+    ) {
       throw fail(400, 'Payment details do not match the order');
     }
     return p.status;
@@ -377,19 +477,27 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
     // 5. Fetch course and coupon
     let course = null, coupon = null;
     try {
-      const [{ data: cData }, { data: cpData }] = await Promise.all([
-        db.from('courses').select('*').eq('id', order.course_id).single(),
-        db.from('scholarship_coupons').select('*').eq('id', order.coupon_id).single()
-      ]);
+      const { data: cData } = await db.from('courses').select('*').eq('id', order.course_id).single();
       course = cData;
-      coupon = cpData;
     } catch {}
+    coupon = (await resolveCouponById(db, order.coupon_id)) || (order.coupon_code ? await resolveCouponByCode(db, order.coupon_code) : null);
 
     if (!course) {
       course = { id: order.course_id, title: 'Winter Internship Program Track', duration: '30 Hours' };
     }
+    const orderIsTest = isTestTransactionRecord(order) || isTestCoupon(coupon);
     if (!coupon) {
-      coupon = { id: order.coupon_id, code: 'WIN-OFFICIAL' };
+      coupon = orderIsTest
+        ? { id: order.coupon_id, code: TEST_COUPON_CODE, is_test: true, discount_percent: 99, fixed_payable_paise: TEST_COUPON_PAISE }
+        : { id: order.coupon_id, code: order.coupon_code || 'WIN-OFFICIAL' };
+    }
+
+    let resolvedBatchId = order.batch_id || coupon.batch_id || null;
+    if (!resolvedBatchId) {
+      try {
+        const b = await activeBatch();
+        resolvedBatchId = b?.id || null;
+      } catch {}
     }
 
     // 6. Complete enrollment
@@ -402,7 +510,9 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       amount: order.amount_paise,
       txRef: paymentId,
       studentId,
-      receiptNo
+      receiptNo,
+      batchId: resolvedBatchId,
+      isTest: orderIsTest
     });
 
     // 7. Dispatch credentials and payment receipt email
@@ -416,7 +526,10 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
         duration: course.duration,
         receiptNo,
         transactionRef: paymentId,
-        enrollmentId: enr.id
+        enrollmentId: enr.id,
+        amountPaise: order.amount_paise,
+        basePricePaise: Number(course.base_price_paise) || BASE_PRICE_PAISE,
+        couponCode: coupon.code
       }).catch(err => console.error('[Enrollment Receipt Email Error]', err));
     }
 
@@ -425,7 +538,7 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
 
   // Frontend Signature Verification Endpoint (Never Trusting Frontend Amount)
   app.post('/api/checkout/verify', auth, wrap(async (req, res) => {
-    const { razorpay_order_id: oid, razorpay_payment_id: pid, razorpay_signature: sig } = req.body || {};
+    const { razorpay_order_id: oid, razorpay_payment_id: pid, razorpay_signature: sig, amount: clientAmount } = req.body || {};
     if (!oid || !pid) throw fail(400, 'Order ID and Payment ID are required.');
 
     let order = null;
@@ -435,9 +548,17 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
     } catch {}
 
     if (!order && localOrders.has(oid)) {
-      order = localOrders.get(oid);
+      const localOrder = localOrders.get(oid);
+      if (localOrder.user_id === req.user.id) order = localOrder;
     }
     if (!order) throw fail(404, 'Order record not found.');
+
+    if (clientAmount !== undefined && Number(clientAmount) !== Number(order.amount_paise)) {
+      throw fail(400, 'Payment amount does not match order.');
+    }
+    if (isTestTransactionRecord(order) && Number(order.amount_paise) !== TEST_COUPON_PAISE) {
+      throw fail(400, 'Test coupon order amount mismatch.');
+    }
 
     // Signature verification
     if (process.env.RAZORPAY_KEY_SECRET) {
@@ -457,7 +578,9 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
         receiptNo: enr?.receipt_no,
         portalPassword: enr?._portalPassword || null,
         orderId: oid,
-        paymentId: pid
+        paymentId: pid,
+        amountPaise: order.amount_paise,
+        isTest: isTestTransactionRecord(order)
       });
     }
 
@@ -582,11 +705,14 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       } catch {}
     }
 
-    let couponCode = null;
-    try {
-      const { data: coup } = await db.from('scholarship_coupons').select('code').eq('id', enr.coupon_id).maybeSingle();
-      couponCode = coup?.code;
-    } catch {}
+    let couponCode = enr.coupon_code || null;
+    if (!couponCode && enr.coupon_id) {
+      const coup = await resolveCouponById(db, enr.coupon_id);
+      couponCode = coup?.code || null;
+    }
+    if (!couponCode && Number(enr.amount_paise) === TEST_COUPON_PAISE) {
+      couponCode = TEST_COUPON_CODE;
+    }
 
     const pdfBuf = await buildReceiptPDF({
       receiptNo: enr.receipt_no || receiptId(enr.id),
@@ -625,7 +751,7 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
           db.from('profiles').select('full_name,phone,student_id').eq('id', u).single(),
           db.from('assessment_attempts').select('id,status,correct_count,total_questions,score_percent,submitted_at').eq('user_id', u).eq('batch_id', bid).order('started_at', { ascending: false }).limit(1).maybeSingle(),
           db.from('scholarship_coupons').select('*').eq('user_id', u).eq('batch_id', bid).maybeSingle(),
-          db.from('enrollments').select('*, courses(title,description,duration,skills,benefits,access_url)').eq('user_id', u).eq('batch_id', bid).maybeSingle()
+          db.from('enrollments').select('*, courses(title,description,duration,skills,benefits,access_url)').eq('user_id', u).order('enrolled_at', { ascending: false }).limit(1).maybeSingle()
         ]);
         prof = pRes.data;
         att = aRes.data;
@@ -635,9 +761,15 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
     }
 
     if (!enr) {
-      for (const e of localEnrollments.values()) {
-        if (e.user_id === u) { enr = e; break; }
+      enr = localEnrollments.get(u) || null;
+      if (!enr) {
+        for (const e of localEnrollments.values()) {
+          if (e.user_id === u) { enr = e; break; }
+        }
       }
+    }
+    if (!coup && enr) {
+      coup = (await resolveCouponById(db, enr.coupon_id)) || (enr.coupon_code ? await resolveCouponByCode(db, enr.coupon_code) : null);
     }
 
     let orderRefId = null;

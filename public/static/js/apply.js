@@ -561,7 +561,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     overlay.classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
   // =========================================================================
@@ -628,6 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (nextBtn) nextBtn.style.display = 'inline-flex';
         if (startBtn) startBtn.style.display = 'none';
       }
+      window.scrollTo({ top: 0, behavior: 'instant' });
     }
 
     dots.forEach((dot, idx) => {
@@ -643,7 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
         overlay.classList.remove('active');
         const cleanUrl = refCode ? `apply.html?ref=${encodeURIComponent(refCode)}` : 'apply.html';
         try { window.history.replaceState({}, '', cleanUrl); } catch {}
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: 'instant' });
       } else {
         window.location.href = `portal.html?appId=${encodeURIComponent(applicationId)}&email=${encodeURIComponent(email)}${refCode ? '&ref=' + encodeURIComponent(refCode) : ''}`;
       }

@@ -1239,21 +1239,34 @@
                 </tr>
               </thead>
               <tbody>
-                ${coupons.map(c => `
-                  <tr>
-                    <td><code style="font-weight:700;color:var(--admin-navy);">${c.code}</code></td>
-                    <td><strong>${c.name}</strong></td>
-                    <td>${c.email}</td>
-                    <td><b>${c.discount}%</b></td>
-                    <td>${fmtDate(c.issued)}</td>
-                    <td>${fmtDate(c.expires)}</td>
-                    <td><span class="pill ${c.status === 'redeemed' ? 'green' : (c.status === 'active' ? 'blue' : 'red')}">${(c.status || 'expired').toUpperCase()}</span></td>
-                    <td>
+                ${coupons.map(c => {
+                  const pillCls = c.status === 'redeemed' ? 'green' : (c.status === 'active' ? 'blue' : 'red');
+                  const testBadge = c.isTest ? '<span class="pill yellow" style="margin-left:6px;">Test</span>' : '';
+                  const envBadge = c.isTest && !c.envEnabled ? '<span class="pill gray" style="margin-left:4px;">Env Off</span>' : '';
+                  const discText = c.isTest ? 'Rs 1 Test' : `${c.discount}%`;
+                  const expText = c.isTest ? 'No Expiry' : fmtDate(c.expires);
+                  const actionsHtml = c.isTest
+                    ? `
+                      <button class="btn btn-outline btn-sm" onclick="toggleCoupon('${c.code}')">${c.status === 'active' ? 'Disable' : 'Enable'}</button>
+                      <button class="btn btn-danger btn-sm" onclick="deleteCoupon('${c.code}')">Delete</button>
+                    `
+                    : `
                       <button class="btn btn-outline btn-sm" onclick="reissueCoupon('${c.code}')">Reissue +24h</button>
                       ${c.status === 'active' ? `<button class="btn btn-danger btn-sm" onclick="revokeCoupon('${c.code}')">Revoke</button>` : ''}
-                    </td>
+                    `;
+                  return `
+                  <tr>
+                    <td><code style="font-weight:700;color:var(--admin-navy);">${c.code}</code>${testBadge}${envBadge}</td>
+                    <td><strong>${c.name}</strong></td>
+                    <td>${c.email}</td>
+                    <td><b>${discText}</b></td>
+                    <td>${fmtDate(c.issued)}</td>
+                    <td>${expText}</td>
+                    <td><span class="pill ${pillCls}">${(c.status || 'expired').toUpperCase()}</span></td>
+                    <td>${actionsHtml}</td>
                   </tr>
-                `).join('')}
+                `;
+                }).join('')}
               </tbody>
             </table>
           </div>
@@ -1278,6 +1291,25 @@
       if (!confirm(`Revoke coupon ${code}?`)) return;
       try {
         await api(`/coupons/${code}/revoke`, 'POST');
+        loadCoupons();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function toggleCoupon(code) {
+      try {
+        await api(`/coupons/${encodeURIComponent(code)}/toggle`, 'POST');
+        loadCoupons();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteCoupon(code) {
+      if (!confirm(`Delete test coupon ${code}? Students will no longer be able to use it.`)) return;
+      try {
+        await api(`/coupons/${encodeURIComponent(code)}`, 'DELETE');
         loadCoupons();
       } catch (err) {
         alert(err.message);

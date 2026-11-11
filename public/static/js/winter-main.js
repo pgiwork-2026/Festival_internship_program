@@ -153,12 +153,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (certOpen && certModal && certClose && certModalBox) {
     certOpen.addEventListener('click', () => {
-      const originalCert = document.querySelector('.cert-winter-card');
+      const originalCert = document.querySelector('#certificate .cert');
       if (originalCert) {
         certModalBox.innerHTML = '';
         const clone = originalCert.cloneNode(true);
-        clone.style.width = '100%';
-        clone.style.maxWidth = '720px';
+        clone.id = 'certBig';
         certModalBox.appendChild(clone);
       }
       certModal.hidden = false;

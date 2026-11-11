@@ -8,7 +8,8 @@ import { createClient } from '@supabase/supabase-js';
 import { registerPayments } from './payments.js';
 import { registerStudentRoutes } from './student.js';
 import { batchTools } from './batches.js';
-import { tierFor, winterTierFor, winterPayablePaise, payablePaise, scorePercent, shuffle, pickQuestions, makeCouponCode, couponState, validateAnswer, BASE_PRICE_PAISE, WINTER_PRICE_PAISE, VIOLATION_TYPES, violationDecision, MAX_WARNINGS, STATUS_TEXT, ADVISORY_TYPES, MAX_SNAPSHOTS, ADVISORY_GAP_MS, cleanSnapshot, calculateAssessmentScore, canRequestExtension, parseDobCredentials } from './logic.js';
+import { tierFor, winterTierFor, winterPayablePaise, payablePaise, scorePercent, shuffle, pickQuestions, makeCouponCode, couponState, validateAnswer, BASE_PRICE_PAISE, WINTER_PRICE_PAISE, VIOLATION_TYPES, violationDecision, MAX_WARNINGS, STATUS_TEXT, ADVISORY_TYPES, MAX_SNAPSHOTS, ADVISORY_GAP_MS, cleanSnapshot, calculateAssessmentScore, canRequestExtension, parseDobCredentials, isTestCoupon, isTestCouponEnabled, TEST_COUPON_CODE } from './logic.js';
+import { validateCouponCode } from './test-coupon.js';
 import { buildReportPDF, buildReportPNG, reportId, fmtDate } from './report.js';
 import { sendApplicationConfirmation, sendCouponEmail } from './email.js';
 
@@ -757,10 +758,16 @@ app.get('/api/assessment/payment-eligibility', auth, wrap(async (req, res) => {
   }
 
   if (!completed) {
+    let testCouponAvailable = false;
+    if (isTestCouponEnabled()) {
+      const tc = await validateCouponCode(db, { code: TEST_COUPON_CODE, email: '' });
+      testCouponAvailable = Boolean(tc?.valid);
+    }
     const acct = req.user?.email ? ` (${req.user.email})` : '';
     return res.json({
       completed: false,
       enrolled: false,
+      testCouponAvailable,
       message: `No completed assessment found for this account${acct}. If you completed the test using a different email or Candidate UID, sign out and log in with that account — or complete Proctor Verification and submit the assessment here first.`
     });
   }
@@ -812,34 +819,8 @@ app.post('/api/coupons/validate', wrap(async (req, res) => {
   const code = String(req.body?.code || '').trim().toUpperCase();
   const email = String(req.body?.email || '').trim().toLowerCase();
   if (!code) throw fail(400, 'Coupon code is required');
-  const { data: c } = await db.from('scholarship_coupons').select('*').eq('code', code).maybeSingle();
-  if (!c) return res.json({ valid: false, reason: 'Invalid coupon code.' });
-  if (c.status === 'redeemed') return res.json({ valid: false, reason: 'Coupon has already been redeemed.', state: 'redeemed' });
-  const state = couponState(c);
-  if (state === 'expired') {
-    return res.json({
-      valid: false,
-      reason: 'Coupon expired. Valid for exactly 24 hours.',
-      state: 'expired',
-      canExtend: canRequestExtension(c, 2),
-      extensionCount: Number(c.extension_count) || 0
-    });
-  }
-  if (email && c.student_email && c.student_email.toLowerCase() !== email) {
-    return res.json({ valid: false, reason: 'Coupon is bound to a different email address.' });
-  }
-  const payAmt = winterPayablePaise(c);
-  res.json({
-    valid: true,
-    code: c.code,
-    discountPercent: Number(c.discount_percent) === 85 ? 88 : Number(c.discount_percent),
-    basePricePaise: BASE_PRICE_PAISE,
-    payablePaise: payAmt,
-    discountPaise: Math.max(0, BASE_PRICE_PAISE - payAmt),
-    scorePercent: Number(c.score_percent ?? 0),
-    expiresAt: c.expires_at,
-    state: 'active'
-  });
+  const result = await validateCouponCode(db, { code, email });
+  res.json(result);
 }));
 
 // ---- Assessment report (PDF in the Plant Green Inertia letterhead) + share links ----

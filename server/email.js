@@ -339,6 +339,12 @@ export function buildEnrollmentReceiptEmailHtml(d) {
   const dashUrl = `${portalBase}/portal.html`;
   const receiptUrl = d.receiptUrl || `${portalBase}/api/enrollments/${d.enrollmentId}/receipt.pdf`;
   const offerUrl = `${portalBase}/api/offer-letter`;
+  const paidPaise = Number.isFinite(d.amountPaise) ? Number(d.amountPaise) : 99900;
+  const basePaise = Number.isFinite(d.basePricePaise) ? Number(d.basePricePaise) : 1000000;
+  const discPaise = Math.max(0, basePaise - paidPaise);
+  const fmtWhole = p => '₹' + Math.round(p / 100).toLocaleString('en-IN');
+  const fmtDec = p => '₹' + (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const discLabel = d.couponCode === 'PGITEST1' ? 'Test Coupon PGITEST1' : 'Scholarship';
 
   return `<!DOCTYPE html>
 <html>
@@ -393,7 +399,7 @@ export function buildEnrollmentReceiptEmailHtml(d) {
         <tr><td class="lbl">Cohort Duration:</td><td class="val">${escapeHtml(d.duration || '30 Hours (10 Days)')}</td></tr>
         <tr><td class="lbl">Receipt Number:</td><td class="val">${escapeHtml(d.receiptNo)}</td></tr>
         <tr><td class="lbl">Razorpay Payment ID:</td><td class="val"><code>${escapeHtml(d.transactionRef)}</code></td></tr>
-        <tr><td class="lbl">Tuition Summary:</td><td class="val">₹10,000 (Fee) &minus; ₹9,001 (Scholarship) = <strong>₹999.00 PAID</strong></td></tr>
+        <tr><td class="lbl">Tuition Summary:</td><td class="val">${fmtWhole(basePaise)} (Fee) &minus; ${fmtWhole(discPaise)} (${discLabel}) = <strong>${fmtDec(paidPaise)} PAID</strong></td></tr>
       </table>
 
       <div style="text-align:center;margin:24px 0;">
@@ -419,13 +425,19 @@ export function buildEnrollmentReceiptEmailText(d) {
   const portalBase = (process.env.PUBLIC_BASE_URL || 'http://localhost:8787').replace(/\/$/, '');
   const dashUrl = `${portalBase}/portal.html`;
   const receiptUrl = d.receiptUrl || `${portalBase}/api/enrollments/${d.enrollmentId}/receipt.pdf`;
+  const paidPaise = Number.isFinite(d.amountPaise) ? Number(d.amountPaise) : 99900;
+  const basePaise = Number.isFinite(d.basePricePaise) ? Number(d.basePricePaise) : 1000000;
+  const discPaise = Math.max(0, basePaise - paidPaise);
+  const fmtWhole = p => '₹' + Math.round(p / 100).toLocaleString('en-IN');
+  const fmtDec = p => '₹' + (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const discDesc = d.couponCode === 'PGITEST1' ? 'test coupon PGITEST1' : 'merit scholarship';
 
   return `Plant Green Inertia - Enrollment Confirmed & Payment Receipt
 ============================================================
 
 Dear ${d.studentName},
 
-Your payment of ₹999.00 has been verified via Razorpay.
+Your payment of ${fmtDec(paidPaise)} has been verified via Razorpay.
 Your enrollment in the Winter Internship & Training Program is confirmed!
 
 STUDENT CREDENTIALS:
@@ -439,7 +451,7 @@ Course Track:      ${d.courseTitle}
 Duration:          ${d.duration || '30 Hours (10 Days)'}
 Receipt Number:    ${d.receiptNo}
 Transaction ID:    ${d.transactionRef}
-Amount Paid:       ₹999.00 (Standard ₹10,000 fee with ₹9,001 merit scholarship)
+Amount Paid:       ${fmtDec(paidPaise)} (Standard ${fmtWhole(basePaise)} fee with ${fmtWhole(discPaise)} ${discDesc})
 
 Download Receipt (PDF):
 ${receiptUrl}
@@ -483,9 +495,11 @@ export async function sendEnrollmentReceiptEmail(d) {
     }
   }
 
+  const paidPaise = Number.isFinite(d.amountPaise) ? Number(d.amountPaise) : 99900;
+  const paidFmt = '₹' + (paidPaise / 100).toLocaleString('en-IN', { minimumFractionDigits: paidPaise % 100 ? 2 : 0, maximumFractionDigits: 2 });
   console.log('----------------------------------------------------');
   console.log(`[Receipt Dispatched] To: ${d.email} | Student ID: ${d.studentId}`);
-  console.log(`Amount: ₹999 | Receipt No: ${d.receiptNo} | Txn: ${d.transactionRef}`);
+  console.log(`Amount: ${paidFmt} | Receipt No: ${d.receiptNo} | Txn: ${d.transactionRef}`);
   console.log('----------------------------------------------------');
 
   return { ok: true, provider: 'simulated', id: `sim-receipt-${Date.now()}` };

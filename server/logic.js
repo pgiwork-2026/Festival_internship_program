@@ -1,6 +1,21 @@
 import crypto from 'node:crypto';
 export const BASE_PRICE_PAISE = 999900; // Legacy base price (Diwali)
 export const WINTER_PRICE_PAISE = 1000000; // ₹10,000 for Winter Internship Program
+export const TEST_COUPON_CODE = 'PGITEST1';
+export const TEST_COUPON_PAISE = 100; // ₹1 (100 paise)
+
+export function isTestCouponEnabled() {
+  return String(process.env.ENABLE_TEST_COUPON || '').trim().toLowerCase() === 'true';
+}
+
+export function isTestCoupon(c) {
+  if (!c) return false;
+  return Boolean(
+    c.is_test === true ||
+    c.isTest === true ||
+    String(c.code || '').trim().toUpperCase() === TEST_COUPON_CODE
+  );
+}
 
 // Integer-only tier calc. correct/total compared via cross-multiplication (no floats).
 export function tierFor(correct, total) {
@@ -30,6 +45,12 @@ export function winterTierFor(correct, total) {
 
 export function winterPayablePaise(coupon) {
   if (!coupon) return BASE_PRICE_PAISE; // ₹9,999 (999900 paise) default when no coupon is applied
+  if (isTestCoupon(coupon)) {
+    const fixed = coupon.fixed_payable_paise ?? coupon.fixedPayablePaise;
+    return fixed !== null && fixed !== undefined && Number.isFinite(Number(fixed))
+      ? Number(fixed)
+      : TEST_COUPON_PAISE;
+  }
   const disc = Number(coupon.discount_percent ?? coupon.discountPercent);
   if (disc === 100) return 0;
   if (disc === 90) return 99900;
@@ -73,13 +94,16 @@ export function makeCouponCode(prefix = 'WIN-') {
 
 export function couponState(c, now = new Date()) {
   if (!c) return 'none';
+  if (c.status === 'revoked' || c.status === 'disabled') return c.status;
+  if (isTestCoupon(c) || c.is_reusable) return 'active';
   if (c.status === 'redeemed') return 'redeemed';
   return new Date(c.expires_at) <= now ? 'expired' : 'active';
 }
 
 export function canRequestExtension(c, maxExtensions = 2) {
   if (!c) return false;
-  if (c.status === 'redeemed') return false;
+  if (isTestCoupon(c) || c.is_reusable) return false;
+  if (c.status === 'redeemed' || c.status === 'revoked' || c.status === 'disabled') return false;
   return (Number(c.extension_count) || 0) < maxExtensions;
 }
 

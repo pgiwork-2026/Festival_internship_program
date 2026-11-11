@@ -140,19 +140,23 @@ export function buildReceiptPDF(data) {
     const fmtInr2 = p => '₹' + (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const paidStr = fmtInr2(paidPaise);
     const rateStr = fmtInr2(basePaise);
-    const pctOff = paidPaise === 0 ? 100 : (paidPaise === 119900 ? 88 : (paidPaise === 99900 ? 90 : Math.max(0, Math.round(((basePaise - paidPaise) / Math.max(basePaise, 1)) * 100))));
+    const pctOff = paidPaise === 0 ? 100 : (paidPaise === 119900 ? 88 : (paidPaise === 99900 ? 90 : (paidPaise === 100 ? 99 : Math.max(0, Math.round(((basePaise - paidPaise) / Math.max(basePaise, 1)) * 100)))));
     const grantLabel = paidPaise === basePaise
       ? 'Standard Tuition'
-      : (data.couponCode ? `Coupon: ${data.couponCode} (${pctOff}%)` : `${pctOff}% Merit Grant`);
+      : (data.couponCode === 'PGITEST1'
+        ? 'Coupon: PGITEST1 (Test)'
+        : (data.couponCode ? `Coupon: ${data.couponCode} (${pctOff}%)` : `${pctOff}% Merit Grant`));
     const wordsLabel = paidPaise === 0
       ? 'Zero Rupees Only (100% Merit Scholarship)'
-      : paidPaise === 99900
-        ? 'Nine Hundred and Ninety-Nine Rupees Only'
-        : paidPaise === 119900
-          ? 'One Thousand One Hundred and Ninety-Nine Rupees Only'
-          : paidPaise === 999900
-            ? 'Nine Thousand Nine Hundred and Ninety-Nine Rupees Only'
-            : `${paidStr} Only`;
+      : paidPaise === 100
+        ? 'One Rupee Only'
+        : paidPaise === 99900
+          ? 'Nine Hundred and Ninety-Nine Rupees Only'
+          : paidPaise === 119900
+            ? 'One Thousand One Hundred and Ninety-Nine Rupees Only'
+            : paidPaise === 999900
+              ? 'Nine Thousand Nine Hundred and Ninety-Nine Rupees Only'
+              : `${paidStr} Only`;
 
     const tr1Y = doc.y;
     doc.rect(LEFT, tr1Y, W, 24).fillAndStroke('#FFFFFF', '#E2ECF5');

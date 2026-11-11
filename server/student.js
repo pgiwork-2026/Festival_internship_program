@@ -206,7 +206,7 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
     localPasswordResets.set(token, { email, token, expiresAt, used: false });
 
     const portalBase = (process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
-    const resetUrl = `${portalBase}/login.html?token=${token}&email=${encodeURIComponent(email)}`;
+    const resetUrl = `${portalBase}/student-login.html?token=${token}&email=${encodeURIComponent(email)}`;
 
     sendPasswordResetEmail({
       name: resolved.profile?.full_name || 'Candidate',

@@ -15,10 +15,10 @@
   <meta property="og:image" content="static/images/og.svg">
   <meta name="twitter:card" content="summary_large_image">
 
-  <!-- Google Fonts: Plus Jakarta Sans & Playfair Display -->
+  <!-- Google Fonts: Plus Jakarta Sans, Playfair Display & Caveat Brush -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat+Brush&family=Playfair+Display:wght@700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Winter Theme Stylesheet -->
   <link rel="stylesheet" href="static/css/theme-winter.css">
@@ -51,7 +51,7 @@
           <li><a class="nav-link" href="#certificate">Certificate</a></li>
         </ul>
         <div class="nav-actions">
-          <a class="btn btn-outline" href="login.html">Student Login</a>
+          <a class="btn btn-outline" href="student-login.html">Student Login</a>
           <a class="btn btn-primary" data-start href="apply.html?promises=1">Apply Now</a>
         </div>
       </nav>
@@ -406,42 +406,59 @@
       </section>
 
       <!-- ====================================================================
-           Certificate Sample (Winter Corporate Redesign)
+           Certificate Sample
            ==================================================================== -->
       <section id="certificate" class="cert-section">
         <div class="cert-grid-layout">
-          <!-- Live HTML/CSS Sample Certificate Render -->
-          <div class="cert-winter-card" role="img" aria-label="Sample Winter Internship Certificate, Plant Green Inertia Pvt. Ltd.">
-            <div class="cert-inner-border"></div>
-            <div class="cert-corner-frost tl"></div>
-            <div class="cert-corner-frost tr"></div>
-            <div class="cert-corner-frost bl"></div>
-            <div class="cert-corner-frost br"></div>
-            <div class="cert-watermark" aria-hidden="true">SAMPLE</div>
-
-            <div class="cert-head">
-              <img class="cert-org-logo" src="static/images/Plant Green Inertia Logo.png" alt="Plant Green Inertia logo" onerror="this.src='static/images/pgi-logo.jpg'">
-              <span class="cert-serial">ID: PGI-WIN-2026-SAMPLE</span>
-            </div>
-
-            <div>
-              <h3 class="cert-main-title">Certificate of Internship</h3>
-              <p class="cert-subtitle">Plant Green Inertia Pvt. Ltd.</p>
-              <p style="font-size:0.75rem; color:var(--slate-muted); text-transform:uppercase; letter-spacing:0.12em;">This is proudly presented to</p>
-              <div class="cert-recipient">Student Candidate Name</div>
-              <p class="cert-body-text">
-                has successfully completed the 30-Hour Winter Internship &amp; Training Program with commendable technical aptitude.
-              </p>
-            </div>
-
-            <div class="cert-footer-row">
-              <div class="cert-seal-badge" aria-hidden="true">
-                <span>PGI<br>VERIFIED<br>EXCELLENCE</span>
-              </div>
-              <div class="cert-signature-block">
-                <img class="cert-sig-img" src="static/images/founder-signature.png" alt="Authorized founder signature">
-                <div class="cert-signer-title">Authorized Signatory</div>
-                <div class="cert-signer-company">Plant Green Inertia Pvt. Ltd.</div>
+          <!-- Gold-Bordered Portrait Sample Certificate Render -->
+          <div class="cert-prev">
+            <div class="cert" role="img" aria-label="Sample Certificate of Internship, Plant Green Inertia">
+              <div class="cert-b1"></div>
+              <div class="cert-b2"></div>
+              <svg class="cc tl" viewBox="0 0 60 60" aria-hidden="true">
+                <path d="M1 59A58 58 0 0 1 59 1" fill="none" stroke="#b8860b" stroke-width="2.4"/>
+                <path d="M9 59A50 50 0 0 1 59 9" fill="none" stroke="#296934" stroke-width="1.4"/>
+              </svg>
+              <svg class="cc tr" viewBox="0 0 60 60" aria-hidden="true">
+                <path d="M1 59A58 58 0 0 1 59 1" fill="none" stroke="#b8860b" stroke-width="2.4"/>
+                <path d="M9 59A50 50 0 0 1 59 9" fill="none" stroke="#296934" stroke-width="1.4"/>
+              </svg>
+              <svg class="cc bl" viewBox="0 0 60 60" aria-hidden="true">
+                <path d="M1 59A58 58 0 0 1 59 1" fill="none" stroke="#b8860b" stroke-width="2.4"/>
+                <path d="M9 59A50 50 0 0 1 59 9" fill="none" stroke="#296934" stroke-width="1.4"/>
+              </svg>
+              <svg class="cc br" viewBox="0 0 60 60" aria-hidden="true">
+                <path d="M1 59A58 58 0 0 1 59 1" fill="none" stroke="#b8860b" stroke-width="2.4"/>
+                <path d="M9 59A50 50 0 0 1 59 9" fill="none" stroke="#296934" stroke-width="1.4"/>
+              </svg>
+              <div class="cert-wm" aria-hidden="true">SAMPLE COPY</div>
+              <div class="cert-in">
+                <div class="cert-stars" aria-hidden="true">
+                  <span>&#9733;</span><span>&#9733;</span><b>&#9733;</b><span>&#9733;</span><span>&#9733;</span>
+                </div>
+                <img class="cert-logo" src="static/images/Plant Green Inertia Logo.png" alt="Plant Green Inertia logo" onerror="this.src='static/images/pgi-logo.jpg'">
+                <h3 class="cert-h">Certificate<br>of Internship</h3>
+                <p class="cert-t">This certificate is given to</p>
+                <div class="cert-dv" aria-hidden="true"><i></i></div>
+                <p class="cert-name">Student Name</p>
+                <p class="cert-d">
+                  has successfully completed the Winter Internship and Training Program during the student-mentioned dates with Plant Green Inertia. We appreciate their dedication and wish them success in all future endeavours.
+                </p>
+                <div class="cert-row">
+                  <span>Certificate No: PGI-WIN-SAMPLE</span>
+                  <span>From: [Start Date]</span>
+                  <span>To: [End Date]</span>
+                </div>
+                <div class="cert-foot">
+                  <div class="cert-seal" aria-hidden="true">
+                    <span>PLANT<br>GREEN<br>INERTIA</span>
+                  </div>
+                  <div class="cert-sig">
+                    <img src="static/images/founder-signature.png" alt="Founder signature">
+                    <b>Founder</b>
+                    <small>Plant Green Inertia</small>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -450,11 +467,11 @@
           <div class="cert-info-panel">
             <div class="badge-eyebrow">
               <span class="dot"></span>
-              <span>OFFICIAL ACCREDITATION</span>
+              <span>SAMPLE CERTIFICATE</span>
             </div>
-            <h2 class="section-title" style="text-align:left; margin-bottom:1rem;">Verified Program Credential</h2>
+            <h2 class="section-title" style="text-align:left; margin-bottom:1rem;">Your Achievement Deserves Recognition</h2>
             <p style="color:var(--slate-text); font-size:1.05rem; line-height:1.7; margin-bottom:1.5rem;">
-              Earn an official Internship Certificate backed by a unique verification ID and digital signature for LinkedIn and college credits.
+              Complete your internship journey and earn an official verified Certificate of Internship displaying your selected internship dates. This is a sample preview with placeholder details.
             </p>
             <button type="button" class="btn btn-primary btn-large" id="certOpen" aria-haspopup="dialog">
               View Certificate Sample
@@ -467,8 +484,8 @@
       <div class="cert-modal" id="certModal" role="dialog" aria-modal="true" aria-label="Sample certificate preview" hidden>
         <div class="cert-modal-box">
           <div id="certModalRender" style="width:100%; display:flex; justify-content:center;"></div>
-          <button type="button" class="btn btn-outline" id="certClose" style="background:#ffffff; color:var(--midnight-navy);">
-            Close Preview
+          <button type="button" class="cert-close-pill" id="certClose">
+            CLOSE PREVIEW
           </button>
         </div>
       </div>
@@ -525,7 +542,7 @@
         <div class="footer-col">
           <h5>Portals &amp; Policies</h5>
           <ul class="footer-links">
-            <li><a href="login.html">Student Login</a></li>
+            <li><a href="student-login.html">Student Login</a></li>
             <li><a href="dashboard.html">Internship Dashboard</a></li>
             <li><a href="portal.html">Assessment Portal</a></li>
             <li><a href="admin.html">Admin Dashboard</a></li>

@@ -1,4 +1,17 @@
-import { VIOLATION_LABELS } from './logic.js';
+import {
+  VIOLATION_LABELS,
+  TEST_COUPON_CODE,
+  isTestCoupon,
+  isTestCouponEnabled
+} from './logic.js';
+import {
+  deleteCouponByCode,
+  fetchTestCouponsForAdmin,
+  formatTestCouponMeta,
+  isTestTransactionRecord,
+  resolveCouponByCode,
+  setCouponStatusInStore
+} from './test-coupon.js';
 import { batchTools, bustBatchCache } from './batches.js';
 import { buildCertificatePDF, certificateNumber, verifyCertificateEligibility } from './certificate.js';
 import { buildReceiptPDF } from './receipt.js';
@@ -73,8 +86,8 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   // ===================================================================
   async function getFullAnalytics(B) {
     const [
-      apps, attempts, paidOrders, createdOrders, failedOrders,
-      coupons, enrollments, settings
+      apps, attempts, rawPaidOrders, rawCreatedOrders, rawFailedOrders,
+      rawCoupons, rawEnrollments, settings
     ] = await Promise.all([
       rows(db.from('internship_applications').select('*').limit(50000)),
       rows(S(B, db.from('assessment_attempts').select('*')).limit(50000)),
@@ -85,6 +98,13 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
       rows(S(B, db.from('enrollments').select('*')).limit(50000)),
       db.from('test_settings').select('*').eq('id', 1).maybeSingle().then(r => r.data || { pass_mark: 30 })
     ]);
+
+    // Filter out test coupon transactions and test enrollments from revenue, payment reports, and metrics
+    const paidOrders = rawPaidOrders.filter(o => !isTestTransactionRecord(o));
+    const createdOrders = rawCreatedOrders.filter(o => !isTestTransactionRecord(o));
+    const failedOrders = rawFailedOrders.filter(o => !isTestTransactionRecord(o));
+    const coupons = rawCoupons.filter(c => !isTestCoupon(c));
+    const enrollments = rawEnrollments.filter(e => !isTestTransactionRecord(e));
 
     const passMark = settings.pass_mark || 30;
 
@@ -499,13 +519,14 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   });
 
   // ===================================================================
-  // 4. PAYMENTS & CSV EXPORT
+  // 4. PAYMENTS & CSV EXPORT (Excludes is_test records by default)
   // ===================================================================
   A('get', '/payments', async (req, res) => {
     const B = await scope(req);
     const { by, em } = await people();
     const courses = Object.fromEntries((await rows(db.from('courses').select('id,title'))).map(c => [c.id, c.title]));
-    const orders = await rows(S(B, db.from('payment_orders').select('*')).order('created_at', { ascending: false }).limit(5000));
+    const rawOrders = await rows(S(B, db.from('payment_orders').select('*')).order('created_at', { ascending: false }).limit(5000));
+    const orders = rawOrders.filter(o => !isTestTransactionRecord(o));
 
     res.json(orders.map(o => ({
       id: o.id,
@@ -526,7 +547,8 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
     const B = await scope(req);
     const { by, em } = await people();
     const courses = Object.fromEntries((await rows(db.from('courses').select('id,title'))).map(c => [c.id, c.title]));
-    const orders = await rows(S(B, db.from('payment_orders').select('*')).order('created_at', { ascending: false }).limit(50000));
+    const rawOrders = await rows(S(B, db.from('payment_orders').select('*')).order('created_at', { ascending: false }).limit(50000));
+    const orders = rawOrders.filter(o => !isTestTransactionRecord(o));
 
     const headers = ['Order ID', 'Payment ID', 'Candidate Name', 'Email', 'Track', 'Amount (INR)', 'Status', 'Created At', 'Paid At'];
     const csvRows = [headers.join(',')];
@@ -551,29 +573,45 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   });
 
   // ===================================================================
-  // 5. COUPONS (List, Reissue, Revoke)
+  // 5. COUPONS (List, Reissue, Revoke, Toggle, Delete)
   // ===================================================================
   A('get', '/coupons', async (req, res) => {
     const B = await scope(req);
     const { by, em } = await people();
-    const couponsList = await rows(S(B, db.from('scholarship_coupons').select('*')).order('issued_at', { ascending: false }).limit(5000));
-    const now = new Date();
+    const [scopedCoupons, testCoupons] = await Promise.all([
+      rows(S(B, db.from('scholarship_coupons').select('*')).order('issued_at', { ascending: false }).limit(5000)),
+      fetchTestCouponsForAdmin(db)
+    ]);
 
-    res.json(couponsList.map(c => {
-      let resolvedStatus = c.status;
-      if (resolvedStatus === 'active' && new Date(c.expires_at) < now) resolvedStatus = 'expired';
+    const merged = [];
+    const seen = new Set();
+    for (const c of [...testCoupons, ...scopedCoupons]) {
+      const key = String(c.code || c.id).toUpperCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(c);
+    }
+
+    const now = new Date();
+    res.json(merged.map(c => {
+      const meta = formatTestCouponMeta(c);
+      let resolvedStatus = c.status || 'active';
+      if (!meta.isTest && resolvedStatus === 'active' && new Date(c.expires_at) < now) {
+        resolvedStatus = 'expired';
+      }
 
       return {
         id: c.id,
         code: c.code,
-        name: by[c.user_id]?.full_name || 'Candidate',
-        email: em[c.user_id] || '',
+        name: meta.isTest ? 'System Test Coupon' : (by[c.user_id]?.full_name || 'Candidate'),
+        email: meta.isTest ? 'All Accounts (Reusable)' : (em[c.user_id] || c.student_email || ''),
         discount: c.discount_percent,
         score: c.score_percent,
         issued: c.issued_at,
-        expires: c.expires_at,
+        expires: meta.isTest ? null : c.expires_at,
         status: resolvedStatus,
-        redeemed: c.redeemed_at
+        redeemed: c.redeemed_at || null,
+        ...meta
       };
     }));
   });
@@ -597,16 +635,34 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
 
   A('post', '/coupons/:code/revoke', async (req, res) => {
     const code = req.params.code;
-    const { data, error } = await db.from('scholarship_coupons')
-      .update({ status: 'revoked' })
-      .ilike('code', code)
-      .select().maybeSingle();
-
-    if (error) throw fail(500, error.message);
-    if (!data) throw fail(404, `Coupon "${code}" not found.`);
+    const updated = await setCouponStatusInStore(db, code, 'revoked');
+    if (!updated) throw fail(404, `Coupon "${code}" not found.`);
 
     await logAudit(req, 'REVOKE_COUPON', 'coupon', code);
-    res.json({ ok: true, message: `Coupon ${code} revoked.` });
+    res.json({ ok: true, message: `Coupon ${code} revoked.`, status: updated.status });
+  });
+
+  A('post', '/coupons/:code/toggle', async (req, res) => {
+    const code = String(req.params.code || '').trim().toUpperCase();
+    const existing = await resolveCouponByCode(db, code);
+    if (!existing) throw fail(404, `Coupon "${code}" not found.`);
+
+    const nextStatus = existing.status === 'active' ? 'disabled' : 'active';
+    const updated = await setCouponStatusInStore(db, code, nextStatus);
+    if (!updated) throw fail(500, `Unable to update coupon ${code}.`);
+
+    await logAudit(req, 'TOGGLE_COUPON', 'coupon', code, { status: updated.status });
+    res.json({ ok: true, code, status: updated.status });
+  });
+
+  A('delete', '/coupons/:code', async (req, res) => {
+    const code = String(req.params.code || '').trim().toUpperCase();
+    const out = await deleteCouponByCode(db, code);
+    if (out.notFound) throw fail(404, `Coupon "${code}" not found.`);
+    if (out.error) throw fail(500, out.error.message || 'Unable to delete coupon.');
+
+    await logAudit(req, 'DELETE_COUPON', 'coupon', code, { deleted: true });
+    res.json({ ok: true, code, deleted: true });
   });
 
   // ===================================================================

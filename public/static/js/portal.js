@@ -1,5 +1,15 @@
 (async () => {
   const $ = id => document.getElementById(id);
+  function resetScrollTop() {
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+    document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }
+
   const show = id => {
     document.querySelectorAll('main > section, #loading').forEach(e => e.classList.add('hidden'));
     const target = $(id);
@@ -12,16 +22,26 @@
     }
     const navPayBtn = $('nav-payment-btn');
     if (navPayBtn) navPayBtn.classList.toggle('hidden', !['s-auth', 's-profile', 's-inst'].includes(id));
+    resetScrollTop();
+    requestAnimationFrame(() => resetScrollTop());
   };
 
   function requestExamFullscreen() {
     try {
       if (document.fullscreenEnabled && !document.fullscreenElement) {
-        return document.documentElement.requestFullscreen().catch(() => {});
+        return document.documentElement.requestFullscreen()
+          .then(() => { resetScrollTop(); })
+          .catch(() => {});
       }
     } catch {}
     return Promise.resolve();
   }
+  document.addEventListener('fullscreenchange', () => {
+    if (document.body.classList.contains('exam-fullscreen')) {
+      resetScrollTop();
+      requestAnimationFrame(() => resetScrollTop());
+    }
+  });
 
   const msg = (id, text, isOk = false) => {
     const el = $(id);
@@ -546,6 +566,12 @@
         }
         return;
       }
+      if (res.testCouponAvailable) {
+        endMonitoring();
+        await showCourses();
+        msg('c-msg', 'No completed assessment yet — you can apply an active test coupon at checkout.', true);
+        return;
+      }
       const notice = res.message || 'No completed assessment found for your account yet. Complete Proctor Verification and submit the assessment first.';
       setPvPaymentAlert(notice);
       msg('inst-msg', notice, false);
@@ -975,6 +1001,7 @@
     $('btn-next-q').textContent = (idx === total - 1) ? 'Review & Submit' : 'Next Question →';
 
     renderNavigator();
+    resetScrollTop();
   }
 
   $('btn-mark-review')?.addEventListener('click', () => {
@@ -1601,19 +1628,22 @@
   function resolveCheckoutPricing(coupon) {
     const basePaise = DEFAULT_TUITION_PAISE;
     if (!coupon) {
-      return { basePaise, payablePaise: basePaise, discountPaise: 0, subsidyPct: 0, isFree: false };
+      return { basePaise, payablePaise: basePaise, discountPaise: 0, subsidyPct: 0, isFree: false, isTest: false };
     }
-    const rawPayable = Number.isFinite(coupon.payablePaise)
-      ? Number(coupon.payablePaise)
-      : (coupon.discountPercent === 100 ? 0 : coupon.discountPercent === 90 ? 99900 : 119900);
+    const isTest = Boolean(coupon.isTest || coupon.code === 'PGITEST1');
+    const rawPayable = isTest
+      ? 100
+      : (Number.isFinite(coupon.payablePaise)
+        ? Number(coupon.payablePaise)
+        : (coupon.discountPercent === 100 ? 0 : coupon.discountPercent === 90 ? 99900 : 119900));
     const payablePaise = Math.max(0, rawPayable);
     const discountPaise = Number.isFinite(coupon.discountPaise)
       ? Math.max(0, Number(coupon.discountPaise))
       : Math.max(0, basePaise - payablePaise);
-    const subsidyPct = Number(
-      coupon.effectiveDiscountPercent ?? (payablePaise === 0 ? 100 : payablePaise === 99900 ? 90 : 88)
-    );
-    return { basePaise, payablePaise, discountPaise, subsidyPct, isFree: payablePaise === 0 };
+    const subsidyPct = isTest
+      ? 99
+      : Number(coupon.effectiveDiscountPercent ?? (payablePaise === 0 ? 100 : payablePaise === 99900 ? 90 : 88));
+    return { basePaise, payablePaise, discountPaise, subsidyPct, isFree: payablePaise === 0, isTest };
   }
 
   function startCheckoutExpiryTimer(expiresAtIso) {
@@ -1780,9 +1810,9 @@
       const pill = $('co-subsidy-pill');
       if (pill) {
         pill.classList.toggle('is-applied', Boolean(appliedCoupon));
-        pill.textContent = appliedCoupon
-          ? `${p.subsidyPct}% Scholarship Applied`
-          : 'Standard Tuition · No Coupon Applied';
+        pill.textContent = p.isTest
+          ? `Test Coupon Applied (${appliedCoupon.code}) · ₹1`
+          : (appliedCoupon ? `${p.subsidyPct}% Scholarship Applied` : 'Standard Tuition · No Coupon Applied');
       }
 
       $('cm-base-price').textContent = inr(p.basePaise);
@@ -1810,7 +1840,7 @@
           : `Gateway: Razorpay · Method: ${RAZORPAY_METHOD_LABELS[selectedMethod]}`;
       }
 
-      startCheckoutExpiryTimer(appliedCoupon?.expiresAt || lastCoupon?.expiresAt || null);
+      startCheckoutExpiryTimer(p.isTest ? null : (appliedCoupon?.expiresAt || lastCoupon?.expiresAt || null));
     };
 
     const applyCouponHandler = async () => {
@@ -2221,7 +2251,7 @@
                 : `Portal session is active. Sign in anytime using Student ID (${escHtml(studentId)}) or ${candEmail} with your emailed password.`}
             </p>
 
-            <a href="dashboard.html" class="confirm-open-btn" id="conf-open-portal">
+            <a href="student-login.html${studentId && studentId !== 'Assigned' ? `?uid=${encodeURIComponent(studentId)}` : ''}" class="confirm-open-btn" id="conf-open-portal">
               <span>Open Portal</span>
               <span aria-hidden="true">&rarr;</span>
             </a>
@@ -2543,6 +2573,12 @@
           lastCoupon = payRes.result.coupon;
           if (payRes.result.coupon?.state === 'active') return showCourses();
           return showResult(payRes.result);
+        }
+        if (payRes.testCouponAvailable) {
+          endMonitoring();
+          await showCourses();
+          msg('c-msg', 'No completed assessment yet — you can apply an active test coupon at checkout.', true);
+          return;
         }
         show('s-inst');
         initPreFlightProctor(me);

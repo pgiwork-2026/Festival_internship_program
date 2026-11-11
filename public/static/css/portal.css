@@ -1189,9 +1189,10 @@ body.exam-fullscreen .portal-footer {
   display: none;
 }
 body.exam-fullscreen .portal-main {
-  max-width: 1280px;
+  max-width: 1320px;
+  width: 100%;
   margin: 0 auto;
-  padding: 20px 24px 32px;
+  padding: 8px 20px 10px;
   position: relative;
   z-index: 1;
 }
@@ -1199,33 +1200,33 @@ body.exam-fullscreen .portal-main {
 .exam-cockpit {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
 
 /* Top Assessment Header Card */
 .exam-top-card {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 16px;
-  padding: 16px 22px 14px;
+  border-radius: 14px;
+  padding: 8px 18px 7px;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
 }
 .exam-top-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 .exam-brand-cluster {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 .exam-app-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 11px;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
   background: #E8F3FF;
   color: #0284C7;
   display: inline-flex;
@@ -1241,7 +1242,7 @@ body.exam-fullscreen .portal-main {
 }
 .exam-title {
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: 1.04rem;
   font-weight: 700;
   color: #0F172A;
   margin: 0;
@@ -1326,17 +1327,17 @@ body.exam-fullscreen .portal-main {
 }
 
 .exam-velocity-bar-wrap {
-  margin-top: 12px;
-  padding-top: 10px;
+  margin-top: 6px;
+  padding-top: 5px;
   border-top: 1px solid #F1F5F9;
 }
 .exam-velocity-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 600;
   color: #64748B;
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 #exam-velocity-status {
   color: #296934;
@@ -1443,9 +1444,9 @@ body.exam-fullscreen .portal-main {
 /* Two-column Test Workspace */
 .test-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 18px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) 370px;
+  gap: 12px;
+  align-items: stretch;
 }
 @media (max-width: 960px) {
   .test-workspace {
@@ -1457,15 +1458,19 @@ body.exam-fullscreen .portal-main {
 .question-column {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
+  height: 100%;
 }
 .question-card {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 16px;
-  padding: 28px 30px 24px;
+  border-radius: 14px;
+  padding: 16px 20px 14px;
   box-shadow: 0 6px 24px rgba(15, 23, 42, 0.04);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 .q-meta-strip {
   display: flex;
@@ -1473,7 +1478,7 @@ body.exam-fullscreen .portal-main {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
 .q-meta-left {
   display: flex;
@@ -1509,20 +1514,20 @@ body.exam-fullscreen .portal-main {
   border-radius: 999px;
 }
 .q-seq-eyebrow {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.07em;
   color: #0891B2;
   text-transform: uppercase;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .q-text {
   font-family: var(--font-display);
-  font-size: 1.24rem;
+  font-size: 1.12rem;
   font-weight: 700;
   color: #0F172A;
-  line-height: 1.45;
-  margin-bottom: 22px;
+  line-height: 1.4;
+  margin-bottom: 14px;
 }
 .q-text code {
   background: #F1F5F9;
@@ -1536,20 +1541,20 @@ body.exam-fullscreen .portal-main {
 .q-options {
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 8px;
 }
 .option-label {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 11px 14px;
   border: 1.5px solid #E2E8F0;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #FFFFFF;
   cursor: pointer;
   transition: all 0.14s ease;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 500;
   color: #1E293B;
   user-select: none;
@@ -1635,8 +1640,8 @@ body.exam-fullscreen .portal-main {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  margin-top: 24px;
-  padding-top: 18px;
+  margin-top: auto;
+  padding-top: 14px;
   border-top: 1px solid #F1F5F9;
   flex-wrap: wrap;
 }
@@ -1734,50 +1739,50 @@ body.exam-fullscreen .portal-main {
 .navigator-column {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 7px;
 }
 .navigator-card {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 14px;
+  padding: 10px 13px;
   box-shadow: 0 6px 24px rgba(15, 23, 42, 0.04);
 }
 .nav-card-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: 6px;
 }
 .nav-card-head h3 {
   font-family: var(--font-display);
-  font-size: 0.98rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: #0F172A;
   margin: 0;
 }
 .nav-subtitle {
   display: block;
-  font-size: 0.73rem;
+  font-size: 0.68rem;
   color: #64748B;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 /* Question Matrix Chips */
 .chips-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 4px;
+  margin-bottom: 7px;
 }
 .q-chip {
-  height: 36px;
-  border-radius: 8px;
+  height: 24px;
+  border-radius: 6px;
   border: 1.5px solid #E2E8F0;
   background: #F8FAFC;
   color: #475569;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1817,24 +1822,24 @@ body.exam-fullscreen .portal-main {
   grid-template-columns: repeat(3, 1fr);
   background: #F8FAFC;
   border: 1px solid #E2E8F0;
-  border-radius: 10px;
-  padding: 10px 8px;
-  margin-bottom: 14px;
+  border-radius: 8px;
+  padding: 4px 6px;
+  margin-bottom: 6px;
   text-align: center;
 }
 .matrix-stat .stat-label {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.69rem;
+  gap: 4px;
+  font-size: 0.64rem;
   color: #64748B;
   font-weight: 600;
 }
 .matrix-stat strong {
   display: block;
-  font-size: 1rem;
+  font-size: 0.86rem;
   color: #0F172A;
-  margin-top: 2px;
+  margin-top: 0;
 }
 .stat-dot {
   width: 7px;
@@ -1847,15 +1852,15 @@ body.exam-fullscreen .portal-main {
 .stat-dot.pending { background: #94A3B8; }
 
 .matrix-consumed-block {
-  margin-bottom: 14px;
+  margin-bottom: 7px;
 }
 .consumed-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 600;
   color: #64748B;
-  margin-bottom: 5px;
+  margin-bottom: 3px;
 }
 .consumed-track {
   height: 4px;
@@ -1874,10 +1879,10 @@ body.exam-fullscreen .portal-main {
   background: #296934;
   color: #FFFFFF;
   border: none;
-  border-radius: 10px;
-  padding: 12px 16px;
+  border-radius: 8px;
+  padding: 8px 12px;
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -1895,15 +1900,15 @@ body.exam-fullscreen .portal-main {
 .proctor-feed-card {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 16px;
-  padding: 16px;
+  border-radius: 14px;
+  padding: 8px 11px;
   box-shadow: 0 6px 24px rgba(15, 23, 42, 0.04);
 }
 .feed-card-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
 }
 .feed-title {
   display: inline-flex;
@@ -1935,7 +1940,8 @@ body.exam-fullscreen .portal-main {
 .feed-video-stage {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
+  max-height: 98px;
   background: #0F172A;
   border-radius: 10px;
   overflow: hidden;
@@ -2022,10 +2028,10 @@ body.exam-fullscreen .portal-main {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 5px;
+  padding-top: 5px;
   border-top: 1px solid #F1F5F9;
-  font-size: 0.67rem;
+  font-size: 0.62rem;
   font-weight: 700;
   color: #296934;
   text-align: center;
@@ -2035,24 +2041,52 @@ body.exam-fullscreen .portal-main {
 .protocol-notice-card {
   background: #EFF6FF;
   border: 1px solid #DCEEF8;
-  border-radius: 14px;
-  padding: 14px 16px;
+  border-radius: 12px;
+  padding: 7px 11px;
 }
 .protocol-title {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.69rem;
+  gap: 5px;
+  font-size: 0.64rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   color: #0369A1;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
 .protocol-notice-card p {
-  font-size: 0.74rem;
+  font-size: 0.68rem;
   color: #475569;
-  line-height: 1.5;
+  line-height: 1.28;
   margin: 0;
+}
+
+@media (min-width: 961px) and (max-height: 700px) {
+  body.exam-fullscreen .portal-main {
+    padding: 8px 18px;
+  }
+  .exam-cockpit {
+    gap: 8px;
+  }
+  .exam-top-card {
+    padding: 8px 16px 7px;
+  }
+  .question-card {
+    padding: 14px 18px;
+  }
+  .q-text {
+    font-size: 1.05rem;
+    margin-bottom: 10px;
+  }
+  .option-label {
+    padding: 8px 12px;
+  }
+  .q-chip {
+    height: 24px;
+  }
+  .feed-video-stage {
+    max-height: 100px;
+  }
 }
 
 /* Modals */

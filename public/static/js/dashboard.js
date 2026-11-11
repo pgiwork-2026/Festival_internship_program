@@ -32,6 +32,7 @@ function switchModule(modId) {
 
   const activeBtn = document.querySelector(`.dash-nav-btn[onclick*="${modId}"]`);
   if (activeBtn) activeBtn.classList.add('active');
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 
   // Trigger data refreshes on tab activation
   if (modId === 'attendance') refreshAttendance();
@@ -48,7 +49,7 @@ function logoutStudent() {
   sessionStorage.removeItem('pgi_student_token');
   localStorage.removeItem('pgi_student_id');
   sessionStorage.removeItem('pgi_student_id');
-  window.location.href = 'login.html';
+  window.location.href = 'student-login.html';
 }
 
 // Initial Bootstrapper
@@ -62,7 +63,7 @@ async function initDashboard() {
   }
 
   if (!authToken) {
-    window.location.href = 'login.html';
+    window.location.href = 'student-login.html';
     return;
   }
 
