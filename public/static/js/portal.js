@@ -2076,7 +2076,10 @@
 
     const recent = loadRecentPayment();
     const matchesRecent = recent && (recent.enrollmentId === e.id || recent.receiptNo === receiptNo);
-    const portalPassword = matchesRecent ? recent.portalPassword : null;
+    const portalPassword = (matchesRecent ? recent.portalPassword : null)
+      || e.portalAccessKey
+      || d.portalAccessKey
+      || null;
     const orderId = e.orderId || (matchesRecent ? recent.orderId : null) || receiptNo;
     const txRef = e.transactionRef || (matchesRecent ? recent.paymentId : null) || receiptNo;
 

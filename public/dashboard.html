@@ -2816,6 +2816,73 @@
       .supp-main-grid { grid-template-columns: 1fr; }
       .supp-record-grid { grid-template-columns: 1fr; }
     }
+
+    /* Full Site Mobile Responsiveness (Dashboard Panels <= 680px) */
+    html, body {
+      overflow-x: hidden;
+      max-width: 100%;
+    }
+    .hub-kpi-card, .hub-card, .hub-bento-col, .asg-col-stack,
+    .asg-card, .supp-card, .men-card, .mod-seq-left,
+    .vid-session-body, .asg-input-group input {
+      min-width: 0;
+    }
+    .hub-session-box {
+      flex-wrap: wrap;
+      max-width: 100%;
+    }
+    #ov-console-id {
+      max-width: 100%;
+      overflow-x: auto;
+      word-break: break-word;
+    }
+    @media (max-width: 680px) {
+      .hub-workspace { padding: 14px 12px 28px; }
+      .hub-hero-card { padding: 16px; gap: 14px; }
+      .hub-session-box {
+        width: 100%;
+        justify-content: space-between;
+        padding: 12px 14px;
+      }
+      .hub-session-box .hub-btn-green {
+        width: 100%;
+        justify-content: center;
+      }
+      .vid-filter-stack,
+      .vid-session-body {
+        min-width: 0;
+        width: 100%;
+      }
+      .vid-session-card,
+      .asg-card,
+      .men-card,
+      .supp-card,
+      .dash-module {
+        padding: 16px 14px;
+      }
+      .asg-target-box,
+      .asg-btn-row,
+      .cert-actions-left {
+        width: 100%;
+      }
+      .asg-btn-row button,
+      .cert-actions-left button {
+        flex: 1;
+        justify-content: center;
+      }
+      .men-batch-pill,
+      .supp-hours-pill {
+        white-space: normal;
+        text-align: left;
+      }
+      .cert-stage-frame { padding: 14px 10px; }
+      .supp-faq-card p { margin-left: 0; margin-top: 6px; }
+      .hub-workspace input,
+      .hub-workspace select,
+      .hub-workspace textarea {
+        font-size: 16px;
+      }
+    }
     .hidden { display: none !important; }
   </style>
 </head>

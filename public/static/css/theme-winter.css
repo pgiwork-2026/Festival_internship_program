@@ -1670,8 +1670,115 @@ input:focus-visible {
 @media (max-width: 640px) {
   .benefits-grid,
   .syllabus-grid,
-  .timings-container {
+  .timings-container,
+  .footer-top {
     grid-template-columns: 1fr;
+  }
+
+  .hero-section {
+    min-height: calc(100dvh - 58px);
+    padding: 2.5rem 1rem 3rem;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .hero-actions .btn-large {
+    width: 100%;
+    max-width: 340px;
+    padding: 0.85rem 1.25rem;
+  }
+
+  .cert-prev .cert {
+    max-width: 100%;
+  }
+
+  .section-pad,
+  .cert-section {
+    padding: 2.4rem 1rem;
+  }
+
+  .dates-banner {
+    padding: 1rem 1.15rem;
+  }
+
+  .dates-tag {
+    width: 100%;
+    text-align: center;
+  }
+
+  .footer-bottom {
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* Shared portal header & footer responsive compact mode */
+  .header-inner {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .brand-logo-sq {
+    height: 34px;
+    padding: 2px 4px;
+  }
+
+  .brand-title {
+    font-size: 0.92rem;
+  }
+
+  .header-actions {
+    gap: 6px;
+  }
+
+  .app-header .header-actions .btn-outline,
+  .app-header .header-actions .btn-primary,
+  .btn-logout,
+  .btn-nav-payment {
+    padding: 6px 12px;
+    font-size: 0.78rem;
+  }
+
+  .portal-footer {
+    padding: 22px 14px 18px;
+  }
+
+  .portal-footer-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .portal-footer .footer-links {
+    gap: 10px 14px;
+  }
+}
+
+@media (max-width: 440px) {
+  .brand-badge {
+    display: none;
+  }
+
+  .user-email {
+    display: none;
+  }
+
+  .nav-header {
+    padding: 0.45rem 1rem;
+  }
+
+  .brand-logo {
+    height: 34px;
+  }
+
+  .brand-name {
+    font-size: 0.9rem;
+  }
+
+  .brand-tag {
+    font-size: 0.6rem;
   }
 }
 

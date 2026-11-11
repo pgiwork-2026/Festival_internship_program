@@ -117,6 +117,23 @@ body {
   margin-bottom: 0.5rem;
 }
 
+@media (max-width: 640px) {
+  .p-main {
+    margin: 1rem 12px 1.5rem;
+    padding: 1.4rem 16px 1.8rem;
+    border-radius: 12px;
+  }
+
+  .p-main h1 {
+    font-size: 1.55rem;
+  }
+
+  .p-main h2 {
+    font-size: 1.12rem;
+    margin-top: 1.4rem;
+  }
+}
+
 .p-foot a {
   color: #475569;
   margin: 0 0.8rem;

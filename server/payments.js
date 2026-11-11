@@ -802,10 +802,15 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
     }
 
     const course = enr?.courses || { title: 'Winter Internship Program', duration: '30 Hours' };
+    const portalAccessKey = (!user?.user_metadata?.password_customized && user?.user_metadata?.portal_access_key)
+      ? user.user_metadata.portal_access_key
+      : null;
+
     return {
       email: user.email,
       profile: prof,
       studentId: enr?.student_id || prof?.student_id || null,
+      portalAccessKey,
       attempt: att,
       coupon: coup && {
         code: coup.code,
@@ -817,12 +822,13 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       enrollment: enr && {
         id: enr.id,
         studentId: enr.student_id || prof?.student_id,
+        portalAccessKey,
         receiptNo: enr.receipt_no,
         kind: enr.kind,
         status: enr.status,
         amountPaise: enr.amount_paise,
         basePricePaise: BASE_PRICE_PAISE,
-        couponCode: coup?.code || null,
+        couponCode: enr.coupon_code || coup?.code || null,
         discountPercent: coup?.discount_percent ?? null,
         orderId: orderRefId,
         transactionRef: enr.transaction_ref,

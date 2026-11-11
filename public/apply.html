@@ -135,18 +135,37 @@
     }
     @media (max-width: 680px) {
       .stitch-layout {
-        margin: 18px auto 40px;
-        padding: 0 14px;
+        margin: 16px auto 36px;
+        padding: 0 12px;
       }
       .stitch-form-card, .stitch-sidebar-card {
-        padding: 22px 16px;
+        padding: 20px 15px;
         border-radius: 16px;
       }
+      .inner-section-box {
+        padding: 16px 14px;
+        margin: 18px 0;
+      }
       .stitch-hero-bar {
-        padding: 24px 14px 20px;
+        padding: 20px 14px 16px;
       }
       .stitch-hero-title {
-        font-size: 1.65rem;
+        font-size: 1.52rem;
+      }
+      .stitch-stepper-pill {
+        width: 100%;
+        justify-content: space-between;
+        border-radius: 12px;
+        padding: 8px 12px;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .stitch-input, .stitch-select, .stitch-textarea, .segmented-year-input {
+        font-size: 16px;
+      }
+      .mobile-split-wrap input {
+        min-width: 0;
+        flex: 1;
       }
     }
 
@@ -499,7 +518,19 @@
     }
     @media (max-width: 600px) {
       .period-chips-grid {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 420px) {
+      .segmented-group,
+      .period-chips-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .domain-segmented-row {
+        grid-template-columns: 1fr;
+      }
+      .phone-prefix-box {
+        width: 66px;
       }
     }
     .period-chip {

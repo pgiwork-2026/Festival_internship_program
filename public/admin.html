@@ -384,6 +384,13 @@
     
     /* Responsive Mobile Layouts */
     @media (max-width: 860px) {
+      html, body {
+        overflow-x: hidden;
+      }
+      #login-box {
+        margin: 6vh 14px;
+        padding: 24px 18px;
+      }
       #app-container {
         flex-direction: column;
       }
@@ -402,14 +409,38 @@
       }
       nav#admin-nav button {
         white-space: nowrap;
-        padding: 7px 10px;
+        width: auto;
+        padding: 7px 12px;
         font-size: 0.8rem;
+        flex-shrink: 0;
       }
       .admin-topbar {
-        padding: 12px 16px;
+        padding: 12px 14px;
       }
       main#admin-view {
-        padding: 16px 14px;
+        padding: 14px 12px;
+      }
+      .admin-panel {
+        padding: 14px;
+      }
+      .panel-head {
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .kpi-grid {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 155px), 1fr));
+        gap: 12px;
+      }
+      .filter-bar input, .filter-bar select {
+        width: 100%;
+        min-width: 0;
+        flex: 1 1 140px;
+      }
+      .modal-overlay {
+        padding: 10px;
+      }
+      .modal-box {
+        padding: 18px 14px;
       }
       input, select, textarea {
         font-size: 16px; /* Prevents iOS auto-zoom on input focus */
