@@ -262,50 +262,6 @@
       transform: none;
     }
 
-    .sl-divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 12px 0 10px;
-      color: #94A3B8;
-      font-size: 0.65rem;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-    .sl-divider::before,
-    .sl-divider::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: #E2E8F0;
-    }
-
-    .sl-otp-btn {
-      width: 100%;
-      background: #EEF4FF;
-      border: 1px solid #DBE6F8;
-      color: #1E293B;
-      border-radius: 9px;
-      padding: 9px 14px;
-      font-family: inherit;
-      font-size: 0.81rem;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      cursor: pointer;
-      transition: background-color 0.15s ease, border-color 0.15s ease;
-    }
-    .sl-otp-btn svg {
-      color: #1D4ED8;
-    }
-    .sl-otp-btn:hover {
-      background: #E3EEFF;
-      border-color: #C7D9F7;
-    }
-
     .sl-card-foot {
       margin-top: 12px;
       padding-top: 10px;
@@ -435,8 +391,8 @@
 
           <div class="sl-field">
             <div class="sl-label-row">
-              <label for="student-password">Access Token or Portal Password</label>
-              <button type="button" class="sl-link-btn" onclick="openRecoveryPanel()">Issued post-remittance &middot; Need help?</button>
+              <label for="student-password">Password (DDMMYYYY or Secret Key)</label>
+              <button type="button" class="sl-link-btn" onclick="openRecoveryPanel()">DDMMYYYY or Secret Key &middot; Need help?</button>
             </div>
             <div class="sl-input-wrap">
               <span class="sl-input-ico" aria-hidden="true">
@@ -444,13 +400,16 @@
                   <path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
                 </svg>
               </span>
-              <input id="student-password" type="password" placeholder="Enter one-time token or secret" required autocomplete="current-password">
+              <input id="student-password" type="password" placeholder="Enter DOB (DDMMYYYY) or Secret Key" required autocomplete="current-password">
               <button type="button" class="sl-eye-btn" id="toggle-pw-btn" aria-label="Show password" onclick="togglePasswordVisibility('student-password', this)">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                   <circle cx="12" cy="12" r="3"></circle>
                 </svg>
               </button>
+            </div>
+            <div style="margin-top:5px;font-size:0.72rem;color:#64748B;font-weight:500;">
+              Use your Date of Birth in <strong>DDMMYYYY</strong> format (e.g. <code>15082004</code>) or your <strong>Secret Key</strong>.
             </div>
           </div>
 
@@ -478,16 +437,6 @@
 
           <div id="login-msg" class="msg" style="margin-top:12px;text-align:center;"></div>
         </form>
-
-        <div class="sl-divider">OR RAPID GATEWAY</div>
-
-        <button type="button" class="sl-otp-btn" id="btn-rapid-otp" onclick="openRecoveryPanel(true)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
-            <rect x="5" y="2" width="14" height="20" rx="2"></rect>
-            <line x1="12" y1="18" x2="12.01" y2="18"></line>
-          </svg>
-          <span>Request Instant Recovery Link</span>
-        </button>
 
         <div class="sl-card-foot">
           <div>Awaiting credentials? <a href="portal.html" class="is-green">Complete Payment Verification</a></div>

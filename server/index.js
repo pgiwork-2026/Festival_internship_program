@@ -305,7 +305,7 @@ async function view(a) { // questions WITHOUT correct answers, in the stored shu
   };
 }
 
-app.get('/api/config', (_q, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabaseAnonKey: process.env.SUPABASE_ANON_KEY, requireCamera: process.env.REQUIRE_CAMERA !== 'false', razorpayConfigured: !!process.env.RAZORPAY_KEY_ID, gaMeasurementId: String(process.env.GA_MEASUREMENT_ID || '').trim() }));
+app.get('/api/config', (_q, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabaseAnonKey: process.env.SUPABASE_ANON_KEY, requireCamera: process.env.REQUIRE_CAMERA !== 'false', razorpayConfigured: !!process.env.RAZORPAY_KEY_ID, gaMeasurementId: String(process.env.GA_MEASUREMENT_ID || '').trim(), enableIceGate: process.env.ENABLE_ICE_GATE !== 'false' }));
 
 app.post('/api/contact', wrap(async (req, res) => {
   const b = req.body || {};
@@ -1263,8 +1263,11 @@ app.use(express.static(PUBLIC, {
   setHeaders: (r, f) => {
     if (f.endsWith('.wasm')) r.type('application/wasm');
     else if (f.endsWith('.mjs')) r.type('text/javascript');
+    else if (f.endsWith('.glb')) r.type('model/gltf-binary');
+    else if (f.endsWith('.ktx2')) r.type('image/ktx2');
+    else if (f.endsWith('.hdr')) r.type('application/octet-stream');
     if (/\.(html|js|css)$/i.test(f)) r.setHeader('Cache-Control', 'no-store');
-    else if (/\.(png|jpg|jpeg|svg|webp|ico|woff2)$/i.test(f)) {
+    else if (/\.(png|jpg|jpeg|svg|webp|ico|woff2|glb|hdr|ktx2|ogg|mp3)$/i.test(f)) {
       r.setHeader('Cache-Control', 'public, max-age=604800');
       r.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       r.setHeader('Access-Control-Allow-Origin', '*');

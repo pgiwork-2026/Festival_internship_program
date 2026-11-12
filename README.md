@@ -59,3 +59,22 @@ A temporary reusable Rs 1 (`100` paise) test coupon (`PGITEST1`) is built into t
    DELETE FROM public.enrollments WHERE is_test = true;
    DELETE FROM public.payment_orders WHERE is_test = true;
    ```
+
+## Winter 3D Ice Wall Entry Gate (`IceWallGate3D` & `IceWallGate`)
+Appears once per browser session (`sessionStorage` key `pgi_ice_gate_seen`) on `/` and `/index.html` only, never on login, dashboard, payment, assessment, or admin pages. Preserves `?ref=` referral query parameters.
+
+### Components & Fallbacks
+- **`IceWallGate3D` (`public/static/js/ice-wall-gate-3d.js`):** Lazy-loads `three@0.169.0` and `cannon-es@0.20.0` from pinned CDNs; renders a ~1 m thick refractive glacier wall (`MeshPhysicalMaterial`, IOR `1.31`), trapped internal air bubbles, night mountains, aurora, warm portal backlight, and a 3D Norse war hammer cursor (`public/static/models/norse-hammer.glb`). Supports 3 left/right clicks, touch taps, or `Enter`/`Space` hits (wind-up/swing, 60 ms freeze-frame, camera shake, radial crack growth, Hit 1–2 progressive breakage, Hit 3 slow-mo Voronoi shatter + `cannon-es` physics + portal cross-fade).
+- **`IceWallGate` (`public/static/js/ice-wall-gate-canvas.js`):** Canvas 2D fallback used automatically when WebGL is unavailable, the device is low-power, or `prefers-reduced-motion: reduce` is enabled. Uses `public/static/images/hammer-cursor.png`.
+
+### How to Disable
+- **Server-wide (recommended):** Set `ENABLE_ICE_GATE=false` in `server/.env` or Render environment variables (`/api/config` returns `enableIceGate: false`).
+- **URL override:** Append `?gate=0` to skip the gate, or `?icegate=1` to force-preview it again in the same browser session.
+
+### How to Swap Assets
+All assets live under `public/static/` (see `CREDITS.md` for licenses):
+- **3D Hammer Model:** Replace `public/static/models/norse-hammer.glb` (keep Draco-compressed `.glb` under 1.5 MB).
+- **2D Fallback Cursor:** Replace `public/static/images/hammer-cursor.png` (`128x128` PNG, strike face hotspot at `(18, 22)`).
+- **Glacier Ice PBR Textures:** Replace `public/static/textures/ice/*.webp` (`ice_color.webp`, `ice_normal.webp`, `ice_roughness.webp`, `ice_bump.webp`) and 1K mobile variants under `public/static/textures/ice/1k/`.
+- **Environment HDRI:** Replace `public/static/hdr/blue_lagoon_night_1k.hdr`.
+- **Sound Effects (off by default):** Replace `public/static/audio/impact-thud.mp3`, `ice-crack.mp3`, `ice-creak.mp3`, and `ice-shatter.mp3` (keep each `< 150 KB`).
