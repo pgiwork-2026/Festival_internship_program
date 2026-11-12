@@ -232,7 +232,7 @@ export const SYLLABUS_TRACKS = [
     domainType: 'Technical',
     title: 'Full-Stack Web Development & Modern Architecture',
     duration: '30 Hours (10 Comprehensive Modules)',
-    pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
+    pdfUrl: '/static/pdf/PGI_Winter_Internship_Complete_Syllabus.pdf',
     modules: [
       { day: 1, hours: 3, title: 'Web Fundamentals & Semantic HTML5', topics: ['DOM hierarchy', 'Accessibility standards', 'Modern HTML5 APIs', 'Meta viewports'] },
       { day: 2, hours: 3, title: 'Modern CSS3, Flexbox & Grid Systems', topics: ['CSS variables', 'Responsive layout engineering', 'Fluid typography', 'Micro-animations'] },
@@ -251,7 +251,7 @@ export const SYLLABUS_TRACKS = [
     domainType: 'Technical',
     title: 'Android & Cross-Platform App Development',
     duration: '30 Hours (10 Modules)',
-    pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
+    pdfUrl: '/static/pdf/PGI_Winter_Internship_Complete_Syllabus.pdf',
     modules: [
       { day: 1, hours: 3, title: 'Mobile OS Architecture & App Lifecycle', topics: ['Activity stack', 'Permissions model', 'Screen density adaptation'] },
       { day: 2, hours: 3, title: 'MIT App Inventor & Visual Logic Blocks', topics: ['Event handlers', 'Component tree', 'UI layouts'] },
@@ -270,7 +270,7 @@ export const SYLLABUS_TRACKS = [
     domainType: 'Non-Technical',
     title: 'Digital Operations, Analytics & Growth Strategy',
     duration: '30 Hours (10 Modules)',
-    pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
+    pdfUrl: '/static/pdf/PGI_Winter_Internship_Complete_Syllabus.pdf',
     modules: [
       { day: 1, hours: 3, title: 'Fundamentals of Digital Operations & Brand Funnels', topics: ['Customer journey', 'TOFU/MOFU/BOFU', 'Value proposition'] },
       { day: 2, hours: 3, title: 'Search Engine Optimization (SEO)', topics: ['On-page optimization', 'Technical SEO', 'Keyword research methodologies'] },

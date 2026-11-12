@@ -312,7 +312,7 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
         assignedBatchId: appRec.assigned_batch_id || null,
         assignedMentorId: appRec.assigned_mentor_id || null,
         assignedBatch: batchMap[appRec.assigned_batch_id] || 'Winter 2026 Alpha',
-        assignedMentor: mentorMap[appRec.assigned_mentor_id] || 'Dr. K. Ravindran',
+        assignedMentor: mentorMap[appRec.assigned_mentor_id] || 'Unassigned',
         appliedAt: appRec.created_at
       });
     });
@@ -476,6 +476,72 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
     res.json({ ok: true, status });
   });
 
+  // Remove ALL Student & Candidate Details (Preserves admin accounts, mentors, batches, questions, courses & settings)
+  A('delete', '/students', async (req, res) => {
+    const adminIds = new Set();
+    if (req.user?.id) adminIds.add(req.user.id);
+    try {
+      const { data: adminProfs } = await db.from('profiles').select('id,role').eq('role', 'admin');
+      (adminProfs || []).forEach(p => { if (p?.id) adminIds.add(p.id); });
+    } catch {}
+
+    const tablesToClear = [
+      { table: 'certificates', col: 'id' },
+      { table: 'student_attendance', col: 'id' },
+      { table: 'student_assignments', col: 'id' },
+      { table: 'student_projects', col: 'id' },
+      { table: 'proctoring_violations', col: 'id' },
+      { table: 'student_queries', col: 'id' },
+      { table: 'password_resets', col: 'id' },
+      { table: 'enrollments', col: 'id' },
+      { table: 'payment_orders', col: 'id' },
+      { table: 'assessment_attempts', col: 'id' },
+      { table: 'internship_applications', col: 'id' }
+    ];
+
+    const clearedTables = [];
+    for (const item of tablesToClear) {
+      try {
+        const { error } = await db.from(item.table).delete().not(item.col, 'is', null);
+        if (!error) clearedTables.push(item.table);
+      } catch {}
+    }
+
+    // Clear student-issued coupons while preserving PGITEST1 test coupon config
+    try {
+      const { error } = await db.from('scholarship_coupons').delete().neq('code', TEST_COUPON_CODE);
+      if (!error) clearedTables.push('scholarship_coupons');
+    } catch {}
+
+    // Reset batch enrolled counts
+    try {
+      await db.from('batches').update({ enrolled_count: 0 }).not('id', 'is', null);
+      bustBatchCache?.();
+    } catch {}
+
+    // Delete non-admin profiles & auth accounts
+    let deletedAuthUsers = 0;
+    try {
+      await db.from('profiles').delete().neq('role', 'admin');
+    } catch {}
+    try {
+      const { data: userList } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      for (const u of userList?.users || []) {
+        if (!u?.id || adminIds.has(u.id)) continue;
+        try {
+          const { error: delErr } = await db.auth.admin.deleteUser(u.id);
+          if (!delErr) deletedAuthUsers++;
+        } catch {}
+      }
+    } catch {}
+
+    localCertificates.clear();
+    if (Array.isArray(sharedSupportTickets)) sharedSupportTickets.length = 0;
+
+    await logAudit(req, 'PURGE_ALL_STUDENTS', 'students', 'all', { deletedAuthUsers, clearedTables });
+    res.json({ ok: true, deletedAuthUsers, clearedTables });
+  });
+
   // ===================================================================
   // 3. ASSESSMENTS & QUESTIONS MANAGEMENT
   // ===================================================================
@@ -620,36 +686,53 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   });
 
   // ===================================================================
-  // 4. PAYMENTS & CSV EXPORT (Excludes is_test records by default)
+  // 4. PAYMENTS & CSV EXPORT (Excludes is_test records by default unless ?includeTest=1)
   // ===================================================================
   A('get', '/payments', async (req, res) => {
     const B = await scope(req);
+    const includeTest = req.query?.includeTest === '1' || req.query?.includeTest === 'true';
     const { by, em } = await people();
-    const courses = Object.fromEntries((await rows(db.from('courses').select('id,title'))).map(c => [c.id, c.title]));
-    const rawOrders = await rows(S(B, db.from('payment_orders').select('*')).order('created_at', { ascending: false }).limit(5000));
-    const orders = rawOrders.filter(o => !isTestTransactionRecord(o));
+    const [courseList, appList, rawOrders] = await Promise.all([
+      rows(db.from('courses').select('id,title')),
+      rows(db.from('internship_applications').select('email,domain_name').limit(5000)).catch(() => []),
+      rows(S(B, db.from('payment_orders').select('*')).order('created_at', { ascending: false }).limit(5000))
+    ]);
+    const courses = Object.fromEntries(courseList.map(c => [c.id, c.title]));
+    const domainByEmail = {};
+    appList.forEach(a => {
+      const k = String(a.email || '').trim().toLowerCase();
+      if (k && a.domain_name && !domainByEmail[k]) domainByEmail[k] = a.domain_name;
+    });
+    const orders = includeTest ? rawOrders : rawOrders.filter(o => !isTestTransactionRecord(o));
 
-    res.json(orders.map(o => ({
-      id: o.id,
-      name: by[o.user_id]?.full_name || 'Candidate',
-      email: em[o.user_id] || '',
-      course: courses[o.course_id] || 'Winter Internship 2026',
-      amountPaise: o.amount_paise,
-      amountRupees: o.amount_paise / 100,
-      status: o.status,
-      orderId: o.razorpay_order_id,
-      paymentId: o.razorpay_payment_id || null,
-      created: o.created_at,
-      paidAt: o.paid_at || null
-    })));
+    res.json(orders.map(o => {
+      const email = em[o.user_id] || '';
+      const isTest = isTestTransactionRecord(o);
+      return {
+        id: o.id,
+        name: by[o.user_id]?.full_name || 'Candidate',
+        email,
+        course: courses[o.course_id] || domainByEmail[String(email).toLowerCase()] || 'Winter Internship 2026',
+        amountPaise: o.amount_paise,
+        amountRupees: o.amount_paise / 100,
+        status: o.status,
+        orderId: o.razorpay_order_id,
+        paymentId: o.razorpay_payment_id || null,
+        couponCode: o.coupon_code || null,
+        isTest,
+        created: o.created_at,
+        paidAt: o.paid_at || null
+      };
+    }));
   });
 
   A('get', '/payments/export.csv', async (req, res) => {
     const B = await scope(req);
+    const includeTest = req.query?.includeTest === '1' || req.query?.includeTest === 'true';
     const { by, em } = await people();
     const courses = Object.fromEntries((await rows(db.from('courses').select('id,title'))).map(c => [c.id, c.title]));
     const rawOrders = await rows(S(B, db.from('payment_orders').select('*')).order('created_at', { ascending: false }).limit(50000));
-    const orders = rawOrders.filter(o => !isTestTransactionRecord(o));
+    const orders = includeTest ? rawOrders : rawOrders.filter(o => !isTestTransactionRecord(o));
 
     const headers = ['Order ID', 'Payment ID', 'Candidate Name', 'Email', 'Track', 'Amount (INR)', 'Status', 'Created At', 'Paid At'];
     const csvRows = [headers.join(',')];
@@ -839,12 +922,11 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   // 7. MENTORS MANAGEMENT
   // ===================================================================
   A('get', '/mentors', async (_q, res) => {
-    let list = [];
     try {
-      const { data } = await db.from('mentors').select('*').order('created_at', { ascending: true });
-      if (data && data.length) list = data;
+      const { data, error } = await db.from('mentors').select('*').order('created_at', { ascending: true });
+      if (!error) return res.json(data || []);
     } catch {}
-    res.json(list.length ? list : localMentors);
+    res.json(localMentors);
   });
 
   A('post', '/mentors', async (req, res) => {
@@ -877,6 +959,46 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
 
     await logAudit(req, 'CREATE_MENTOR', 'mentor', saved.id, { name, domain, email });
     res.json(saved);
+  });
+
+  A('delete', '/mentors/:id', async (req, res) => {
+    const mentorId = String(req.params.id || '').trim();
+    if (!mentorId) throw fail(400, 'Mentor ID is required.');
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mentorId);
+    let removedName = '';
+
+    // Unassign mentor from applications & support queries before deleting (avoids FK constraint errors)
+    try {
+      await db.from('internship_applications').update({ assigned_mentor_id: null }).eq('assigned_mentor_id', mentorId);
+    } catch {}
+    try {
+      await db.from('student_queries').update({ assigned_mentor_id: null }).eq('assigned_mentor_id', mentorId);
+    } catch {}
+    if (Array.isArray(sharedSupportTickets)) {
+      sharedSupportTickets.forEach(t => {
+        if (String(t.assignedMentorId || '') === mentorId) {
+          t.assignedMentorId = null;
+          t.assignedMentorName = null;
+        }
+      });
+    }
+
+    if (isUuid) {
+      const { data: existing } = await db.from('mentors').select('name').eq('id', mentorId).maybeSingle();
+      if (existing?.name) removedName = existing.name;
+      const { error } = await db.from('mentors').delete().eq('id', mentorId);
+      if (error) throw fail(500, error.message);
+    }
+
+    const localIdx = localMentors.findIndex(m => String(m.id) === mentorId);
+    if (localIdx >= 0) {
+      if (!removedName) removedName = localMentors[localIdx].name;
+      localMentors.splice(localIdx, 1);
+    }
+
+    await logAudit(req, 'REMOVE_MENTOR', 'mentor', mentorId, { name: removedName || mentorId });
+    res.json({ ok: true, deleted: mentorId, name: removedName || null });
   });
 
   // ===================================================================

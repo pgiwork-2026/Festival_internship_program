@@ -48,6 +48,14 @@
     if (!el) return;
     el.textContent = text;
     el.className = 'msg ' + (isOk ? 'ok' : 'err');
+    if (id === 'face-msg') {
+      const hud = $('pv-hud-verify-status');
+      if (hud) {
+        hud.textContent = text;
+        const isInProgress = isOk && /verifying|loading|center|hold/i.test(String(text || ''));
+        hud.className = 'pv-hud-status-pill ' + (isInProgress ? 'is-verifying' : (isOk ? 'is-ok' : 'is-err'));
+      }
+    }
   };
 
   const DEFAULT_TUITION_PAISE = 999900;

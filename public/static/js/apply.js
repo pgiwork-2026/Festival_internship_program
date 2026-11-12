@@ -51,15 +51,21 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   const DOMAINS = {
     'Technical': [
-      'Full-Stack Web Development & Cloud Architecture',
-      'Mobile App Development (MIT App Inventor / Android)',
-      'Web Development, HTML, CSS, JavaScript & GitHub',
-      'Data Analytics & Machine Learning Basics'
+      'Web Development & Full Stack Development',
+      'App Development',
+      'Python Programming',
+      'Artificial Intelligence & Machine Learning',
+      'Data Science & Analytics',
+      'UI/UX Design',
+      'IoT & Embedded Systems'
     ],
     'Non-Technical': [
-      'Digital Operations & Agile Project Management',
-      'Business Analytics & Tech Communication',
-      'Digital Growth & Product Marketing'
+      'Human Resource Management',
+      'Marketing',
+      'Finance & Accounting',
+      'Digital Marketing',
+      'Business Development',
+      'Sales'
     ]
   };
 

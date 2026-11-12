@@ -429,7 +429,7 @@ async function loadSyllabusTrack() {
               ${(m.topics || []).map(t => `<span class="mod-topic-chip">${t}</span>`).join('')}
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <a href="${track.pdfUrl || '/static/pdf/PGI_Winter_Internship_Syllabus.pdf'}" target="_blank" class="mod-notes-btn" style="text-decoration:none;">Download Track PDF</a>
+              <a href="${track.pdfUrl || '/static/pdf/PGI_Winter_Internship_Complete_Syllabus.pdf'}" target="_blank" class="mod-notes-btn" style="text-decoration:none;">Download Track PDF</a>
               <button type="button" class="mod-notes-btn" onclick="switchModule('assignments')">Open Submissions</button>
             </div>
           </div>

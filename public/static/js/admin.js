@@ -693,6 +693,9 @@ async function loadStudents() {
         <button type="button" class="btn btn-green btn-sm" onclick="openAddStudentModal()">
           + Add Student
         </button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="openRemoveAllStudentsModal()">
+          Remove All Student Details
+        </button>
       </div>
     </div>
 
@@ -950,7 +953,22 @@ function openAddStudentModal() {
         </div>
         <div>
           <label class="f-lbl" for="add-dom-name">Cohort Track</label>
-          <input id="add-dom-name" class="f-ctrl" type="text" value="Full-Stack Web Development" required>
+          <input id="add-dom-name" class="f-ctrl" list="pgi-track-suggestions" type="text" value="Web Development &amp; Full Stack Development" required>
+          <datalist id="pgi-track-suggestions">
+            <option value="Web Development &amp; Full Stack Development"></option>
+            <option value="App Development"></option>
+            <option value="Python Programming"></option>
+            <option value="Artificial Intelligence &amp; Machine Learning"></option>
+            <option value="Data Science &amp; Analytics"></option>
+            <option value="UI/UX Design"></option>
+            <option value="IoT &amp; Embedded Systems"></option>
+            <option value="Human Resource Management"></option>
+            <option value="Marketing"></option>
+            <option value="Finance &amp; Accounting"></option>
+            <option value="Digital Marketing"></option>
+            <option value="Business Development"></option>
+            <option value="Sales"></option>
+          </datalist>
         </div>
         <div>
           <label class="f-lbl" for="add-mode">Mode</label>
@@ -1014,6 +1032,57 @@ async function updateStudentStatus(idx, newStatus) {
   } catch (err) {
     showToast(err.message, true);
     loadStudents();
+  }
+}
+
+function openRemoveAllStudentsModal() {
+  openModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div>
+        <span class="pill red">DANGER ZONE</span>
+        <h3 style="margin:6px 0 0;font-family:'Space Grotesk',sans-serif;font-size:1.18rem;color:var(--adm-red);">Remove All Student Details</h3>
+      </div>
+      <button type="button" class="btn btn-outline btn-sm" onclick="closeModal()">Close</button>
+    </div>
+    <p style="font-size:0.92rem;color:var(--adm-slate);margin:0 0 12px;">
+      This permanently deletes <strong>all ${cacheStudents.length} student &amp; candidate records</strong> including applications, assessment attempts, coupons, payment orders, enrollments, attendance logs, submissions, project reports, certificates, and non-admin student login accounts.
+    </p>
+    <p style="font-size:0.88rem;color:var(--adm-muted);margin:0 0 12px;">
+      Admin accounts, mentors, batches, question bank, courses, and platform settings will be preserved.
+    </p>
+    <form onsubmit="event.preventDefault(); executeRemoveAllStudents();">
+      <label class="f-lbl" for="confirm-purge-stu">Type <code>DELETE ALL</code> to confirm permanent removal</label>
+      <input id="confirm-purge-stu" class="f-ctrl" type="text" placeholder="DELETE ALL" autocomplete="off" required>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button type="submit" id="btn-confirm-purge-stu" class="btn btn-danger">Permanently Remove All Students</button>
+      </div>
+    </form>`);
+}
+
+async function executeRemoveAllStudents() {
+  const confirmText = ($('confirm-purge-stu')?.value || '').trim().toUpperCase();
+  if (confirmText !== 'DELETE ALL') {
+    showToast('Please type DELETE ALL to confirm.', true);
+    return;
+  }
+  const btn = $('btn-confirm-purge-stu');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Removing...';
+  }
+  try {
+    const res = await api('/api/admin/students', { method: 'DELETE' });
+    cacheStudents = [];
+    closeModal();
+    showToast(`All student details removed (${res.deletedAuthUsers || 0} student login account(s) deleted).`);
+    await loadStudents();
+  } catch (err) {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Permanently Remove All Students';
+    }
+    showToast(err.message, true);
   }
 }
 
@@ -2827,7 +2896,7 @@ async function loadCurriculumView() {
       </div>
       <div class="adm-hero-actions">
         <button type="button" class="btn btn-outline btn-sm" onclick="openModuleModal(-1)">+ Add New Module</button>
-        <a href="/static/pdf/PGI_Winter_Internship_Syllabus.pdf" target="_blank" rel="noopener noreferrer" class="btn btn-green btn-sm" style="text-decoration:none;">
+        <a href="/static/pdf/PGI_Winter_Internship_Complete_Syllabus.pdf" target="_blank" rel="noopener noreferrer" class="btn btn-green btn-sm" style="text-decoration:none;">
           Open Syllabus Handbook PDF &rarr;
         </a>
       </div>
@@ -2896,7 +2965,7 @@ async function loadCurriculumView() {
                 ${safeHref(c.access_url) !== '#' ? `<a href="${safeHref(c.access_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="text-decoration:none;">Open Link</a>` : pillBadge('Synced', 'gray')}
               </div>`).join('')}
           </div>` : `<p style="color:var(--adm-muted);font-size:0.92rem;margin:0 0 12px;">All ${tracks.length} internship tracks map automatically to the official 30-hour syllabus handbook.</p>`}
-        <a href="/static/pdf/PGI_Winter_Internship_Syllabus.pdf" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="text-decoration:none;">
+        <a href="/static/pdf/PGI_Winter_Internship_Complete_Syllabus.pdf" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="text-decoration:none;">
           Download Official 30-Hour Syllabus PDF
         </a>
       </section>
@@ -3325,7 +3394,7 @@ async function loadMentorsView() {
           <button type="button" class="btn btn-green btn-sm" onclick="openMentorModal()">+ Add Mentor</button>
         </div>
         <div class="adm-grid-auto">
-          ${cacheMentors.length ? cacheMentors.map(m => {
+          ${cacheMentors.length ? cacheMentors.map((m, mIdx) => {
             const stuCnt = cacheStudents.filter(s => s.assignedMentorId === m.id || s.assignedMentor === m.name).length;
             const qCnt = cacheQueries.filter(q => q.assignedMentorId === m.id && q.status !== 'Resolved').length;
             return `
@@ -3344,7 +3413,10 @@ async function loadMentorsView() {
                 ${m.bio ? `<div style="font-size:0.88rem;color:var(--adm-slate);margin-bottom:8px;">${escHtml(m.bio)}</div>` : ''}
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding-top:8px;border-top:1px solid #E2E8F0;font-size:0.84rem;color:var(--adm-muted);">
                   <span>${escHtml(m.email || '')}${m.phone ? ' &bull; ' + escHtml(m.phone) : ''}</span>
-                  <strong style="color:var(--adm-navy);">${stuCnt} fellow${stuCnt === 1 ? '' : 's'} &bull; ${qCnt} open</strong>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <strong style="color:var(--adm-navy);">${stuCnt} fellow${stuCnt === 1 ? '' : 's'} &bull; ${qCnt} open</strong>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="removeMentor(${mIdx})">Remove</button>
+                  </div>
                 </div>
               </div>`;
           }).join('') : '<p style="color:var(--adm-muted);">No mentors added yet.</p>'}
@@ -3456,6 +3528,7 @@ async function loadMentorsView() {
         </div>
         <div style="display:grid;gap:10px;">
           ${activeMentors.length ? activeMentors.slice(0, 4).map(m => {
+            const mIdx = cacheMentors.indexOf(m);
             const stuCnt = cacheStudents.filter(s => s.assignedMentorId === m.id || s.assignedMentor === m.name).length;
             const qCnt = openQueries.filter(q => q.assignedMentorId === m.id).length;
             return `
@@ -3469,7 +3542,10 @@ async function loadMentorsView() {
                 </div>
                 <div style="text-align:right;flex-shrink:0;">
                   <div style="font-size:0.88rem;font-weight:700;color:var(--adm-navy);">${stuCnt} Fellows &bull; ${qCnt} Open</div>
-                  ${pillBadge('ONLINE', 'green')}
+                  <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:4px;">
+                    ${pillBadge('ONLINE', 'green')}
+                    <button type="button" class="btn btn-outline btn-sm" style="color:var(--adm-red);border-color:#FECACA;" onclick="removeMentor(${mIdx})">Remove</button>
+                  </div>
                 </div>
               </div>`;
           }).join('') : '<p style="color:var(--adm-muted);font-size:0.92rem;">No active mentors configured.</p>'}
@@ -3631,6 +3707,19 @@ async function saveMentor() {
   }
 }
 
+async function removeMentor(idx) {
+  const m = cacheMentors[idx];
+  if (!m?.id) return;
+  if (!confirm(`Remove mentor "${m.name || m.id}"? Assigned students will be unassigned.`)) return;
+  try {
+    await api(`/api/admin/mentors/${encodeURIComponent(m.id)}`, { method: 'DELETE' });
+    showToast(`Removed mentor ${m.name || m.id}.`);
+    await loadMentorsView();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
 function openQueryModal(idx) {
   const q = cacheQueries[idx];
   if (!q) return;
@@ -3716,6 +3805,8 @@ async function sendNotificationSubmit() {
 // ----------------------------------------------------------------------------
 // VIEW 8: Platform Settings, Payments, Coupons & Audit Logs (Stitch Console)
 // ----------------------------------------------------------------------------
+let payIncludeTest = true;
+
 async function loadSettingsView() {
   const sub = curSubTab.settings || 'exam';
   const tabsHtml = renderSubTabs('settings', [
@@ -3745,15 +3836,22 @@ async function loadSettingsView() {
     ${tabsHtml}`;
 
   if (sub === 'payments') {
-    cachePayments = await api('/api/admin/payments');
+    cachePayments = await api(`/api/admin/payments${payIncludeTest ? '?includeTest=1' : ''}`);
     const paid = cachePayments.filter(p => p.status === 'paid');
+    const paidProd = paid.filter(p => !p.isTest);
+    const paidTest = paid.filter(p => p.isTest);
     const totalRev = paid.reduce((sum, p) => sum + Number(p.amountRupees || 0), 0);
+    const prodRev = paidProd.reduce((sum, p) => sum + Number(p.amountRupees || 0), 0);
+    const testRev = paidTest.reduce((sum, p) => sum + Number(p.amountRupees || 0), 0);
+    const revSub = paidTest.length
+      ? `${paid.length} settled Razorpay transactions (Prod: ${fmtRupees(prodRev)} · Test: ${fmtRupees(testRev)})`
+      : `${paid.length} settled Razorpay transactions`;
 
     $('admin-view').innerHTML = `
       ${headerHtml(false)}
       <div class="kpi-grid">
-        ${kpiCard('COLLECTED REVENUE', fmtRupees(totalRev), `${paid.length} settled Razorpay transactions`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>', 'green')}
-        ${kpiCard('TOTAL PAYMENT ORDERS', String(cachePayments.length), 'Paid, initiated & failed checkouts', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>', 'blue')}
+        ${kpiCard('COLLECTED REVENUE', fmtRupees(totalRev), revSub, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>', 'green')}
+        ${kpiCard('TOTAL PAYMENT ORDERS', String(cachePayments.length), `${paid.length} paid · Paid, initiated & failed checkouts`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>', 'blue')}
       </div>
       <div class="filter-bar">
         <input id="f-pay-q" class="f-ctrl" type="search" placeholder="Search candidate, email, order ID, payment ID..." oninput="renderPaymentsTable()">
@@ -3763,7 +3861,11 @@ async function loadSettingsView() {
           <option value="created">Pending / Created</option>
           <option value="failed">Failed</option>
         </select>
-        <button type="button" class="btn btn-outline btn-sm" onclick="downloadWithAuth('/api/admin/payments/export.csv', 'pgi-payments.csv')">Export Payments CSV</button>
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.88rem;font-weight:600;color:var(--adm-slate);white-space:nowrap;cursor:pointer;">
+          <input id="f-pay-include-test" type="checkbox"${payIncludeTest ? ' checked' : ''} onchange="payIncludeTest = this.checked; loadSettingsView();">
+          Include Test (PGITEST1 / ₹1)
+        </label>
+        <button type="button" class="btn btn-outline btn-sm" onclick="downloadWithAuth('/api/admin/payments/export.csv${payIncludeTest ? '?includeTest=1' : ''}', 'pgi-payments.csv')">Export Payments CSV</button>
       </div>
       <div class="table-wrap">
         <table class="data-table">
@@ -4105,7 +4207,10 @@ function renderPaymentsTable() {
       <td><strong>${escHtml(p.name || 'Candidate')}</strong><br><span style="font-size:0.86rem;color:var(--adm-muted);">${escHtml(p.email || '')}</span></td>
       <td>${escHtml(p.course || 'Winter Internship')}</td>
       <td><strong>${fmtRupees(p.amountRupees)}</strong></td>
-      <td>${pillBadge(p.status || 'created')}</td>
+      <td>
+        ${pillBadge(p.status || 'created')}
+        ${p.isTest ? `<span class="pill blue" style="margin-left:4px;">Test &bull; ${escHtml(p.couponCode || 'PGITEST1')}</span>` : ''}
+      </td>
       <td style="font-family:'JetBrains Mono',monospace;font-size:0.86rem;">
         <div>Order: ${escHtml(p.orderId || '—')}</div>
         ${p.paymentId ? `<div style="color:var(--adm-green);">Pay: ${escHtml(p.paymentId)}</div>` : ''}

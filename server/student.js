@@ -809,7 +809,7 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
       {
         title: 'Winter Internship Syllabus & Program Handbook (PDF)',
         type: 'pdf',
-        url: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
+        url: '/static/pdf/PGI_Winter_Internship_Complete_Syllabus.pdf',
         description: 'Official 30-hour curriculum reference for Technical and Non-Technical tracks.'
       }
     ];
