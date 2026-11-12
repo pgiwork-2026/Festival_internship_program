@@ -215,21 +215,18 @@ export function buildCertificatePDF(data = {}) {
         lineGap: 5
       });
 
-    // 9. Certificate No, From Date, To Date row (.cert-row)
+    // 9. Certificate No & Issued Date row (.cert-row)
     const certNum = data.certificateNumber || certificateNumber(data.studentId);
-    const compDate = data.completionDate || fmtShortDate(new Date(), '2026');
-    const fromLabel = fmtShortDate(data.startDate || data.fromDate, compDate);
-    const toLabel = fmtShortDate(data.endDate || data.toDate || data.completionDate, compDate);
+    const issuedDateLabel = fmtShortDate(data.issuedAt || data.completionDate || new Date(), fmtShortDate(new Date(), '2026'));
 
     const rowTopY = 582;
     doc.lineWidth(1.1).strokeColor('#e2e8f0')
       .moveTo(innerLeft, rowTopY).lineTo(W - innerLeft, rowTopY).stroke();
 
-    const colW = innerWidth / 3;
-    doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#101D35')
-      .text(`Certificate No: ${certNum}`, innerLeft, rowTopY + 12, { width: colW + 46, align: 'left' })
-      .text(`From: ${fromLabel}`, innerLeft + colW + 18, rowTopY + 12, { width: colW - 12, align: 'center' })
-      .text(`To: ${toLabel}`, innerLeft + colW * 2, rowTopY + 12, { width: colW, align: 'right' });
+    const halfW = innerWidth / 2;
+    doc.font('Helvetica-Bold').fontSize(9.8).fillColor('#101D35')
+      .text(`Certificate No: ${certNum}`, innerLeft, rowTopY + 12, { width: halfW + 40, align: 'left' })
+      .text(`Date: ${issuedDateLabel}`, innerLeft + halfW - 20, rowTopY + 12, { width: halfW + 20, align: 'right' });
 
     // 10. Footer: Centered Gold Stamp Seal + Right Founder Signature (.cert-foot)
     const sealX = W / 2;
