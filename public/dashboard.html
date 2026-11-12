@@ -3329,16 +3329,24 @@
               </div>
               <button type="button" onclick="closeLecturePlayer()" style="border:1px solid var(--hub-line);background:#fff;border-radius:8px;padding:6px 11px;font-weight:700;cursor:pointer;">Close</button>
             </div>
-            <div class="vid-player-stage">
-              <div style="width:52px;height:52px;margin:0 auto 12px;border-radius:50%;background:rgba(41,105,52,0.22);border:1.5px solid var(--hub-green);color:#ffffff;display:flex;align-items:center;justify-content:center;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="8 5 19 12 8 19 8 5"/></svg>
+            <div class="vid-player-stage" id="vp-stage-box">
+              <div id="vp-embed-wrap" class="hidden" style="width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;margin-bottom:12px;background:#000;">
+                <iframe id="vp-iframe" style="width:100%;height:100%;border:0;" title="Recorded session video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
               </div>
-              <div style="font-weight:700;font-size:0.95rem;margin-bottom:6px;" id="vp-stage-label">Session Playback Ready</div>
+              <div id="vp-fallback-box">
+                <div style="width:52px;height:52px;margin:0 auto 12px;border-radius:50%;background:rgba(41,105,52,0.22);border:1.5px solid var(--hub-green);color:#ffffff;display:flex;align-items:center;justify-content:center;">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="8 5 19 12 8 19 8 5"/></svg>
+                </div>
+                <div style="font-weight:700;font-size:0.95rem;margin-bottom:6px;" id="vp-stage-label">Session Playback Ready</div>
+              </div>
               <p style="font-size:0.8rem;color:#CBD5E1;max-width:460px;margin:0 auto 14px;" id="vp-summary"></p>
               <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;" id="vp-chapters"></div>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-              <a id="vp-pdf-link" href="/static/pdf/PGI_Winter_Internship_Complete_Syllabus.pdf" target="_blank" class="mod-notes-btn" style="text-decoration:none;">Download Session Guide (PDF)</a>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <a id="vp-pdf-link" href="/static/pdf/PGI_Winter_Internship_Complete_Syllabus.pdf" target="_blank" class="mod-notes-btn" style="text-decoration:none;">Download Session Guide (PDF)</a>
+                <a id="vp-yt-link" href="#" target="_blank" rel="noopener noreferrer" class="mod-notes-btn hidden" style="text-decoration:none;">Watch on YouTube &rarr;</a>
+              </div>
               <button type="button" id="vp-mark-btn" class="hub-btn-green" onclick="markCurrentSessionWatched()">Mark as Watched</button>
             </div>
           </div>

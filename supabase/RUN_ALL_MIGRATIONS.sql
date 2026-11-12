@@ -146,7 +146,7 @@ ALTER TABLE public.scholarship_coupons
   DROP CONSTRAINT IF EXISTS scholarship_coupons_discount_percent_check;
 ALTER TABLE public.scholarship_coupons
   ADD CONSTRAINT scholarship_coupons_discount_percent_check
-  CHECK (discount_percent IN (0, 85, 88, 90, 100));
+  CHECK (discount_percent >= 0 AND discount_percent <= 100);
 
 ALTER TABLE public.assessment_attempts
   ADD COLUMN IF NOT EXISTS total_score numeric(5,2),
@@ -543,6 +543,25 @@ SET
   is_test = true,
   is_reusable = true,
   expires_at = '2099-12-31T23:59:59Z';
+
+CREATE TABLE IF NOT EXISTS public.recorded_videos (
+  id text PRIMARY KEY,
+  title text NOT NULL,
+  youtube_url text NOT NULL,
+  youtube_id text NOT NULL,
+  embed_url text NOT NULL,
+  thumbnail_url text,
+  track text NOT NULL DEFAULT 'all',
+  mode text NOT NULL DEFAULT 'all',
+  session_number text DEFAULT 'SESSION',
+  duration text DEFAULT 'YouTube',
+  instructor text DEFAULT 'Plant Green Inertia Mentor',
+  summary text,
+  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_recorded_videos_created ON public.recorded_videos(created_at DESC);
 
 COMMIT;
 

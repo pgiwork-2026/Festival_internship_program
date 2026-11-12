@@ -30,6 +30,7 @@ let cacheCertificates = [];
 let cacheQueries = [];
 let cacheCurriculum = { tracks: [], courses: [] };
 let cacheSettings = {};
+let cacheVideos = [];
 let cacheBlockedDevices = [];
 let cacheBlockedDeviceCount = 0;
 
@@ -2872,8 +2873,88 @@ async function loadCurriculumView() {
   const sub = curSubTab.curriculum || 'syllabus';
   const tabsHtml = renderSubTabs('curriculum', [
     { key: 'syllabus', label: '30-Hour Syllabus & Modules' },
+    { key: 'videos', label: 'Recorded Videos (YouTube)' },
     { key: 'batches', label: 'Cohort Batches & Schedule' }
   ]);
+
+  if (sub === 'videos') {
+    const videos = await api('/api/admin/videos').catch(() => []);
+    cacheVideos = Array.isArray(videos) ? videos : [];
+    const allTrackCnt = cacheVideos.filter(v => !v.track || v.track === 'all').length;
+    const trackSpecificCnt = cacheVideos.length - allTrackCnt;
+    const latestVid = cacheVideos[0] || null;
+
+    $('admin-view').innerHTML = `
+      <div class="adm-stu-hero">
+        <div>
+          <div>
+            <span class="adm-hero-pill">VIDEO LIBRARY // YOUTUBE LECTURE LINKS</span>
+            <span class="adm-sync-note">&bull; Published to Student Portal</span>
+          </div>
+          <h2>Recorded Videos</h2>
+          <p>Add recorded class sessions via YouTube links. Students see matching track videos automatically under Recorded Videos.</p>
+        </div>
+        <div class="adm-hero-actions">
+          <button type="button" class="btn btn-outline btn-sm" onclick="refreshCurrentTab()">Refresh</button>
+          <button type="button" class="btn btn-green btn-sm" onclick="openAddVideoModal()">+ Add Recorded Video</button>
+        </div>
+      </div>
+
+      ${tabsHtml}
+
+      <div class="kpi-grid">
+        ${kpiCard('TOTAL VIDEOS', String(cacheVideos.length), 'YouTube recordings published', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>', 'green')}
+        ${kpiCard('ALL-TRACK ACCESS', String(allTrackCnt), 'Visible to every enrolled fellow', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>', 'blue')}
+        ${kpiCard('TRACK-SPECIFIC', String(trackSpecificCnt), 'Targeted to single domain tracks', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/></svg>', 'blue')}
+        ${kpiCard('LATEST UPLOAD', latestVid ? (latestVid.session_number || 'NEW') : 'NONE', latestVid ? escHtml(latestVid.title) : 'Upload your first YouTube lecture', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', 'green')}
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Preview &amp; Title</th>
+              <th>Track &amp; Mode</th>
+              <th>Session &amp; Instructor</th>
+              <th>Uploaded</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${cacheVideos.length ? cacheVideos.map((v, idx) => `
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:12px;min-width:260px;">
+                    <a href="${safeHref(v.youtube_url)}" target="_blank" rel="noopener noreferrer" style="display:block;width:96px;height:54px;border-radius:8px;overflow:hidden;border:1px solid var(--adm-line);flex-shrink:0;background:#0F172A;">
+                      ${v.thumbnail_url ? `<img src="${escHtml(v.thumbnail_url)}" alt="${escHtml(v.title)}" style="width:100%;height:100%;object-fit:cover;">` : ''}
+                    </a>
+                    <div style="min-width:0;">
+                      <strong style="display:block;color:var(--adm-navy);">${escHtml(v.title)}</strong>
+                      <div style="font-size:0.82rem;color:var(--adm-muted);">${escHtml(v.summary || v.youtube_id || '')}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div>${pillBadge(v.track === 'all' ? 'All Tracks' : v.track, v.track === 'all' ? 'green' : 'blue')}</div>
+                  <div style="font-size:0.82rem;color:var(--adm-muted);margin-top:4px;">Mode: ${escHtml(v.mode === 'all' ? 'Online & Offline' : v.mode)}</div>
+                </td>
+                <td>
+                  <strong style="font-size:0.88rem;">${escHtml(v.session_number || 'SESSION')}</strong>
+                  <div style="font-size:0.82rem;color:var(--adm-muted);">${escHtml(v.duration || 'YouTube')} &bull; ${escHtml(v.instructor || 'Mentor')}</div>
+                </td>
+                <td style="font-size:0.84rem;white-space:nowrap;">${fmtDate(v.created_at)}</td>
+                <td>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <a href="${safeHref(v.youtube_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="text-decoration:none;">Open YouTube</a>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteAdminVideo(${idx})">Delete</button>
+                  </div>
+                </td>
+              </tr>`).join('') : emptyTableRow(5, 'No recorded videos uploaded yet. Click "+ Add Recorded Video" to attach a YouTube link.')}
+          </tbody>
+        </table>
+      </div>`;
+    return;
+  }
 
   if (sub === 'batches') {
     cacheBatches = await api('/api/admin/batches');
@@ -2962,6 +3043,7 @@ async function loadCurriculumView() {
         <p>Manage 30-hour cohort syllabus structure, pacing milestones, recorded resources, and batch schedules.</p>
       </div>
       <div class="adm-hero-actions">
+        <button type="button" class="btn btn-outline btn-sm" onclick="openAddVideoModal()">+ Add Recorded Video</button>
         <button type="button" class="btn btn-outline btn-sm" onclick="openModuleModal(-1)">+ Add New Module</button>
         <a href="/static/pdf/PGI_Winter_Internship_Complete_Syllabus.pdf" target="_blank" rel="noopener noreferrer" class="btn btn-green btn-sm" style="text-decoration:none;">
           Open Syllabus Handbook PDF &rarr;
@@ -3173,6 +3255,142 @@ async function saveCurriculumModule(modIdx) {
     });
     showToast('Saved curriculum module updates.');
     closeModal();
+    await loadCurriculumView();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+const WINTER_VIDEO_TRACKS = [
+  'Web Development & Full Stack Development',
+  'App Development',
+  'Python Programming',
+  'Artificial Intelligence & Machine Learning',
+  'Data Science & Analytics',
+  'UI/UX Design',
+  'IoT & Embedded Systems',
+  'Human Resource Management',
+  'Marketing',
+  'Finance & Accounting',
+  'Digital Marketing',
+  'Business Development',
+  'Sales'
+];
+
+function extractYtPreviewId(raw) {
+  const m = String(raw || '').trim().match(/(?:youtu\.be\/|[?&]v=|youtube\.com\/(?:embed|shorts|live|v)\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : '';
+}
+
+function updateVideoModalPreview() {
+  const ytId = extractYtPreviewId($('vid-yt-url')?.value || '');
+  const box = $('vid-yt-preview');
+  if (!box) return;
+  if (!ytId) {
+    box.innerHTML = '<span style="font-size:0.82rem;color:var(--adm-muted);">Paste a YouTube watch, Shorts, live, or youtu.be link to preview thumbnail</span>';
+    return;
+  }
+  box.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;">
+      <img src="https://i.ytimg.com/vi/${escHtml(ytId)}/hqdefault.jpg" alt="YouTube thumbnail" style="width:112px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--adm-line);">
+      <div>
+        <span class="pill green" style="font-size:0.74rem;">VALID YOUTUBE ID</span>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.84rem;color:var(--adm-navy);margin-top:4px;">${escHtml(ytId)}</div>
+      </div>
+    </div>`;
+}
+
+function openAddVideoModal() {
+  const trackOptions = ['<option value="all">All Tracks (Visible to Every Student)</option>']
+    .concat(WINTER_VIDEO_TRACKS.map(t => `<option value="${escHtml(t)}">${escHtml(t)}</option>`))
+    .join('');
+
+  openModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div>
+        <span class="adm-hero-pill">RECORDED SESSIONS // YOUTUBE UPLOAD</span>
+        <h3 style="margin:4px 0 0;font-family:'Space Grotesk',sans-serif;">Add Recorded Video</h3>
+      </div>
+      <button type="button" class="btn btn-outline btn-sm" onclick="closeModal()">Close</button>
+    </div>
+    <form onsubmit="event.preventDefault(); saveAdminVideo();">
+      <label class="f-lbl" for="vid-title">Session / Video Title *</label>
+      <input id="vid-title" class="f-ctrl" type="text" placeholder="e.g. Day 01 — Orientation & Git Architecture" required>
+
+      <label class="f-lbl" for="vid-yt-url">YouTube Video Link *</label>
+      <input id="vid-yt-url" class="f-ctrl" type="url" placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..." oninput="updateVideoModalPreview()" required>
+
+      <div id="vid-yt-preview" style="background:#F8FAFC;border:1px dashed var(--adm-line);border-radius:10px;padding:10px 12px;margin-bottom:12px;">
+        <span style="font-size:0.82rem;color:var(--adm-muted);">Paste a YouTube watch, Shorts, live, or youtu.be link to preview thumbnail</span>
+      </div>
+
+      <div class="adm-form-2col" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
+        <div>
+          <label class="f-lbl" for="vid-track">Target Track</label>
+          <select id="vid-track" class="f-ctrl">${trackOptions}</select>
+        </div>
+        <div>
+          <label class="f-lbl" for="vid-mode">Batch Mode</label>
+          <select id="vid-mode" class="f-ctrl">
+            <option value="all">All Modes (Online &amp; Offline)</option>
+            <option value="Online">Online Cohort Only</option>
+            <option value="Offline">Offline Cohort Only</option>
+          </select>
+        </div>
+        <div>
+          <label class="f-lbl" for="vid-session">Session / Module Label</label>
+          <input id="vid-session" class="f-ctrl" type="text" value="Module 01" placeholder="e.g. Module 01">
+        </div>
+        <div>
+          <label class="f-lbl" for="vid-duration">Duration</label>
+          <input id="vid-duration" class="f-ctrl" type="text" placeholder="e.g. 45 mins">
+        </div>
+      </div>
+
+      <label class="f-lbl" for="vid-instructor">Mentor / Speaker</label>
+      <input id="vid-instructor" class="f-ctrl" type="text" value="Plant Green Inertia Mentor" placeholder="Instructor name">
+
+      <label class="f-lbl" for="vid-summary">Session Summary / Notes</label>
+      <textarea id="vid-summary" class="f-ctrl" rows="2" placeholder="Key topics covered in this recorded session"></textarea>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-green">Publish YouTube Video</button>
+      </div>
+    </form>`);
+}
+
+async function saveAdminVideo() {
+  try {
+    const res = await api('/api/admin/videos', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: ($('vid-title')?.value || '').trim(),
+        youtubeUrl: ($('vid-yt-url')?.value || '').trim(),
+        track: $('vid-track')?.value || 'all',
+        mode: $('vid-mode')?.value || 'all',
+        sessionNumber: ($('vid-session')?.value || 'SESSION').trim(),
+        duration: ($('vid-duration')?.value || 'YouTube').trim(),
+        instructor: ($('vid-instructor')?.value || 'Plant Green Inertia Mentor').trim(),
+        summary: ($('vid-summary')?.value || '').trim()
+      })
+    });
+    showToast(res.message || 'Recorded YouTube video uploaded.');
+    closeModal();
+    curSubTab.curriculum = 'videos';
+    await loadCurriculumView();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+async function deleteAdminVideo(idx) {
+  const v = cacheVideos[idx];
+  if (!v) return;
+  if (!confirm(`Delete "${v.title}" from Recorded Videos?`)) return;
+  try {
+    await api(`/api/admin/videos/${encodeURIComponent(v.id)}`, { method: 'DELETE' });
+    showToast(`Deleted "${v.title}".`);
     await loadCurriculumView();
   } catch (err) {
     showToast(err.message, true);

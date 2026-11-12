@@ -5,7 +5,11 @@ import {
   isTestCoupon,
   isTestCouponEnabled,
   sharedSupportTickets,
-  sharedDevicePolicyState
+  sharedDevicePolicyState,
+  parseYouTubeUrl,
+  loadRecordedVideos,
+  saveRecordedVideo,
+  deleteRecordedVideo
 } from './logic.js';
 import {
   deleteCouponByCode,
@@ -1689,6 +1693,59 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
 
     await logAudit(req, 'UPDATE_CURRICULUM', 'track', track.id, { day, title, hours });
     res.json({ ok: true, track });
+  });
+
+  // Recorded Videos (YouTube link uploads published to Student Dashboard)
+  A('get', '/videos', async (_q, res) => {
+    res.json(await loadRecordedVideos(db));
+  });
+
+  A('post', '/videos', async (req, res) => {
+    const b = req.body || {};
+    const title = String(b.title || '').trim().slice(0, 180);
+    if (title.length < 2) throw fail(400, 'Video title is required (minimum 2 characters).');
+
+    const yt = parseYouTubeUrl(b.youtubeUrl || b.youtube_url || b.url);
+    if (!yt) {
+      throw fail(400, 'Enter a valid YouTube video URL (youtube.com/watch?v=..., youtu.be/..., or /shorts/...).');
+    }
+
+    const track = String(b.track || 'all').trim().slice(0, 120) || 'all';
+    const modeRaw = String(b.mode || 'all').trim();
+    const mode = ['Online', 'Offline'].includes(modeRaw) ? modeRaw : 'all';
+    const sessionNumber = String(b.sessionNumber || b.session_number || 'SESSION').trim().slice(0, 40) || 'SESSION';
+    const duration = String(b.duration || 'YouTube').trim().slice(0, 40) || 'YouTube';
+    const instructor = String(b.instructor || 'Plant Green Inertia Mentor').trim().slice(0, 100) || 'Plant Green Inertia Mentor';
+    const summary = String(b.summary || '').trim().slice(0, 600);
+
+    const id = 'VID-' + (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)).toUpperCase();
+    const record = await saveRecordedVideo(db, {
+      id,
+      title,
+      youtube_url: yt.watchUrl,
+      youtube_id: yt.videoId,
+      embed_url: yt.embedUrl,
+      thumbnail_url: yt.thumbnailUrl,
+      track,
+      mode,
+      session_number: sessionNumber,
+      duration,
+      instructor,
+      summary,
+      created_by: req.user?.id || null,
+      created_at: new Date().toISOString()
+    });
+
+    await logAudit(req, 'ADD_RECORDED_VIDEO', 'recorded_video', record.id, record);
+    res.json({ ok: true, video: record, message: 'Recorded YouTube video added successfully.' });
+  });
+
+  A('delete', '/videos/:id', async (req, res) => {
+    const vid = String(req.params.id || '').trim();
+    if (!vid) throw fail(400, 'Video ID is required.');
+    await deleteRecordedVideo(db, vid);
+    await logAudit(req, 'DELETE_RECORDED_VIDEO', 'recorded_video', vid, { deleted: true });
+    res.json({ ok: true, deleted: vid });
   });
 
   A('get', '/queries', async (_q, res) => {

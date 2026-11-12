@@ -488,6 +488,29 @@ function openLecturePlayer(sessionId) {
   setText('vp-title', rec.title);
   setText('vp-meta', [rec.instructor, rec.recordedDate, rec.duration].filter(Boolean).join(' · '));
   setText('vp-summary', rec.summary || 'Recorded cohort session.');
+
+  const embedWrap = document.getElementById('vp-embed-wrap');
+  const iframeEl = document.getElementById('vp-iframe');
+  const fallbackBox = document.getElementById('vp-fallback-box');
+  const ytLink = document.getElementById('vp-yt-link');
+  if (rec.embedUrl && embedWrap && iframeEl) {
+    iframeEl.src = rec.embedUrl;
+    embedWrap.classList.remove('hidden');
+    if (fallbackBox) fallbackBox.classList.add('hidden');
+  } else {
+    if (iframeEl) iframeEl.src = '';
+    if (embedWrap) embedWrap.classList.add('hidden');
+    if (fallbackBox) fallbackBox.classList.remove('hidden');
+  }
+  if (ytLink) {
+    if (rec.url) {
+      ytLink.href = rec.url;
+      ytLink.classList.remove('hidden');
+    } else {
+      ytLink.classList.add('hidden');
+    }
+  }
+
   const chBox = document.getElementById('vp-chapters');
   if (chBox) {
     chBox.innerHTML = (rec.chapters || []).map(c =>
@@ -498,6 +521,8 @@ function openLecturePlayer(sessionId) {
 }
 
 function closeLecturePlayer() {
+  const iframeEl = document.getElementById('vp-iframe');
+  if (iframeEl) iframeEl.src = '';
   document.getElementById('vidPlayerModal')?.classList.add('hidden');
   activePlayerSessionId = null;
 }
@@ -603,7 +628,7 @@ function renderMaterialsView() {
         const isWatched = r.status === 'watched';
         return `
           <article class="vid-session-card">
-            <div class="vid-thumb" onclick="openLecturePlayer('${r.id}')" role="button" tabindex="0">
+            <div class="vid-thumb" onclick="openLecturePlayer('${r.id}')" role="button" tabindex="0"${r.thumbnailUrl ? ` style="background:url('${escHtml(r.thumbnailUrl)}') center/cover no-repeat;"` : ''}>
               <span class="vid-play-circle"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="8 5 19 12 8 19 8 5"/></svg></span>
               <span class="vid-dur-badge">${r.duration || 'HD'}</span>
             </div>

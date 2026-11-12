@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendPasswordResetEmail } from './email.js';
 import { buildProjectReportPDF } from './project_report.js';
 import { buildCertificatePDF } from './certificate.js';
-import { SYLLABUS_TRACKS, normalizeLoginPassword, parseDobCredentials, sharedSupportTickets } from './logic.js';
+import { SYLLABUS_TRACKS, normalizeLoginPassword, parseDobCredentials, sharedSupportTickets, loadRecordedVideos } from './logic.js';
 
 // In-memory fallback stores for offline testing and development
 const localPasswordResets = new Map();
@@ -803,8 +803,36 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
   // 9. RECORDED VIDEOS & RESOURCES MODULE (Real Resources, No Fake Watch History)
   // ===================================================================
   app.get('/api/student/materials', auth, wrap(async (req, res) => {
-    const { enrollment, appRecord } = await loadStudentContext(req);
-    const recordings = [];
+    const { enrollment, appRecord, mode } = await loadStudentContext(req);
+    const studentTrack = String(enrollment?.courses?.title || appRecord?.domain_name || '').trim();
+    const studentTrackLow = studentTrack.toLowerCase();
+    const studentModeLow = String(mode || 'Online').toLowerCase();
+
+    const allVideos = await loadRecordedVideos(db);
+    const recordings = allVideos
+      .filter(v => {
+        const vt = String(v.track || 'all').trim().toLowerCase();
+        const vm = String(v.mode || 'all').trim().toLowerCase();
+        const trackMatch = !vt || vt === 'all' || !studentTrackLow || vt === studentTrackLow || studentTrackLow.includes(vt) || vt.includes(studentTrackLow);
+        const modeMatch = !vm || vm === 'all' || vm === studentModeLow;
+        return trackMatch && modeMatch;
+      })
+      .map(v => ({
+        id: v.id,
+        title: v.title,
+        url: v.youtube_url,
+        youtubeId: v.youtube_id,
+        embedUrl: v.embed_url,
+        thumbnailUrl: v.thumbnail_url,
+        track: v.track,
+        mode: v.mode,
+        sessionNumber: v.session_number || 'SESSION',
+        duration: v.duration || 'YouTube',
+        instructor: v.instructor || 'Plant Green Inertia Mentor',
+        recordedDate: v.created_at ? new Date(v.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+        summary: v.summary || 'Recorded cohort lecture video.'
+      }));
+
     const items = [
       {
         title: 'Winter Internship Syllabus & Program Handbook (PDF)',

@@ -406,3 +406,143 @@ export function resolvePublicBaseUrl({ envBaseUrl = '', headers = {}, protocol =
   }
   return envClean || 'http://localhost:8787';
 }
+
+export const sharedRecordedVideos = [];
+export const sharedDeletedVideoIds = new Set();
+
+/**
+ * Extracts normalized YouTube video metadata from watch, short, live, embed, or youtu.be URLs.
+ */
+export function parseYouTubeUrl(rawUrl) {
+  const raw = String(rawUrl || '').trim();
+  if (!raw) return null;
+  let u;
+  try {
+    u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.toLowerCase().replace(/^www\./, '');
+  let videoId = '';
+  if (host === 'youtu.be') {
+    videoId = u.pathname.replace(/^\/+/, '').split('/')[0];
+  } else if (['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtube-nocookie.com'].includes(host)) {
+    if (u.pathname === '/watch') {
+      videoId = u.searchParams.get('v') || '';
+    } else {
+      const m = u.pathname.match(/^\/(?:embed|shorts|live|v)\/([A-Za-z0-9_-]{11})/);
+      if (m) videoId = m[1];
+    }
+  } else {
+    return null;
+  }
+  if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) return null;
+  return {
+    videoId,
+    watchUrl: `https://www.youtube.com/watch?v=${videoId}`,
+    embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`,
+    thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+  };
+}
+
+function normalizeVideoRow(r) {
+  if (!r) return null;
+  const parsed = parseYouTubeUrl(r.youtube_url || r.youtubeUrl || r.url || r.youtube_id || r.youtubeId);
+  const ytId = r.youtube_id || r.youtubeId || parsed?.videoId || '';
+  return {
+    id: String(r.id),
+    title: String(r.title || 'Recorded Session').trim(),
+    youtube_url: r.youtube_url || r.youtubeUrl || r.url || parsed?.watchUrl || '',
+    youtube_id: ytId,
+    embed_url: r.embed_url || r.embedUrl || (ytId ? `https://www.youtube-nocookie.com/embed/${ytId}?rel=0` : ''),
+    thumbnail_url: r.thumbnail_url || r.thumbnailUrl || (ytId ? `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg` : ''),
+    track: String(r.track || 'all').trim(),
+    mode: String(r.mode || 'all').trim(),
+    session_number: r.session_number || r.sessionNumber || 'RECORDING',
+    duration: r.duration || 'YouTube',
+    instructor: r.instructor || 'Plant Green Inertia Mentor',
+    summary: r.summary || '',
+    created_at: r.created_at || new Date().toISOString()
+  };
+}
+
+export async function loadRecordedVideos(db) {
+  try {
+    const { data, error } = await db
+      .from('recorded_videos')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (!error && Array.isArray(data)) {
+      const normalized = data.map(normalizeVideoRow).filter(Boolean);
+      sharedRecordedVideos.length = 0;
+      sharedRecordedVideos.push(...normalized);
+      return normalized;
+    }
+  } catch {}
+
+  const byId = new Map();
+  try {
+    const { data: logs } = await db
+      .from('admin_audit_logs')
+      .select('action,target_id,details,created_at')
+      .in('action', ['ADD_RECORDED_VIDEO', 'DELETE_RECORDED_VIDEO'])
+      .order('created_at', { ascending: true })
+      .limit(1000);
+    for (const row of logs || []) {
+      if (row.action === 'ADD_RECORDED_VIDEO' && row.details?.id) {
+        if (!sharedDeletedVideoIds.has(row.details.id)) {
+          byId.set(row.details.id, normalizeVideoRow({ ...row.details, created_at: row.details.created_at || row.created_at }));
+        }
+      } else if (row.action === 'DELETE_RECORDED_VIDEO' && row.target_id) {
+        byId.delete(row.target_id);
+      }
+    }
+  } catch {}
+
+  for (const v of sharedRecordedVideos) {
+    if (v?.id && !sharedDeletedVideoIds.has(v.id)) {
+      byId.set(v.id, normalizeVideoRow(v));
+    }
+  }
+  return [...byId.values()].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+}
+
+export async function saveRecordedVideo(db, rawRecord) {
+  const record = normalizeVideoRow(rawRecord);
+  sharedDeletedVideoIds.delete(record.id);
+  const idx = sharedRecordedVideos.findIndex(v => v.id === record.id);
+  if (idx >= 0) sharedRecordedVideos[idx] = record;
+  else sharedRecordedVideos.unshift(record);
+
+  try {
+    const { error } = await db.from('recorded_videos').insert(record);
+    if (error && !/relation|does not exist|schema cache|PGRST205/i.test(error.message || '')) {
+      throw error;
+    }
+  } catch (err) {
+    if (!/relation|does not exist|schema cache|PGRST205/i.test(err?.message || '')) {
+      throw err;
+    }
+  }
+  return record;
+}
+
+export async function deleteRecordedVideo(db, id) {
+  const cleanId = String(id || '').trim();
+  sharedDeletedVideoIds.add(cleanId);
+  for (let i = sharedRecordedVideos.length - 1; i >= 0; i--) {
+    if (sharedRecordedVideos[i]?.id === cleanId) sharedRecordedVideos.splice(i, 1);
+  }
+  try {
+    const { error } = await db.from('recorded_videos').delete().eq('id', cleanId);
+    if (error && !/relation|does not exist|schema cache|PGRST205/i.test(error.message || '')) {
+      throw error;
+    }
+  } catch (err) {
+    if (!/relation|does not exist|schema cache|PGRST205/i.test(err?.message || '')) {
+      throw err;
+    }
+  }
+  return true;
+}
