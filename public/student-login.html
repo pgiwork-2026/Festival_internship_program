@@ -366,14 +366,14 @@
             <span>WINTER COHORT 2026</span>
           </div>
           <h1 id="sl-title">Student Portal Sign In</h1>
-          <p>Access credentials issued post-payment completion.<br>Executive fellowship records &amp; research data.</p>
+          <p>Paid fellows only &mdash; copy &amp; paste your <strong>Private Key (Student ID)</strong> and <strong>Secret Key</strong> issued after payment.</p>
         </div>
 
         <form id="student-login-form" onsubmit="event.preventDefault(); doStudentLogin();">
           <div class="sl-field">
             <div class="sl-label-row">
-              <label for="student-identifier">Candidate UID or Institutional Email</label>
-              <span class="sl-field-hint">Provided in payment receipt</span>
+              <label for="student-identifier">Private Key (Student ID)</label>
+              <span class="sl-field-hint">Copied from Payment Confirmation</span>
             </div>
             <div class="sl-input-wrap">
               <span class="sl-input-ico" aria-hidden="true">
@@ -385,14 +385,14 @@
                   <path d="M7 16h10"></path>
                 </svg>
               </span>
-              <input id="student-identifier" type="text" placeholder="PGI-2026-APP-8941 or user@university.edu" required autocomplete="username">
+              <input id="student-identifier" type="text" placeholder="Paste Private Key (e.g. PGI-S26-1002)" required autocomplete="off">
             </div>
           </div>
 
           <div class="sl-field">
             <div class="sl-label-row">
-              <label for="student-password">Password (DDMMYYYY or Secret Key)</label>
-              <button type="button" class="sl-link-btn" onclick="openRecoveryPanel()">DDMMYYYY or Secret Key &middot; Need help?</button>
+              <label for="student-password">Secret Key (Access Key)</label>
+              <button type="button" class="sl-link-btn" onclick="openRecoveryPanel()">Forgot Secret Key?</button>
             </div>
             <div class="sl-input-wrap">
               <span class="sl-input-ico" aria-hidden="true">
@@ -400,8 +400,8 @@
                   <path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
                 </svg>
               </span>
-              <input id="student-password" type="password" placeholder="Enter DOB (DDMMYYYY) or Secret Key" required autocomplete="current-password">
-              <button type="button" class="sl-eye-btn" id="toggle-pw-btn" aria-label="Show password" onclick="togglePasswordVisibility('student-password', this)">
+              <input id="student-password" type="password" placeholder="Paste Secret Key (e.g. PGI-XXXXXX!26)" required autocomplete="off">
+              <button type="button" class="sl-eye-btn" id="toggle-pw-btn" aria-label="Show secret key" onclick="togglePasswordVisibility('student-password', this)">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                   <circle cx="12" cy="12" r="3"></circle>
@@ -409,7 +409,7 @@
               </button>
             </div>
             <div style="margin-top:5px;font-size:0.72rem;color:#64748B;font-weight:500;">
-              Use your Date of Birth in <strong>DDMMYYYY</strong> format (e.g. <code>15082004</code>) or your <strong>Secret Key</strong>.
+              Assessment email and DOB password are not allowed here. Copy your <strong>Private Key (Student ID)</strong> and <strong>Secret Key</strong> after payment completion.
             </div>
           </div>
 
@@ -428,7 +428,7 @@
           </div>
 
           <button id="btn-login-submit" type="submit" class="sl-submit-btn">
-            <span>Authenticate &amp; Enter Portal</span>
+            <span>Unlock Student Portal</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
               <line x1="5" y1="12" x2="19" y2="12"></line>
               <polyline points="12 5 19 12 12 19"></polyline>
@@ -653,10 +653,15 @@
         if (!res.ok) throw new Error(data.error || 'Authentication failed');
 
         sessionStorage.setItem('pgi_student_token', data.token);
+        if (data.portalSessionToken) {
+          sessionStorage.setItem('pgi_portal_session', data.portalSessionToken);
+        }
         if (remember) {
           localStorage.setItem('pgi_student_token', data.token);
+          if (data.portalSessionToken) localStorage.setItem('pgi_portal_session', data.portalSessionToken);
         } else {
           localStorage.removeItem('pgi_student_token');
+          localStorage.removeItem('pgi_portal_session');
         }
 
         if (data.student?.studentId) {
@@ -726,11 +731,11 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Password reset failed');
 
-        setMsg('reset-msg', data.message || 'Password updated.', true);
+        setMsg('reset-msg', data.message || 'Secret Key updated.', true);
         setTimeout(() => {
-          if (email) document.getElementById('student-identifier').value = email;
+          if (data.studentId) document.getElementById('student-identifier').value = data.studentId;
           showPanel('panel-login');
-          setMsg('login-msg', 'Password updated. Sign in with your new credentials.', true);
+          setMsg('login-msg', 'Secret Key updated. Sign in with your Private Key (Student ID) and new Secret Key.', true);
         }, 1400);
       } catch (err) {
         setMsg('reset-msg', err.message || 'Password reset failed');
@@ -753,7 +758,7 @@
       }
 
       const idEl = document.getElementById('student-identifier');
-      const prefill = uid || email;
+      const prefill = (uid && !String(uid).includes('@')) ? uid : '';
       if (prefill && idEl) {
         idEl.value = prefill;
         const pwEl = document.getElementById('student-password');

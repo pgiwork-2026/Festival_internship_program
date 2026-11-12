@@ -165,7 +165,7 @@
 
   function hasAnyStoredAuth() {
     try {
-      if (sessionStorage.getItem('pgi_student_token') || localStorage.getItem('pgi_student_token')) return true;
+      if (sessionStorage.getItem('pgi_assessment_token') || localStorage.getItem('pgi_assessment_token')) return true;
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (k && k.startsWith('sb-') && k.endsWith('-auth-token') && localStorage.getItem(k)) return true;
@@ -510,14 +510,14 @@
           return;
         }
         if (data.session?.access_token) {
-          localStorage.setItem('pgi_student_token', data.session.access_token);
-          sessionStorage.setItem('pgi_student_token', data.session.access_token);
+          localStorage.setItem('pgi_assessment_token', data.session.access_token);
+          sessionStorage.setItem('pgi_assessment_token', data.session.access_token);
           localStorage.setItem('pgi_student_email', email);
           sessionStorage.setItem('pgi_student_email', email);
         }
       } else {
-        // Dual Login via /api/student/login supporting Student ID or Email
-        const res = await fetch('/api/student/login', {
+        // Assessment Portal Login (Candidate UID or Email + Date of Birth)
+        const res = await fetch('/api/assessment/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ identifier: rawIdentifier, password: pw })
@@ -526,8 +526,8 @@
         if (!res.ok) throw new Error(loginData.error || 'Authentication failed');
 
         if (loginData.token) {
-          localStorage.setItem('pgi_student_token', loginData.token);
-          sessionStorage.setItem('pgi_student_token', loginData.token);
+          localStorage.setItem('pgi_assessment_token', loginData.token);
+          sessionStorage.setItem('pgi_assessment_token', loginData.token);
           if (loginData.student?.email) {
             sessionStorage.setItem('pgi_student_email', loginData.student.email.toLowerCase());
             localStorage.setItem('pgi_student_email', loginData.student.email.toLowerCase());
@@ -544,11 +544,6 @@
               access_token: loginData.token,
               refresh_token: loginData.refreshToken
             }).catch(() => {});
-          }
-          if (loginData.student?.enrolled) {
-            // Directly forward enrolled student to dedicated full-featured dashboard
-            window.location.href = 'dashboard.html';
-            return;
           }
         }
       }
@@ -571,7 +566,7 @@
     token = null;
     window.__pgiBootPromise = null;
     window.__pgiBootToken = null;
-    ['pgi_student_token', 'pgi_student_email', 'pgi_student_id'].forEach(k => {
+    ['pgi_assessment_token', 'pgi_student_token', 'pgi_portal_session', 'pgi_student_email', 'pgi_student_id'].forEach(k => {
       try { sessionStorage.removeItem(k); localStorage.removeItem(k); } catch {}
     });
     try {
@@ -2213,12 +2208,8 @@
 
     try {
       if (token) {
-        localStorage.setItem('pgi_student_token', token);
-        sessionStorage.setItem('pgi_student_token', token);
-      }
-      if (studentId) {
-        localStorage.setItem('pgi_student_id', studentId);
-        sessionStorage.setItem('pgi_student_id', studentId);
+        localStorage.setItem('pgi_assessment_token', token);
+        sessionStorage.setItem('pgi_assessment_token', token);
       }
     } catch {}
 
@@ -2380,29 +2371,29 @@
 
             <div class="confirm-cred-grid">
               <div class="confirm-cred-box">
-                <span class="confirm-meta-lbl">Student ID</span>
+                <span class="confirm-meta-lbl">Private Key (Student ID)</span>
                 <div class="confirm-cred-val-row">
                   <strong id="conf-student-id">${escHtml(studentId)}</strong>
-                  <button type="button" class="confirm-copy-btn" id="copy-uid-btn" title="Copy Student ID">Copy</button>
+                  <button type="button" class="confirm-copy-btn" id="copy-uid-btn" title="Copy Private Key (Student ID)">Copy</button>
                 </div>
               </div>
               <div class="confirm-cred-box">
-                <span class="confirm-meta-lbl">Access Key</span>
+                <span class="confirm-meta-lbl">Secret Key (Access Key)</span>
                 <div class="confirm-cred-val-row">
                   <strong id="conf-access-key" class="is-green">${portalPassword ? escHtml(portalPassword) : 'Sent via Email'}</strong>
-                  ${portalPassword ? '<button type="button" class="confirm-copy-btn" id="copy-pass-btn" title="Copy Access Key">Copy</button>' : ''}
+                  ${portalPassword ? '<button type="button" class="confirm-copy-btn" id="copy-pass-btn" title="Copy Secret Key">Copy</button>' : ''}
                 </div>
               </div>
             </div>
 
             <p class="confirm-cred-note">
               ${portalPassword
-                ? `Temporary access key issued above and emailed to ${candEmail}. Use Student ID (${escHtml(studentId)}) at Student Portal login.`
-                : `Portal session is active. Sign in anytime using Student ID (${escHtml(studentId)}) or ${candEmail} with your emailed password.`}
+                ? `Copy your <strong>Private Key (Student ID)</strong> and <strong>Secret Key</strong> above to sign in at the Student Portal. (Also emailed to ${candEmail}. Assessment email and DOB cannot be used to log in to the Student Portal.)`
+                : `Copy your <strong>Private Key (Student ID: ${escHtml(studentId)})</strong> and the <strong>Secret Key</strong> emailed to ${candEmail} to open the Student Portal.`}
             </p>
 
             <a href="student-login.html${studentId && studentId !== 'Assigned' ? `?uid=${encodeURIComponent(studentId)}` : ''}" class="confirm-open-btn" id="conf-open-portal">
-              <span>Open Portal</span>
+              <span>Copy Keys &amp; Open Student Portal</span>
               <span aria-hidden="true">&rarr;</span>
             </a>
           </div>
@@ -2649,7 +2640,7 @@
     }
 
     if (!activeSession) {
-      const storedToken = sessionStorage.getItem('pgi_student_token') || localStorage.getItem('pgi_student_token');
+      const storedToken = sessionStorage.getItem('pgi_assessment_token') || localStorage.getItem('pgi_assessment_token');
       const storedEmail = (sessionStorage.getItem('pgi_student_email') || localStorage.getItem('pgi_student_email') || '').toLowerCase();
       if (storedToken && (manualAuthCompleted || !qEmail || storedEmail === qEmail.trim().toLowerCase())) {
         activeSession = { access_token: storedToken, user: { email: storedEmail } };

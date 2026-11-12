@@ -4,6 +4,7 @@
  */
 
 let authToken = localStorage.getItem('pgi_student_token') || sessionStorage.getItem('pgi_student_token');
+let portalSessionToken = localStorage.getItem('pgi_portal_session') || sessionStorage.getItem('pgi_portal_session');
 let currentStudent = null;
 let currentTelemetry = null;
 let activeTrackId = 'tech-web';
@@ -11,10 +12,14 @@ let cachedMaterialsPayload = null;
 let activePlayerSessionId = null;
 
 function getHeaders() {
-  return {
+  const h = {
     'Content-Type': 'application/json',
     Authorization: 'Bearer ' + authToken
   };
+  if (portalSessionToken) {
+    h['X-Portal-Session'] = portalSessionToken;
+  }
+  return h;
 }
 
 function setMsg(id, text, isOk = false) {
@@ -72,6 +77,8 @@ function switchModule(modId) {
 function logoutStudent() {
   localStorage.removeItem('pgi_student_token');
   sessionStorage.removeItem('pgi_student_token');
+  localStorage.removeItem('pgi_portal_session');
+  sessionStorage.removeItem('pgi_portal_session');
   localStorage.removeItem('pgi_student_id');
   sessionStorage.removeItem('pgi_student_id');
   window.location.href = 'student-login.html';
@@ -85,7 +92,7 @@ async function initDashboard() {
     localStorage.setItem('pgi_student_token', qToken);
   }
 
-  if (!authToken) {
+  if (!authToken || !portalSessionToken) {
     window.location.href = 'student-login.html';
     return;
   }
@@ -93,7 +100,7 @@ async function initDashboard() {
   try {
     const res = await fetch('/api/student/dashboard', { headers: getHeaders() });
     if (!res.ok) {
-      if (res.status === 401) return logoutStudent();
+      if (res.status === 401 || res.status === 403) return logoutStudent();
       throw new Error('Failed to load dashboard data');
     }
 

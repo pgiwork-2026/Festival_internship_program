@@ -210,18 +210,18 @@
 
           <form id="student-login-form" onsubmit="event.preventDefault(); doStudentLogin();">
             <div class="form-group">
-              <label for="student-identifier">Student ID or Registered Email</label>
-              <input id="student-identifier" type="text" placeholder="e.g. PGI-S26-0001 or student@example.com" required autocomplete="username">
-              <div class="helper-text">Enter your official Student ID (PGI-S26-XXXX) or registered application email.</div>
+              <label for="student-identifier">Private Key (Student ID)</label>
+              <input id="student-identifier" type="text" placeholder="e.g. PGI-S26-0001" required autocomplete="off">
+              <div class="helper-text">Paste the Student ID (Private Key) copied after payment completion. Assessment email is not accepted.</div>
             </div>
 
             <div class="form-group">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                <label for="student-password" style="margin:0;">Account Password</label>
-                <span class="forgot-pass-trigger" onclick="showPanel('panel-forgot')">Forgot Password?</span>
+                <label for="student-password" style="margin:0;">Secret Key (Access Key)</label>
+                <span class="forgot-pass-trigger" onclick="showPanel('panel-forgot')">Forgot Secret Key?</span>
               </div>
               <div class="password-field-wrap">
-                <input id="student-password" type="password" placeholder="••••••••" required autocomplete="current-password">
+                <input id="student-password" type="password" placeholder="Paste Secret Key copied after payment" required autocomplete="off">
                 <button type="button" class="password-toggle-eye" id="toggle-pw-btn" onclick="togglePasswordVisibility('student-password', this)">Show</button>
               </div>
             </div>
@@ -385,6 +385,10 @@
         // Store session in localStorage and sessionStorage
         localStorage.setItem('pgi_student_token', data.token);
         sessionStorage.setItem('pgi_student_token', data.token);
+        if (data.portalSessionToken) {
+          localStorage.setItem('pgi_portal_session', data.portalSessionToken);
+          sessionStorage.setItem('pgi_portal_session', data.portalSessionToken);
+        }
         if (data.student?.studentId) {
           localStorage.setItem('pgi_student_id', data.student.studentId);
           sessionStorage.setItem('pgi_student_id', data.student.studentId);

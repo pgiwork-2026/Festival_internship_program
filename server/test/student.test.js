@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import express from 'express';
+import { registerStudentRoutes } from '../student.js';
 import { buildProjectReportPDF } from '../project_report.js';
 import { buildPasswordResetEmailHtml, buildPasswordResetEmailText } from '../email.js';
 
@@ -138,4 +140,164 @@ test('curriculum structure: 30 hours per track across 10 modules', () => {
   assert.equal(sampleTrack.modules.length, 10);
   const totalHours = sampleTrack.modules.reduce((sum, m) => sum + m.hours, 0);
   assert.equal(totalHours, 30);
+});
+
+test('student portal login rejects assessment email & DOB and only unlocks paid fellows via Private Key (Student ID) + Secret Key', async () => {
+  const prevUrl = process.env.SUPABASE_URL;
+  const prevAnon = process.env.SUPABASE_ANON_KEY;
+  const prevEnv = process.env.NODE_ENV;
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_ANON_KEY;
+  process.env.NODE_ENV = 'test';
+
+  const users = [
+    {
+      id: 'stu-unpaid',
+      email: 'unpaid@example.com',
+      user_metadata: { full_name: 'Unpaid Candidate', dob: '2003-04-15', application_id: 'PGI-W26-1111' }
+    },
+    {
+      id: 'stu-paid',
+      email: 'paid@example.com',
+      user_metadata: {
+        full_name: 'Paid Fellow',
+        dob: '2001-01-01',
+        application_id: 'PGI-W26-1002',
+        student_id: 'PGI-S26-1002',
+        portal_access_key: 'PGI-2397AC!26'
+      }
+    }
+  ];
+  const tables = {
+    profiles: [
+      { id: 'stu-unpaid', full_name: 'Unpaid Candidate', phone: '9000000001', student_id: null },
+      { id: 'stu-paid', full_name: 'Paid Fellow', phone: '9000000002', student_id: 'PGI-S26-1002' }
+    ],
+    enrollments: [
+      { id: 'enr-1002', user_id: 'stu-paid', student_id: 'PGI-S26-1002', status: 'active', amount_paise: 100, enrolled_at: new Date().toISOString() }
+    ],
+    internship_applications: [
+      { email: 'unpaid@example.com', application_id: 'PGI-W26-1111', dob: '2003-04-15', domain_name: 'Full-Stack Web Development' },
+      { email: 'paid@example.com', application_id: 'PGI-W26-1002', dob: '2001-01-01', domain_name: 'Full-Stack Web Development' }
+    ],
+    assessment_attempts: [],
+    batches: [{ id: 'b-w26', name: 'Winter Cohort 2026', status: 'active' }],
+    student_attendance: [],
+    student_assignments: [],
+    certificates: []
+  };
+
+  const makeQ = table => {
+    const filters = [];
+    const exec = async () => {
+      let rows = (tables[table] || []).filter(r => filters.every(fn => fn(r)));
+      return { data: rows, error: null };
+    };
+    const q = {
+      select() { return q; },
+      eq(c, v) { filters.push(r => r[c] === v); return q; },
+      neq(c, v) { filters.push(r => r[c] !== v); return q; },
+      ilike(c, v) { filters.push(r => String(r[c] || '').toLowerCase() === String(v || '').toLowerCase()); return q; },
+      order() { return q; },
+      limit() { return q; },
+      maybeSingle: async () => { const r = await exec(); return { data: r.data[0] || null, error: null }; },
+      single: async () => { const r = await exec(); return { data: r.data[0] || null, error: null }; },
+      then: (res, rej) => exec().then(res, rej)
+    };
+    return q;
+  };
+
+  const mockDb = {
+    from: makeQ,
+    auth: {
+      signInWithPassword: async ({ email, password }) => {
+        const u = users.find(x => x.email === email);
+        const dobPw = email === 'unpaid@example.com' ? '15042003' : '01012001';
+        if (!u || password !== dobPw) return { data: { session: null }, error: { message: 'Invalid login credentials' } };
+        return { data: { user: u, session: { access_token: 'tok-' + u.id, refresh_token: 'ref-' + u.id, expires_at: 9999999999 } }, error: null };
+      },
+      admin: {
+        listUsers: async () => ({ data: { users }, error: null }),
+        getUserById: async id => ({ data: { user: users.find(u => u.id === id) || null }, error: null })
+      }
+    }
+  };
+
+  const tokenUserRef = { user: users[0] };
+  const app = express();
+  app.use(express.json());
+  const fail = (status, message) => Object.assign(new Error(message), { status });
+  const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+  const auth = (req, _res, next) => { req.user = tokenUserRef.user; next(); };
+  registerStudentRoutes(app, { db: mockDb, auth, wrap, fail, localApplications: new Map(), onAuth: () => {} });
+  app.use((err, _req, res, _next) => res.status(err.status || 500).json({ error: err.message }));
+
+  const srv = await new Promise(resolve => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  try {
+    // 1. Assessment portal login still accepts assessment email + DOB
+    const assessOk = await fetch(`${base}/api/assessment/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'unpaid@example.com', password: '15/04/2003' })
+    });
+    assert.equal(assessOk.status, 200);
+
+    // 2. Student Portal login strictly blocks assessment email + DOB (both unpaid and paid)
+    for (const [id, pw] of [
+      ['unpaid@example.com', '15042003'],
+      ['PGI-W26-1111', '15042003'],
+      ['paid@example.com', '01012001'],
+      ['paid@example.com', 'PGI-2397AC!26'],
+      ['PGI-W26-1002', 'PGI-2397AC!26']
+    ]) {
+      const blocked = await fetch(`${base}/api/student/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: id, password: pw })
+      });
+      assert.equal(blocked.status, 403, `Expected 403 for ${id}`);
+    }
+
+    // 3. Paid Student ID + assessment DOB password rejected (401)
+    const dobRejected = await fetch(`${base}/api/student/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'PGI-S26-1002', password: '01012001' })
+    });
+    assert.equal(dobRejected.status, 401);
+
+    // 4. Paid Student ID + copied Secret Key succeeds and mints portalSessionToken
+    const okLogin = await fetch(`${base}/api/student/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: 'PGI-S26-1002', password: 'PGI-2397AC!26' })
+    });
+    const okData = await okLogin.json();
+    assert.equal(okLogin.status, 200);
+    assert.ok(okData.portalSessionToken);
+    assert.equal(okData.student.studentId, 'PGI-S26-1002');
+
+    // 5. Dashboard rejects unpaid user and rejects paid user without X-Portal-Session
+    tokenUserRef.user = users[0]; // unpaid
+    const dashUnpaid = await fetch(`${base}/api/student/dashboard`, {
+      headers: { 'X-Portal-Session': okData.portalSessionToken }
+    });
+    assert.equal(dashUnpaid.status, 403);
+
+    tokenUserRef.user = users[1]; // paid, but missing portal session (e.g. assessment token only)
+    const dashNoPortalSess = await fetch(`${base}/api/student/dashboard`);
+    assert.equal(dashNoPortalSess.status, 401);
+
+    // 6. Paid student with valid X-Portal-Session loads dashboard cleanly
+    const dashPaid = await fetch(`${base}/api/student/dashboard`, {
+      headers: { 'X-Portal-Session': okData.portalSessionToken }
+    });
+    assert.equal(dashPaid.status, 200);
+  } finally {
+    await new Promise(resolve => srv.close(resolve));
+    if (prevUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = prevUrl;
+    if (prevAnon === undefined) delete process.env.SUPABASE_ANON_KEY; else process.env.SUPABASE_ANON_KEY = prevAnon;
+    if (prevEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = prevEnv;
+  }
 });

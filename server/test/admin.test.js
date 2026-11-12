@@ -4,7 +4,7 @@ import express from 'express';
 import { buildCertificatePDF, certificateNumber, verifyCertificateEligibility } from '../certificate.js';
 import { parseYouTubeUrl, sharedRecordedVideos, sharedDeletedVideoIds, SYLLABUS_TRACKS, matchesStudentDomain } from '../logic.js';
 import { mountAdmin, enrichBatchesWithEnrollmentCounts } from '../admin.js';
-import { registerStudentRoutes } from '../student.js';
+import { registerStudentRoutes, signPortalSession } from '../student.js';
 
 test('certificate eligibility validation: strictly enforces 30 hours and 75% attendance', () => {
   // Case 1: Less than 30 hours completed
@@ -181,6 +181,7 @@ test('admin recorded video upload via YouTube link publishes strictly to chosen 
         }
         if (table === 'admin_audit_logs' && q._op === 'insert') { auditLogs.push(q._payload); return { data: [q._payload], error: null }; }
         if (table === 'profiles') return { data: [{ id: 'admin-1', role: 'admin', full_name: 'Admin' }], error: null };
+        if (table === 'enrollments') return { data: [{ id: 'enr-t', user_id: 'admin-1', student_id: 'PGI-S26-9999', status: 'active' }], error: null };
         if (table === 'internship_applications') return { data: [{ email: 'stu@test.edu', domain_name: 'Python Programming', mode: 'Online' }], error: null };
         return { data: [], error: null };
       }
@@ -243,7 +244,9 @@ test('admin recorded video upload via YouTube link publishes strictly to chosen 
     const adminList = await (await fetch(`${base}/api/admin/videos`)).json();
     assert.equal(adminList.length, 2);
 
-    const mat = await (await fetch(`${base}/api/student/materials`)).json();
+    const mat = await (await fetch(`${base}/api/student/materials`, {
+      headers: { 'X-Portal-Session': signPortalSession('admin-1', 'PGI-S26-9999') }
+    })).json();
     assert.equal(mat.recordings.length, 1);
     assert.equal(mat.recordings[0].title, 'Python Functions Workshop');
     assert.equal(mat.recordings[0].embedUrl, 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0');
