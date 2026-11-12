@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -912,6 +913,19 @@ app.get('/api/portal/boot', auth, wrap(async (req, res) => {
 }));
 mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, buildReportPDF, reportId });
 app.get('/admin', (_q, res) => res.sendFile(path.join(PUBLIC, 'admin.html')));
+// Resolve absolute og:image / twitter:image URLs on HTML responses for social link scrapers (WhatsApp, LinkedIn, X)
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  const rel = req.path === '/' ? 'index.html' : req.path.replace(/^\/+/, '');
+  if (!rel.endsWith('.html')) return next();
+  const target = path.resolve(PUBLIC, rel);
+  const publicRoot = path.resolve(PUBLIC);
+  if (!target.startsWith(publicRoot + path.sep) || !fs.existsSync(target)) return next();
+  const baseUrl = (process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  const html = fs.readFileSync(target, 'utf8').replace(/content="\/static\/images\/share-link\.png"/g, `content="${baseUrl}/static/images/share-link.png"`);
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('html').send(html);
+});
 app.use(express.static(PUBLIC, {
   setHeaders: (r, f) => {
     if (f.endsWith('.wasm')) r.type('application/wasm');
