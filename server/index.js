@@ -9,7 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import { registerPayments } from './payments.js';
 import { registerStudentRoutes } from './student.js';
 import { batchTools } from './batches.js';
-import { tierFor, winterTierFor, winterPayablePaise, payablePaise, scorePercent, shuffle, pickQuestions, makeCouponCode, couponState, validateAnswer, BASE_PRICE_PAISE, WINTER_PRICE_PAISE, VIOLATION_TYPES, violationDecision, MAX_WARNINGS, STATUS_TEXT, ADVISORY_TYPES, MAX_SNAPSHOTS, ADVISORY_GAP_MS, cleanSnapshot, calculateAssessmentScore, canRequestExtension, parseDobCredentials, isTestCoupon, isTestCouponEnabled, TEST_COUPON_CODE, sharedSupportTickets, assessAssessmentDevice, normalizeClientDeviceSignals, sharedDevicePolicyState } from './logic.js';
+import { tierFor, winterTierFor, winterPayablePaise, payablePaise, scorePercent, shuffle, pickQuestions, makeCouponCode, couponState, validateAnswer, BASE_PRICE_PAISE, WINTER_PRICE_PAISE, VIOLATION_TYPES, violationDecision, MAX_WARNINGS, STATUS_TEXT, ADVISORY_TYPES, MAX_SNAPSHOTS, ADVISORY_GAP_MS, cleanSnapshot, calculateAssessmentScore, canRequestExtension, parseDobCredentials, isTestCoupon, isTestCouponEnabled, TEST_COUPON_CODE, sharedSupportTickets, assessAssessmentDevice, normalizeClientDeviceSignals, sharedDevicePolicyState, resolvePublicBaseUrl } from './logic.js';
 import { validateCouponCode } from './test-coupon.js';
 import { buildReportPDF, buildReportPNG, reportId, fmtDate } from './report.js';
 import { sendApplicationConfirmation, sendCouponEmail, sendContactInquiryEmail, sendAssessmentLinkEmail } from './email.js';
@@ -1023,7 +1023,7 @@ app.post('/api/assessment/send-link', auth, wrap(async (req, res) => {
   if (!email) throw fail(400, 'No registered email found for this application.');
   const { data: prof } = await db.from('profiles').select('full_name').eq('id', req.user.id).maybeSingle();
   const fullName = ctx.appRow?.full_name || prof?.full_name || req.user.user_metadata?.full_name || 'Candidate';
-  const baseUrl = String(process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  const baseUrl = reqBaseUrl(req);
   const assessmentUrl = `${baseUrl}/portal.html?mode=login${ctx.applicationId ? `&appId=${encodeURIComponent(ctx.applicationId)}` : ''}&email=${encodeURIComponent(email)}`;
   const delivery = await sendAssessmentLinkEmail({
     fullName,
@@ -1145,7 +1145,7 @@ app.get('/api/attempts/:id/report.png', auth, wrap(async (req, res) => { // shar
 app.post('/api/attempts/:id/share', auth, wrap(async (req, res) => { // student opts in; link shows name, score and integrity only
   const a = await closedAttempt(req); let t = a.share_token;
   if (!t) { t = crypto.randomBytes(12).toString('base64url'); await db.from('assessment_attempts').update({ share_token: t }).eq('id', a.id); }
-  const base = (process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  const base = reqBaseUrl(req);
   const { data: p } = await db.from('profiles').select('full_name').eq('id', a.user_id).single();
   res.json({ url: `${base}/r/${t}`, pdf: `${base}/r/${t}/report.pdf`, image: `${base}/r/${t}/report.png`, text: `\u{1F389} I just completed the Scholarship Assessment at Plant Green Inertia (Winter Internship & Training Program) and scored ${Number(a.score_percent).toFixed(0)}%! \u{1F3C6}\n\n#PlantGreenInertia #WinterInternship #Internship` });
 }));
@@ -1155,7 +1155,7 @@ app.get('/r/:token/report.pdf', wrap(async (req, res) => { const a = await share
 app.get('/r/:token', wrap(async (req, res) => {
   const a = await sharedAttempt(req.params.token), { data: p } = await db.from('profiles').select('full_name').eq('id', a.user_id).single();
   const title = `${p.full_name}: Scholarship Assessment Report`, desc = `Scored ${a.correct_count}/${a.total_questions} (${Number(a.score_percent).toFixed(0)}%) on ${fmtDate(a.started_at)}. ${STATUS_TEXT[a.status]}. Plant Green Inertia Pvt. Ltd.`;
-  res.type('html').send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:image" content="${esc((process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, ''))}/r/${esc(req.params.token)}/report.png"><meta name="twitter:card" content="summary_large_image"><link rel="stylesheet" href="/static/css/portal.css"></head><body><main><div class="card"><h1>${esc(title)}</h1><p>${esc(desc)}</p><p>Report ID: ${reportId(a.id)}</p><a href="/r/${esc(req.params.token)}/report.pdf"><button>Open report (PDF)</button></a></div></main></body></html>`);
+  res.type('html').send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:image" content="${esc(reqBaseUrl(req))}/r/${esc(req.params.token)}/report.png"><meta name="twitter:card" content="summary_large_image"><link rel="stylesheet" href="/static/css/portal.css"></head><body><main><div class="card"><h1>${esc(title)}</h1><p>${esc(desc)}</p><p>Report ID: ${reportId(a.id)}</p><a href="/r/${esc(req.params.token)}/report.pdf"><button>Open report (PDF)</button></a></div></main></body></html>`);
 }));
 
 const { buildDashboardPayload } = registerPayments(app, { db, auth, wrap, fail, localApplications });
@@ -1216,24 +1216,32 @@ app.get('/api/portal/boot', auth, wrap(async (req, res) => {
 
   res.json({ me, dashboard, completedResult });
 }));
+const reqBaseUrl = req => resolvePublicBaseUrl({ envBaseUrl: process.env.PUBLIC_BASE_URL, headers: req.headers, protocol: req.protocol, host: req.get?.('host') });
+
 mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, buildReportPDF, reportId });
-app.get('/admin', (_q, res) => res.sendFile(path.join(PUBLIC, 'admin.html')));
+app.get('/admin', (req, res) => {
+  const baseUrl = esc(reqBaseUrl(req));
+  const target = path.join(PUBLIC, 'admin.html');
+  const html = fs.readFileSync(target, 'utf8').replace(/content="\/static\/images\/share-link\.png"/g, `content="${baseUrl}/static/images/share-link.png"`);
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('html').send(html);
+});
 // Dynamic sitemap.xml & robots.txt using active public origin
 app.get('/sitemap.xml', (req, res) => {
-  const baseUrl = String(process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  const baseUrl = reqBaseUrl(req);
   const xmlPath = path.join(PUBLIC, 'sitemap.xml');
   if (!fs.existsSync(xmlPath)) return res.status(404).end();
   const xml = fs.readFileSync(xmlPath, 'utf8').replace(/https:\/\/pgi-internship\.onrender\.com/g, esc(baseUrl));
   res.type('application/xml').send(xml);
 });
 app.get('/robots.txt', (req, res) => {
-  const baseUrl = String(process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  const baseUrl = reqBaseUrl(req);
   const txtPath = path.join(PUBLIC, 'robots.txt');
   if (!fs.existsSync(txtPath)) return res.status(404).end();
   const txt = fs.readFileSync(txtPath, 'utf8').replace(/https:\/\/pgi-internship\.onrender\.com/g, baseUrl);
   res.type('text/plain').send(txt);
 });
-// Resolve absolute og:image / twitter:image URLs on HTML responses for social link scrapers (WhatsApp, LinkedIn, X)
+// Resolve absolute og:image / twitter:image / og:url on HTML responses for social link scrapers (WhatsApp, LinkedIn, X)
 app.use((req, res, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return next();
   const rel = req.path === '/' ? 'index.html' : req.path.replace(/^\/+/, '');
@@ -1241,8 +1249,13 @@ app.use((req, res, next) => {
   const target = path.resolve(PUBLIC, rel);
   const publicRoot = path.resolve(PUBLIC);
   if (!target.startsWith(publicRoot + path.sep) || !fs.existsSync(target)) return next();
-  const baseUrl = esc(String(process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, ''));
-  const html = fs.readFileSync(target, 'utf8').replace(/content="\/static\/images\/share-link\.png"/g, `content="${baseUrl}/static/images/share-link.png"`);
+  const baseUrl = esc(reqBaseUrl(req));
+  const imgAbs = `${baseUrl}/static/images/share-link.png`;
+  let html = fs.readFileSync(target, 'utf8').replace(/content="\/static\/images\/share-link\.png"/g, `content="${imgAbs}"`);
+  if (!/property=["']og:url["']/i.test(html) && /<meta\s+property=["']og:image["']/i.test(html)) {
+    const pagePath = esc(req.path === '/' ? '/' : req.path);
+    html = html.replace(/<meta\s+property=["']og:image["']/i, `<meta property="og:url" content="${baseUrl}${pagePath}">\n  <meta property="og:image"`);
+  }
   res.setHeader('Cache-Control', 'no-store');
   res.type('html').send(html);
 });
@@ -1251,7 +1264,11 @@ app.use(express.static(PUBLIC, {
     if (f.endsWith('.wasm')) r.type('application/wasm');
     else if (f.endsWith('.mjs')) r.type('text/javascript');
     if (/\.(html|js|css)$/i.test(f)) r.setHeader('Cache-Control', 'no-store');
-    else if (/\.(png|jpg|jpeg|svg|webp|ico|woff2)$/i.test(f)) r.setHeader('Cache-Control', 'public, max-age=604800');
+    else if (/\.(png|jpg|jpeg|svg|webp|ico|woff2)$/i.test(f)) {
+      r.setHeader('Cache-Control', 'public, max-age=604800');
+      r.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      r.setHeader('Access-Control-Allow-Origin', '*');
+    }
   }
 }));
 app.use((e, _req, res, _n) => { if (!e.status || e.status >= 500) console.error(e); res.status(e.status || 500).json({ error: !e.status || e.status >= 500 ? 'Something went wrong. Please try again.' : e.message }); });

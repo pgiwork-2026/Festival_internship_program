@@ -1359,6 +1359,17 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
       };
     }
 
+    let startDate = cert.start_date || null;
+    let endDate = cert.end_date || cert.issued_at || null;
+    try {
+      const [{ data: bRow }, { data: attRows }] = await Promise.all([
+        db.from('batches').select('starts_on,ends_on').eq('status', 'active').limit(1).maybeSingle(),
+        cert.student_id ? db.from('student_attendance').select('date').eq('student_id', cert.student_id).order('date', { ascending: true }) : Promise.resolve({ data: null })
+      ]);
+      if (!startDate) startDate = bRow?.starts_on || attRows?.[0]?.date || cert.issued_at;
+      if (!endDate || endDate === cert.issued_at) endDate = bRow?.ends_on || attRows?.[attRows.length - 1]?.date || cert.issued_at;
+    } catch {}
+
     const pdfBuffer = await buildCertificatePDF({
       certificateNumber: cert.certificate_id,
       studentId: cert.student_id,
@@ -1366,7 +1377,9 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
       domain: cert.domain,
       duration: cert.duration || '30 Hours',
       attendancePercentage: cert.attendance_percentage,
-      completionDate: new Date(cert.issued_at || Date.now()).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
+      startDate,
+      endDate,
+      completionDate: new Date(cert.issued_at || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
       verificationUrl: cert.verification_url
     });
 

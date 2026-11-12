@@ -1264,9 +1264,9 @@ async function loadCertificatesStatus() {
 
     // Populate real student details in portrait preview
     setText('cert-prev-name', name);
-    setText('cert-prev-desc', `has successfully completed the ${track} with Plant Green Inertia during the student-mentioned dates. We appreciate their dedication and wish them success in all future endeavours.`);
+    setText('cert-prev-desc', 'has successfully completed the Winter Internship and Training Program during the student-mentioned dates with Plant Green Inertia. We appreciate their dedication and wish them success in all future endeavours.');
     setText('cert-prev-no', d.certificateId || 'Pending Issuance');
-    setText('cert-prev-period', d.internshipPeriod ? `Dates: ${d.internshipPeriod}` : 'Dates: Mentioned on record');
+    setText('cert-prev-period', d.startDate && d.endDate ? `From: ${d.startDate}  •  To: ${d.endDate}` : (d.internshipPeriod ? `Dates: ${d.internshipPeriod}` : 'Dates: Mentioned on record'));
     setText('cert-prev-hours', `Hours: ${d.completedHours ?? 0} / 30h`);
 
     if (d.issued && d.certificateId) {

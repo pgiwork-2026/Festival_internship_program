@@ -56,7 +56,7 @@ test('certificate number formatting', () => {
   assert.equal(certificateNumber(undefined, 7), 'PGI-W26-CERT-0007');
 });
 
-test('official landscape certificate PDF generation', async () => {
+test('official sample-model portrait certificate PDF generation', async () => {
   const sampleCert = {
     certificateNumber: 'PGI-W26-CERT-0042',
     studentId: 'PGI-S26-0042',
@@ -66,7 +66,9 @@ test('official landscape certificate PDF generation', async () => {
     duration: '30 Hours',
     mode: 'Online',
     attendancePercentage: 92.5,
-    completionDate: 'November 10, 2026',
+    startDate: '2026-11-12',
+    endDate: '2026-11-22',
+    completionDate: '22 Nov 2026',
     verificationUrl: 'https://plantgreeninertia.com/verify/PGI-W26-CERT-0042'
   };
 
@@ -74,6 +76,10 @@ test('official landscape certificate PDF generation', async () => {
   assert.ok(Buffer.isBuffer(pdfBuffer));
   assert.ok(pdfBuffer.length > 1000);
   assert.equal(pdfBuffer.slice(0, 5).toString('ascii'), '%PDF-');
+  const { default: mupdf } = await import('mupdf');
+  const doc = mupdf.Document.openDocument(pdfBuffer, 'application/pdf');
+  const [, , w, h] = doc.loadPage(0).getBounds();
+  assert.ok(h > w, `Expected portrait certificate PDF matching sample model, got ${w}x${h}`);
 });
 
 test('analytics referral breakdown calculation', () => {

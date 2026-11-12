@@ -378,3 +378,31 @@ export function assessAssessmentDevice({
 
   return { allowed: true, code: null, reason: 'desktop_verified', signals: sig };
 }
+
+/**
+ * Resolves the external public base URL for Open Graph share previews, sitemaps,
+ * and email links. Prevents a local dev PUBLIC_BASE_URL (e.g. http://localhost:8787)
+ * from overriding a real deployed or tunneled request host.
+ */
+export function resolvePublicBaseUrl({ envBaseUrl = '', headers = {}, protocol = 'https', host = '' } = {}) {
+  const isLocalHost = h => /^(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)(:\d+)?$/i.test(String(h || '').trim());
+  const isLocalOrigin = u => /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)(:\d+)?$/i.test(String(u || '').trim());
+
+  const hNorm = {};
+  for (const [k, v] of Object.entries(headers || {})) {
+    hNorm[String(k).toLowerCase()] = Array.isArray(v) ? v[0] : v;
+  }
+
+  const reqHost = String(hNorm['x-forwarded-host'] || hNorm.host || host || '').split(',')[0].trim();
+  const reqProtoRaw = String(hNorm['x-forwarded-proto'] || protocol || 'https').split(',')[0].trim().toLowerCase();
+  const envClean = String(envBaseUrl || '').trim().replace(/\/$/, '');
+
+  if (envClean && (!isLocalOrigin(envClean) || !reqHost || isLocalHost(reqHost))) {
+    return envClean;
+  }
+  if (reqHost) {
+    const proto = isLocalHost(reqHost) ? (reqProtoRaw || 'http') : (reqProtoRaw === 'http' ? 'https' : reqProtoRaw);
+    return `${proto}://${reqHost}`;
+  }
+  return envClean || 'http://localhost:8787';
+}

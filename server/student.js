@@ -886,10 +886,13 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
   // ===================================================================
   app.get('/api/student/certificates', auth, wrap(async (req, res) => {
     const {
-      profile, enrollment, appRecord, batch, studentId, cert, completedHours, attendancePct, presentDays
+      profile, enrollment, appRecord, batch, studentId, cert, attRecords, completedHours, attendancePct, presentDays
     } = await loadStudentContext(req);
     const eligible = Boolean(cert || (completedHours >= 30 && (attendancePct ?? 0) >= 75));
     const studentName = profile?.full_name || appRecord?.full_name || req.user.user_metadata?.full_name || 'Student';
+    const fmtD = v => v ? new Date(v).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+    const startDate = fmtD(cert?.start_date || batch?.starts_on || attRecords?.[0]?.date || enrollment?.enrolled_at || cert?.issued_at);
+    const endDate = fmtD(cert?.end_date || batch?.ends_on || attRecords?.[attRecords.length - 1]?.date || cert?.issued_at);
     res.json({
       eligible,
       issued: Boolean(cert),
@@ -899,6 +902,8 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
       attendancePct: attendancePct ?? 0,
       presentDays,
       issuedOn: cert?.issued_at || null,
+      startDate,
+      endDate,
       verificationUrl: cert?.verification_url || null,
       downloadUrl: cert?.certificate_id ? '/api/student/certificates/download.pdf' : null,
       title: cert?.domain || enrollment?.courses?.title || appRecord?.domain_name || 'Winter Internship & Training Program',
@@ -910,10 +915,13 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
   }));
 
   app.get('/api/student/certificates/download.pdf', auth, wrap(async (req, res) => {
-    const { cert, studentId, attendancePct } = await loadStudentContext(req);
+    const { cert, batch, enrollment, attRecords, studentId, attendancePct } = await loadStudentContext(req);
     if (!cert || !cert.certificate_id) {
       throw fail(404, 'Certificate has not been issued yet.');
     }
+
+    const startDate = cert.start_date || batch?.starts_on || attRecords?.[0]?.date || enrollment?.enrolled_at || cert.issued_at;
+    const endDate = cert.end_date || batch?.ends_on || attRecords?.[attRecords.length - 1]?.date || cert.issued_at;
 
     const pdfBuffer = await buildCertificatePDF({
       certificateNumber: cert.certificate_id,
@@ -922,10 +930,12 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
       domain: cert.domain || 'Winter Internship Program',
       duration: cert.duration || '30 Hours',
       attendancePercentage: cert.attendance_percentage ?? attendancePct ?? 0,
+      startDate,
+      endDate,
       completionDate: new Date(cert.issued_at || Date.now()).toLocaleDateString('en-IN', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
       }),
       verificationUrl: cert.verification_url
     });
