@@ -1988,7 +1988,7 @@
         $('co-order-ref').textContent = `Gateway: Razorpay · Method: ${RAZORPAY_METHOD_LABELS[selectedMethod]}`;
       }
 
-      startCheckoutExpiryTimer(p.isTest ? null : (appliedCoupon?.expiresAt || lastCoupon?.expiresAt || null));
+      startCheckoutExpiryTimer(appliedCoupon?.expiresAt || lastCoupon?.expiresAt || null);
     };
 
     const applyCouponHandler = async () => {

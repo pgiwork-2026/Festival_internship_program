@@ -242,8 +242,12 @@ export function registerPayments(app, { db, auth, wrap, fail, localApplications 
         if (!isTestCouponEnabled()) {
           throw fail(400, 'Invalid scholarship coupon code.');
         }
-        if (found.status === 'disabled' || found.status === 'revoked') {
+        const st = couponState(found);
+        if (st === 'disabled' || st === 'revoked') {
           throw fail(403, 'This coupon has been disabled.');
+        }
+        if (st !== 'active') {
+          throw fail(410, 'Test coupon PGITEST1 has expired (24-hour validity elapsed).');
         }
       } else {
         const userEmail = String(req.user.email || '').toLowerCase();

@@ -91,8 +91,8 @@ export function makeCouponCode(prefix = 'WIN-') {
 export function couponState(c, now = new Date()) {
   if (!c) return 'none';
   if (c.status === 'revoked' || c.status === 'disabled') return c.status;
-  if (isTestCoupon(c) || c.is_reusable) return 'active';
-  if (c.status === 'redeemed') return 'redeemed';
+  if (!isTestCoupon(c) && !c.is_reusable && c.status === 'redeemed') return 'redeemed';
+  if (!c.expires_at) return 'active';
   return new Date(c.expires_at) <= now ? 'expired' : 'active';
 }
 

@@ -11,16 +11,22 @@ import {
 
 export const VIRTUAL_TEST_COUPON_ID = '00000000-0000-4000-8000-000000000001';
 
+const DEFAULT_TEST_COUPON_VALIDITY_HOURS = 24;
+
 const fallbackTestCouponState = {
   deleted: false,
   status: 'active',
-  issued_at: '2026-11-01T00:00:00.000Z'
+  issued_at: new Date().toISOString(),
+  expires_at: new Date(Date.now() + DEFAULT_TEST_COUPON_VALIDITY_HOURS * 3600e3).toISOString()
 };
 
 export function resetFallbackTestCoupon(overrides = {}) {
+  const issuedAt = overrides.issued_at || new Date().toISOString();
+  const defaultExpires = new Date(new Date(issuedAt).getTime() + DEFAULT_TEST_COUPON_VALIDITY_HOURS * 3600e3).toISOString();
   fallbackTestCouponState.deleted = Boolean(overrides.deleted ?? false);
   fallbackTestCouponState.status = overrides.status || 'active';
-  fallbackTestCouponState.issued_at = overrides.issued_at || '2026-11-01T00:00:00.000Z';
+  fallbackTestCouponState.issued_at = issuedAt;
+  fallbackTestCouponState.expires_at = overrides.expires_at || defaultExpires;
 }
 
 export function isSchemaColumnError(err) {
@@ -42,7 +48,7 @@ function makeVirtualTestCoupon() {
     is_test: true,
     is_reusable: true,
     issued_at: fallbackTestCouponState.issued_at,
-    expires_at: '2099-12-31T23:59:59.000Z',
+    expires_at: fallbackTestCouponState.expires_at,
     status: fallbackTestCouponState.status,
     _virtual: true
   };
@@ -233,23 +239,25 @@ export async function validateCouponCode(db, { code, email }) {
     return { valid: false, reason: 'This coupon has been disabled.', state: c.status };
   }
 
-  if (!testCoupon) {
-    if (c.status === 'redeemed') {
-      return { valid: false, reason: 'Coupon has already been redeemed.', state: 'redeemed' };
-    }
-    const state = couponState(c);
-    if (state === 'expired') {
-      return {
-        valid: false,
-        reason: 'Coupon expired. Valid for exactly 24 hours.',
-        state: 'expired',
-        canExtend: canRequestExtension(c, 2),
-        extensionCount: Number(c.extension_count) || 0
-      };
-    }
-    if (normEmail && c.student_email && c.student_email.toLowerCase() !== normEmail) {
-      return { valid: false, reason: 'Coupon is bound to a different email address.' };
-    }
+  if (!testCoupon && c.status === 'redeemed') {
+    return { valid: false, reason: 'Coupon has already been redeemed.', state: 'redeemed' };
+  }
+
+  const state = couponState(c);
+  if (state === 'expired') {
+    return {
+      valid: false,
+      reason: testCoupon
+        ? 'Test coupon PGITEST1 has expired (24-hour validity elapsed).'
+        : 'Coupon expired. Valid for exactly 24 hours.',
+      state: 'expired',
+      canExtend: canRequestExtension(c, 2),
+      extensionCount: Number(c.extension_count) || 0
+    };
+  }
+
+  if (!testCoupon && normEmail && c.student_email && c.student_email.toLowerCase() !== normEmail) {
+    return { valid: false, reason: 'Coupon is bound to a different email address.' };
   }
 
   const payAmt = testCoupon ? TEST_COUPON_PAISE : winterPayablePaise(c);
@@ -266,7 +274,7 @@ export async function validateCouponCode(db, { code, email }) {
     payablePaise: payAmt,
     discountPaise: Math.max(0, BASE_PRICE_PAISE - payAmt),
     scorePercent: Number(c.score_percent ?? 0),
-    expiresAt: testCoupon ? null : c.expires_at,
+    expiresAt: c.expires_at || null,
     state: 'active',
     isTest: testCoupon,
     isReusable: testCoupon || Boolean(c.is_reusable)

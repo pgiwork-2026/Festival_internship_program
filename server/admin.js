@@ -991,7 +991,7 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
     res.json(merged.map(c => {
       const meta = formatTestCouponMeta(c);
       let resolvedStatus = c.status || 'active';
-      if (!meta.isTest && resolvedStatus === 'active' && new Date(c.expires_at) < now) {
+      if (resolvedStatus === 'active' && c.expires_at && new Date(c.expires_at) < now) {
         resolvedStatus = 'expired';
       }
 
@@ -1003,7 +1003,7 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
         discount: c.discount_percent,
         score: c.score_percent,
         issued: c.issued_at,
-        expires: meta.isTest ? null : c.expires_at,
+        expires: c.expires_at || null,
         status: resolvedStatus,
         redeemed: c.redeemed_at || null,
         ...meta

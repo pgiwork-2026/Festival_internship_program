@@ -4663,7 +4663,8 @@ function renderCouponsTable() {
         <td>${pillBadge(c.status || 'active')}<br><span style="font-size:0.84rem;color:var(--adm-muted);">${exp ? 'Exp: ' + fmtDate(exp, true) : 'No fixed expiry'}</span></td>
         <td>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            ${c.isTest ? `<button type="button" class="btn btn-outline btn-sm" onclick="couponAction(${idx}, 'toggle')">${c.status === 'active' ? 'Disable' : 'Enable'}</button>` : `<button type="button" class="btn btn-outline btn-sm" onclick="couponAction(${idx}, 'reissue')">+24h</button>`}
+            <button type="button" class="btn btn-outline btn-sm" onclick="couponAction(${idx}, 'reissue')">+24h</button>
+            ${c.isTest ? `<button type="button" class="btn btn-outline btn-sm" onclick="couponAction(${idx}, 'toggle')">${c.status === 'active' ? 'Disable' : 'Enable'}</button>` : ''}
             ${!c.isTest ? `<button type="button" class="btn btn-danger btn-sm" onclick="couponAction(${idx}, 'revoke')">Revoke</button>` : `<button type="button" class="btn btn-danger btn-sm" onclick="deleteCoupon(${idx})">Delete</button>`}
           </div>
         </td>

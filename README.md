@@ -43,9 +43,9 @@ Never commit or share `server/.env`.
 
 ## Temporary Test Coupon (PGITEST1) & Safe Removal
 
-A temporary reusable Rs 1 (`100` paise) test coupon (`PGITEST1`) is built into the existing coupon pipeline for live Razorpay verification without completing/passing the assessment or email binding.
+A temporary reusable Rs 1 (`100` paise) test coupon (`PGITEST1`, valid for 24 hours per issue/+24h reissue) is built into the existing coupon pipeline for live Razorpay verification without completing/passing the assessment or email binding.
 
-- **Enable for testing**: Run `supabase/migrations/016_test_coupon.sql` in Supabase and set `ENABLE_TEST_COUPON=true` in Render (or `server/.env`).
+- **Enable for testing**: Run `supabase/migrations/016_test_coupon.sql` (or `017_pgitest1_24h_validity.sql` to reset a fresh 24-hour window) in Supabase and set `ENABLE_TEST_COUPON=true` in Render (or `server/.env`). You can also click **+24h** next to `PGITEST1` in Admin Dashboard -> Coupons.
 - **Isolation**: Server validates `PGITEST1` exclusively via `ENABLE_TEST_COUPON=true`, enforces `100` paise order & verification amounts, and marks generated `payment_orders` / `enrollments` with `is_test = true` so analytics, payment reports, and revenue totals exclude them.
 
 ### Removal

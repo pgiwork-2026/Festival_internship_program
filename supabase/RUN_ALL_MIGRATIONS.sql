@@ -534,7 +534,7 @@ INSERT INTO public.scholarship_coupons (
 )
 VALUES (
   'PGITEST1', NULL, NULL, 100, 99,
-  100, true, true, now(), '2099-12-31T23:59:59Z', 'active'
+  100, true, true, now(), now() + interval '24 hours', 'active'
 )
 ON CONFLICT (code) DO UPDATE
 SET
@@ -542,7 +542,9 @@ SET
   discount_percent = 99,
   is_test = true,
   is_reusable = true,
-  expires_at = '2099-12-31T23:59:59Z';
+  issued_at = now(),
+  expires_at = now() + interval '24 hours',
+  status = 'active';
 
 CREATE TABLE IF NOT EXISTS public.recorded_videos (
   id text PRIMARY KEY,

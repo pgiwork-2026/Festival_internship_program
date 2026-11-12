@@ -200,7 +200,7 @@ async function reqJson(server, method, path, body) {
   return { status: res.status, data: json };
 }
 
-test('logic: PGITEST1 pricing and reusable non-expiring state while keeping normal pricing untouched', () => {
+test('logic: PGITEST1 pricing and reusable 24-hour validity state while keeping normal pricing untouched', () => {
   const prevEnv = process.env.ENABLE_TEST_COUPON;
   try {
     process.env.ENABLE_TEST_COUPON = 'false';
@@ -209,19 +209,23 @@ test('logic: PGITEST1 pricing and reusable non-expiring state while keeping norm
     process.env.ENABLE_TEST_COUPON = 'true';
     assert.equal(isTestCouponEnabled(), true);
 
+    const issuedAt = new Date('2026-11-12T10:00:00Z');
+    const expiresAt = new Date(issuedAt.getTime() + 24 * 3600e3).toISOString();
     const testCoupon = {
       code: 'PGITEST1',
       discount_percent: 99,
       fixed_payable_paise: 100,
       is_test: true,
       is_reusable: true,
-      expires_at: '2020-01-01T00:00:00Z',
+      issued_at: issuedAt.toISOString(),
+      expires_at: expiresAt,
       status: 'active'
     };
 
     assert.equal(isTestCoupon(testCoupon), true);
     assert.equal(winterPayablePaise(testCoupon), 100);
-    assert.equal(couponState(testCoupon, new Date('2026-12-01T00:00:00Z')), 'active');
+    assert.equal(couponState(testCoupon, new Date(issuedAt.getTime() + 24 * 3600e3 - 1)), 'active');
+    assert.equal(couponState(testCoupon, new Date(issuedAt.getTime() + 24 * 3600e3)), 'expired');
 
     // Normal pricing unchanged
     assert.equal(winterPayablePaise(null), 999900);
@@ -256,8 +260,8 @@ test('test coupon end-to-end: env gating, server-only Rs 1 order, verify tamper 
         fixed_payable_paise: 100,
         is_test: true,
         is_reusable: true,
-        issued_at: '2026-11-01T00:00:00Z',
-        expires_at: '2020-01-01T00:00:00Z', // proves expired date is ignored for reusable test coupon
+        issued_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 24 * 3600e3).toISOString(), // 24-hour validity window
         status: 'active'
       },
       {
@@ -330,7 +334,7 @@ test('test coupon end-to-end: env gating, server-only Rs 1 order, verify tamper 
     assert.equal(r.data.valid, true);
     assert.equal(r.data.payablePaise, 100);
     assert.equal(r.data.isTest, true);
-    assert.equal(r.data.expiresAt, null);
+    assert.ok(r.data.expiresAt);
 
     // Client tries passing a bogus amount -> ignored by server, order is strictly 100 paise
     const c1 = await reqJson(srv, 'POST', '/api/checkout/create', { courseId: 'course-web', couponCode: 'PGITEST1', amount: 999900 });
@@ -427,13 +431,34 @@ test('test coupon end-to-end: env gating, server-only Rs 1 order, verify tamper 
     assert.equal(csvReport.data.includes(oid1), false);
     assert.equal(csvReport.data.includes('pay_sim_test_1'), false);
 
-    // 5. Admin coupons list shows PGITEST1 with Test flag, supports disable/enable & delete
+    // 5. Admin coupons list shows PGITEST1 with Test flag & expiry, supports 24h expiry, reissue, toggle & delete
     const coupons = await reqJson(srv, 'GET', '/api/admin/coupons');
     assert.equal(coupons.status, 200);
     const pgiRow = coupons.data.find(c => c.code === 'PGITEST1');
     assert.ok(pgiRow);
     assert.equal(pgiRow.isTest, true);
     assert.equal(pgiRow.status, 'active');
+    assert.ok(pgiRow.expires);
+
+    // Simulate 24h expiry elapsing -> rejected by validate and checkout/create until reissued
+    storedTestCoupon.expires_at = new Date(Date.now() - 60e3).toISOString();
+    const expiredValidate = await reqJson(srv, 'POST', '/api/coupons/validate', { code: 'PGITEST1' });
+    assert.equal(expiredValidate.status, 200);
+    assert.equal(expiredValidate.data.valid, false);
+    assert.equal(expiredValidate.data.state, 'expired');
+
+    const expiredCheckout = await reqJson(srv, 'POST', '/api/checkout/create', { courseId: 'course-web', couponCode: 'PGITEST1' });
+    assert.equal(expiredCheckout.status, 410);
+
+    const adminWhenExpired = await reqJson(srv, 'GET', '/api/admin/coupons');
+    assert.equal(adminWhenExpired.data.find(c => c.code === 'PGITEST1')?.status, 'expired');
+
+    const reissued = await reqJson(srv, 'POST', '/api/admin/coupons/PGITEST1/reissue', { hours: 24 });
+    assert.equal(reissued.status, 200);
+    assert.equal(reissued.data.ok, true);
+    const reissuedValidate = await reqJson(srv, 'POST', '/api/coupons/validate', { code: 'PGITEST1' });
+    assert.equal(reissuedValidate.data.valid, true);
+    assert.equal(reissuedValidate.data.payablePaise, 100);
 
     const toggledOff = await reqJson(srv, 'POST', '/api/admin/coupons/PGITEST1/toggle');
     assert.equal(toggledOff.status, 200);
