@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Winter Internship &amp; Training Program | Plant Green Inertia Portal</title>
-  <meta name="description" content="Accelerate your career with the Winter Internship &amp; Training Program at Plant Green Inertia Pvt. Ltd. 30 hours of intensive training, online &amp; offline cohorts, and up to 100% merit scholarship.">
+  <meta name="description" content="Accelerate your career with the Winter Internship &amp; Training Program at Plant Green Inertia Pvt. Ltd. 30 hours of intensive training, online &amp; offline cohorts, and up to 90% merit scholarship.">
   <meta name="theme-color" content="#101D35">
   <link rel="icon" type="image/svg+xml" href="static/images/favicon.svg">
 
@@ -31,7 +31,7 @@
     <!-- Corporate Header Navigation -->
     <header class="nav-header">
       <a href="#top" class="brand-link" aria-label="Plant Green Inertia Pvt. Ltd.">
-        <img class="brand-logo" src="static/images/Plant Green Inertia Logo.png" alt="Plant Green Inertia logo" onerror="this.src='static/images/pgi-logo.jpg'">
+        <img class="brand-logo" src="static/images/pgi-logo-sq.png" alt="Plant Green Inertia logo" onerror="this.src='static/images/pgi-logo.jpg'">
         <div class="brand-meta">
           <span class="brand-name">Plant Green Inertia</span>
           <span class="brand-tag">Winter Internship Portal</span>
@@ -98,11 +98,11 @@
           <span class="section-eyebrow">Merit Sponsorship</span>
           <h2 class="section-title">Winter Scholarship Assessment</h2>
           <p class="section-lead">
-            Complete our 100-mark assessment to unlock up to 100% merit sponsorship.
+            Complete our 100-mark assessment to unlock up to 90% merit sponsorship.
           </p>
         </div>
 
-        <!-- 3 Scholarship Tiers -->
+        <!-- 2 Scholarship Tiers -->
         <div class="tier-grid">
           <!-- Tier 1 -->
           <article class="tier-card">
@@ -126,7 +126,7 @@
             <span class="tier-badge">Popular Choice</span>
             <div class="tier-header">
               <h3 class="tier-name">Merit Scholarship</h3>
-              <p class="tier-score">4 to 24 Correct Answers (16% &ndash; 96%)</p>
+              <p class="tier-score">4 to 25 Correct Answers (16% &ndash; 100%)</p>
             </div>
             <div class="tier-discount" style="color:var(--plant-green);">90% OFF</div>
             <div class="tier-pricing">
@@ -134,24 +134,6 @@
               <span class="tier-final">&#8377;999</span>
             </div>
             <p class="benefit-desc">&#8377;999 student contribution unlocking the full 30-hour program &amp; certificate.</p>
-            <div class="tier-validity">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Valid for 24 hours
-            </div>
-          </article>
-
-          <!-- Tier 3 (100% Free) -->
-          <article class="tier-card top">
-            <span class="tier-badge" style="background:var(--midnight-navy);">Top Score</span>
-            <div class="tier-header">
-              <h3 class="tier-name">Excellence Sponsorship</h3>
-              <p class="tier-score">25 Correct Answers (100%)</p>
-            </div>
-            <div class="tier-discount">100% FREE</div>
-            <div class="tier-pricing">
-              <span class="tier-orig">&#8377;9,999</span>
-              <span class="tier-final" style="color:var(--midnight-navy);">&#8377;0 (Free)</span>
-            </div>
-            <p class="benefit-desc">Full 100% tuition waiver for perfect 25/25 top scorers.</p>
             <div class="tier-validity">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Valid for 24 hours
             </div>
@@ -259,93 +241,290 @@
         </div>
 
         <!-- Track Switcher -->
-        <div class="track-switcher">
-          <button class="track-btn active" data-filter="all">All Tracks</button>
-          <button class="track-btn" data-filter="technical">Technical Tracks</button>
-          <button class="track-btn" data-filter="non-technical">Non-Technical Tracks</button>
+        <div class="track-switcher" role="tablist" aria-label="Filter specialization tracks">
+          <button class="track-btn active" type="button" data-filter="all">All Tracks (13)</button>
+          <button class="track-btn" type="button" data-filter="technical">Technical Tracks (7)</button>
+          <button class="track-btn" type="button" data-filter="non-technical">Non-Technical Tracks (6)</button>
         </div>
 
-        <!-- Syllabus Cards Grid -->
-        <div class="syllabus-grid" id="syllabusContainer">
-          <!-- Track 1: Web Development -->
-          <article class="frosted-card syllabus-card" data-track="technical">
-            <div class="syllabus-card-top">
-              <span class="syllabus-track-badge badge-tech">Technical Track</span>
-              <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
-            </div>
-            <h3>Web Development</h3>
-            <p class="syllabus-desc">
-              Build, style, test, and deploy modern responsive websites and web applications.
-            </p>
-            <ul class="syllabus-skills-list">
-              <li class="syllabus-skill">HTML5 Semantic Markup</li>
-              <li class="syllabus-skill">Modern CSS3 Flexbox &amp; Grid</li>
-              <li class="syllabus-skill">JavaScript (ES6+)</li>
-              <li class="syllabus-skill">DOM Manipulation</li>
-              <li class="syllabus-skill">GitHub &amp; Git Version Control</li>
-              <li class="syllabus-skill">GitHub Pages Deployment</li>
-            </ul>
-          </article>
+        <!-- Horizontal Track Carousel (4 visible on desktop, slide left/right with arrows) -->
+        <div class="syllabus-carousel-wrap" aria-roledescription="carousel" aria-label="Specialization tracks">
+          <button type="button" class="syllabus-arrow-btn syllabus-arrow-prev" id="syllabusPrevBtn" aria-label="Previous tracks" disabled>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
 
-          <!-- Track 2: App Development -->
-          <article class="frosted-card syllabus-card" data-track="technical">
-            <div class="syllabus-card-top">
-              <span class="syllabus-track-badge badge-tech">Technical Track</span>
-              <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
-            </div>
-            <h3>App Development</h3>
-            <p class="syllabus-desc">
-              Design mobile UI, logic workflows, cloud data storage, and compile Android APKs.
-            </p>
-            <ul class="syllabus-skills-list">
-              <li class="syllabus-skill">MIT App Inventor</li>
-              <li class="syllabus-skill">Mobile UI/UX Layouts</li>
-              <li class="syllabus-skill">Event-Driven Block Logic</li>
-              <li class="syllabus-skill">CloudDB &amp; Local Storage</li>
-              <li class="syllabus-skill">Device Sensor Integration</li>
-              <li class="syllabus-skill">Android APK Compilation</li>
-            </ul>
-          </article>
+          <div class="syllabus-viewport" id="syllabusViewport" tabindex="0">
+            <div class="syllabus-track" id="syllabusContainer">
+              <!-- TECHNICAL TRACK 01 -->
+              <article class="frosted-card syllabus-card" data-track="technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-tech">Technical Track 01</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>Web Development &amp; Full Stack Development</h3>
+                <p class="syllabus-desc">
+                  Build and ship a complete full-stack web application.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">HTML5 Semantic Markup</li>
+                  <li class="syllabus-skill">Modern CSS3 Flexbox &amp; Grid</li>
+                  <li class="syllabus-skill">JavaScript (ES6+)</li>
+                  <li class="syllabus-skill">React.js &amp; Component Development</li>
+                  <li class="syllabus-skill">Node.js &amp; Express.js</li>
+                  <li class="syllabus-skill">GitHub &amp; Full Stack Deployment</li>
+                </ul>
+              </article>
 
-          <!-- Track 3: Digital Operations & Project Management -->
-          <article class="frosted-card syllabus-card" data-track="non-technical">
-            <div class="syllabus-card-top">
-              <span class="syllabus-track-badge badge-nontech">Non-Technical Track</span>
-              <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
-            </div>
-            <h3>Digital Operations &amp; Project Management</h3>
-            <p class="syllabus-desc">
-              Plan sprints, track workflows, and ship software using Agile practices.
-            </p>
-            <ul class="syllabus-skills-list">
-              <li class="syllabus-skill">Agile &amp; Scrum Frameworks</li>
-              <li class="syllabus-skill">Sprint Planning &amp; Estimation</li>
-              <li class="syllabus-skill">Jira / Trello Workflows</li>
-              <li class="syllabus-skill">Process Quality Assurance</li>
-              <li class="syllabus-skill">Risk Management</li>
-              <li class="syllabus-skill">Cross-Team Coordination</li>
-            </ul>
-          </article>
+              <!-- TECHNICAL TRACK 02 -->
+              <article class="frosted-card syllabus-card" data-track="technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-tech">Technical Track 02</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>App Development</h3>
+                <p class="syllabus-desc">
+                  Build and ship a complete mobile application.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">Introduction to Mobile App Development</li>
+                  <li class="syllabus-skill">MIT App Inventor</li>
+                  <li class="syllabus-skill">Android Studio &amp; Android SDK</li>
+                  <li class="syllabus-skill">Mobile UI/UX Layouts</li>
+                  <li class="syllabus-skill">CloudDB &amp; Local Storage</li>
+                  <li class="syllabus-skill">API Integration &amp; App Deployment</li>
+                </ul>
+              </article>
 
-          <!-- Track 4: Business Analysis & Tech Communication -->
-          <article class="frosted-card syllabus-card" data-track="non-technical">
-            <div class="syllabus-card-top">
-              <span class="syllabus-track-badge badge-nontech">Non-Technical Track</span>
-              <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+              <!-- TECHNICAL TRACK 03 -->
+              <article class="frosted-card syllabus-card" data-track="technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-tech">Technical Track 03</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>Python Programming</h3>
+                <p class="syllabus-desc">
+                  Learn Python programming and develop practical automation applications.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">Python Fundamentals &amp; Syntax</li>
+                  <li class="syllabus-skill">Data Types &amp; Variables</li>
+                  <li class="syllabus-skill">Conditional Statements &amp; Loops</li>
+                  <li class="syllabus-skill">Functions &amp; Object-Oriented Programming</li>
+                  <li class="syllabus-skill">File Handling &amp; Exception Handling</li>
+                  <li class="syllabus-skill">Python Automation &amp; Mini Project</li>
+                </ul>
+              </article>
+
+              <!-- TECHNICAL TRACK 04 -->
+              <article class="frosted-card syllabus-card" data-track="technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-tech">Technical Track 04</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>Artificial Intelligence &amp; Machine Learning</h3>
+                <p class="syllabus-desc">
+                  Explore AI technologies and build intelligent machine learning applications.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">Introduction to Artificial Intelligence</li>
+                  <li class="syllabus-skill">Machine Learning Fundamentals</li>
+                  <li class="syllabus-skill">Supervised &amp; Unsupervised Learning</li>
+                  <li class="syllabus-skill">Data Preprocessing &amp; Model Training</li>
+                  <li class="syllabus-skill">Generative AI &amp; Prompt Engineering</li>
+                  <li class="syllabus-skill">AI-Powered Application Development</li>
+                </ul>
+              </article>
+
+              <!-- TECHNICAL TRACK 05 -->
+              <article class="frosted-card syllabus-card" data-track="technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-tech">Technical Track 05</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>Data Science &amp; Analytics</h3>
+                <p class="syllabus-desc">
+                  Transform raw data into meaningful insights using modern analytical tools.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">Introduction to Data Science</li>
+                  <li class="syllabus-skill">Python for Data Analysis</li>
+                  <li class="syllabus-skill">NumPy &amp; Pandas</li>
+                  <li class="syllabus-skill">Data Cleaning &amp; Preprocessing</li>
+                  <li class="syllabus-skill">Data Visualization with Matplotlib</li>
+                  <li class="syllabus-skill">Power BI &amp; Interactive Dashboards</li>
+                </ul>
+              </article>
+
+              <!-- TECHNICAL TRACK 06 -->
+              <article class="frosted-card syllabus-card" data-track="technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-tech">Technical Track 06</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>UI/UX Design</h3>
+                <p class="syllabus-desc">
+                  Design attractive, user-friendly websites and mobile application interfaces.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">Introduction to UI/UX Design</li>
+                  <li class="syllabus-skill">Design Thinking &amp; User Research</li>
+                  <li class="syllabus-skill">Wireframing &amp; User Flows</li>
+                  <li class="syllabus-skill">Figma Tools &amp; Components</li>
+                  <li class="syllabus-skill">Interactive Prototyping</li>
+                  <li class="syllabus-skill">Responsive Design &amp; Usability Testing</li>
+                </ul>
+              </article>
+
+              <!-- TECHNICAL TRACK 07 -->
+              <article class="frosted-card syllabus-card" data-track="technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-tech">Technical Track 07</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>IoT &amp; Embedded Systems</h3>
+                <p class="syllabus-desc">
+                  Build smart connected devices using sensors, microcontrollers, and embedded technologies.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">Introduction to IoT Architecture</li>
+                  <li class="syllabus-skill">Arduino &amp; ESP32 Programming</li>
+                  <li class="syllabus-skill">Sensors &amp; Actuator Integration</li>
+                  <li class="syllabus-skill">Embedded C Programming</li>
+                  <li class="syllabus-skill">Wi-Fi &amp; Cloud Connectivity</li>
+                  <li class="syllabus-skill">Smart Device Development &amp; Mini Project</li>
+                </ul>
+              </article>
+
+              <!-- NON-TECHNICAL TRACK 01 -->
+              <article class="frosted-card syllabus-card" data-track="non-technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-nontech">Non-Technical Track 01</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>Human Resource Management</h3>
+                <p class="syllabus-desc">
+                  Learn essential HR practices, employee management, and recruitment processes.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">Introduction to Human Resource Management</li>
+                  <li class="syllabus-skill">Recruitment &amp; Talent Acquisition</li>
+                  <li class="syllabus-skill">Resume Screening &amp; Interview Coordination</li>
+                  <li class="syllabus-skill">Employee Onboarding &amp; Engagement</li>
+                  <li class="syllabus-skill">Payroll &amp; Attendance Management</li>
+                  <li class="syllabus-skill">HR Documentation &amp; Performance Management</li>
+                </ul>
+              </article>
+
+              <!-- NON-TECHNICAL TRACK 02 -->
+              <article class="frosted-card syllabus-card" data-track="non-technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-nontech">Non-Technical Track 02</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>Marketing</h3>
+                <p class="syllabus-desc">
+                  Understand marketing strategies, customer behavior, and brand development.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">Introduction to Marketing Principles</li>
+                  <li class="syllabus-skill">Market Research &amp; Competitor Analysis</li>
+                  <li class="syllabus-skill">Consumer Behavior &amp; Market Segmentation</li>
+                  <li class="syllabus-skill">Marketing Strategies &amp; Planning</li>
+                  <li class="syllabus-skill">Brand Management &amp; Positioning</li>
+                  <li class="syllabus-skill">Marketing Campaign Development</li>
+                </ul>
+              </article>
+
+              <!-- NON-TECHNICAL TRACK 03 -->
+              <article class="frosted-card syllabus-card" data-track="non-technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-nontech">Non-Technical Track 03</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>Finance &amp; Accounting</h3>
+                <p class="syllabus-desc">
+                  Learn financial management, accounting principles, and business budgeting.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">Introduction to Financial Accounting</li>
+                  <li class="syllabus-skill">Basic Accounting Principles &amp; Concepts</li>
+                  <li class="syllabus-skill">Financial Statements &amp; Reporting</li>
+                  <li class="syllabus-skill">Budgeting &amp; Financial Planning</li>
+                  <li class="syllabus-skill">GST &amp; Taxation Fundamentals</li>
+                  <li class="syllabus-skill">MS Excel for Financial Analysis</li>
+                </ul>
+              </article>
+
+              <!-- NON-TECHNICAL TRACK 04 -->
+              <article class="frosted-card syllabus-card" data-track="non-technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-nontech">Non-Technical Track 04</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>Digital Marketing</h3>
+                <p class="syllabus-desc">
+                  Develop digital marketing skills and learn to promote businesses across online platforms.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">Introduction to Digital Marketing</li>
+                  <li class="syllabus-skill">Search Engine Optimization (SEO)</li>
+                  <li class="syllabus-skill">Social Media Marketing</li>
+                  <li class="syllabus-skill">Google Ads &amp; Paid Advertising</li>
+                  <li class="syllabus-skill">Content Marketing &amp; Email Marketing</li>
+                  <li class="syllabus-skill">Digital Campaign Analysis &amp; Reporting</li>
+                </ul>
+              </article>
+
+              <!-- NON-TECHNICAL TRACK 05 -->
+              <article class="frosted-card syllabus-card" data-track="non-technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-nontech">Non-Technical Track 05</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>Business Development</h3>
+                <p class="syllabus-desc">
+                  Learn business growth strategies, client management, and partnership development.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">Introduction to Business Development</li>
+                  <li class="syllabus-skill">Market Research &amp; Opportunity Identification</li>
+                  <li class="syllabus-skill">Lead Generation &amp; Prospecting</li>
+                  <li class="syllabus-skill">Client Relationship Management</li>
+                  <li class="syllabus-skill">Business Communication &amp; Negotiation</li>
+                  <li class="syllabus-skill">Business Strategy &amp; Growth Planning</li>
+                </ul>
+              </article>
+
+              <!-- NON-TECHNICAL TRACK 06 -->
+              <article class="frosted-card syllabus-card" data-track="non-technical">
+                <div class="syllabus-card-top">
+                  <span class="syllabus-track-badge badge-nontech">Non-Technical Track 06</span>
+                  <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+                </div>
+                <h3>Sales</h3>
+                <p class="syllabus-desc">
+                  Develop practical sales skills, customer handling, and revenue generation strategies.
+                </p>
+                <ul class="syllabus-skills-list">
+                  <li class="syllabus-skill">Introduction to Sales Management</li>
+                  <li class="syllabus-skill">Sales Process &amp; Techniques</li>
+                  <li class="syllabus-skill">Lead Generation &amp; Qualification</li>
+                  <li class="syllabus-skill">Customer Relationship Management (CRM)</li>
+                  <li class="syllabus-skill">Sales Communication &amp; Negotiation</li>
+                  <li class="syllabus-skill">Sales Planning, Targets &amp; Performance Analysis</li>
+                </ul>
+              </article>
             </div>
-            <h3>Business Analysis &amp; Tech Communication</h3>
-            <p class="syllabus-desc">
-              Draft requirements, map workflows, and present executive data insights.
-            </p>
-            <ul class="syllabus-skills-list">
-              <li class="syllabus-skill">Requirements Gathering (BRD)</li>
-              <li class="syllabus-skill">Business Process Mapping</li>
-              <li class="syllabus-skill">Data Synthesis in Excel</li>
-              <li class="syllabus-skill">Wireframing Essentials</li>
-              <li class="syllabus-skill">Executive Reporting</li>
-              <li class="syllabus-skill">Stakeholder Presentations</li>
-            </ul>
-          </article>
+          </div>
+
+          <button type="button" class="syllabus-arrow-btn syllabus-arrow-next" id="syllabusNextBtn" aria-label="Next tracks">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+
+        <div class="syllabus-carousel-meta">
+          <span class="syllabus-counter" id="syllabusCounter">Showing 1&ndash;3 of 13 Tracks</span>
+          <div class="syllabus-dots" id="syllabusDots" aria-label="Track carousel pages"></div>
         </div>
 
         <!-- Container for dynamically injected database courses if any -->

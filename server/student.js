@@ -3,14 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 import { sendPasswordResetEmail } from './email.js';
 import { buildProjectReportPDF } from './project_report.js';
 import { buildCertificatePDF } from './certificate.js';
-import { normalizeLoginPassword, parseDobCredentials } from './logic.js';
+import { SYLLABUS_TRACKS, normalizeLoginPassword, parseDobCredentials, sharedSupportTickets } from './logic.js';
 
 // In-memory fallback stores for offline testing and development
 const localPasswordResets = new Map();
 const localAttendance = new Map();
 const localAssignments = new Map();
 const localProjects = new Map();
-const localSupportTickets = [];
 
 export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplications, onAuth }) {
 
@@ -454,13 +453,12 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
 
     const paidPaise = enrollment ? Number(enrollment.amount_paise ?? 99900) : null;
     const fmtAmountLabel = paise => {
-      if (paise === 0) return '₹0 (100% Free)';
       if (paise === null || paise === undefined) return 'Unpaid';
       const val = paise / 100;
       return '₹' + val.toLocaleString('en-IN', { minimumFractionDigits: paise % 100 ? 2 : 0, maximumFractionDigits: 2 });
     };
     const paymentStatusText = enrollment
-      ? (paidPaise === 0 ? '100% Free Scholarship' : `Paid (${fmtAmountLabel(paidPaise)} Verified)`)
+      ? `Paid (${fmtAmountLabel(paidPaise)} Verified)`
       : 'Pending Payment';
 
     const submissionsList = await loadStudentSubmissions(u, ctx);
@@ -561,73 +559,13 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
     const domainType = appRecord?.domain_type || enrollment?.courses?.domain_type || 'Technical';
     const domLower = String(enrolledDomain).toLowerCase();
 
-    const allTracks = [
-      {
-        id: 'tech-web',
-        domainType: 'Technical',
-        title: 'Full-Stack Web Development & Modern Architecture',
-        duration: '30 Hours (10 Comprehensive Modules)',
-        pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
-        modules: [
-          { day: 1, hours: 3, title: 'Web Fundamentals & Semantic HTML5', topics: ['DOM hierarchy', 'Accessibility standards', 'Modern HTML5 APIs', 'Meta viewports'] },
-          { day: 2, hours: 3, title: 'Modern CSS3, Flexbox & Grid Systems', topics: ['CSS variables', 'Responsive layout engineering', 'Fluid typography', 'Micro-animations'] },
-          { day: 3, hours: 3, title: 'JavaScript ES6+ & Asynchronous Pipelines', topics: ['Promises', 'Async/Await', 'Fetch API', 'Event loop mechanics'] },
-          { day: 4, hours: 3, title: 'Git & Distributed Version Control', topics: ['Branching models', 'Pull requests', 'Merge conflict resolution', 'GitHub Actions'] },
-          { day: 5, hours: 3, title: 'Node.js & Express API Microservices', topics: ['Middleware pipelines', 'Routing architecture', 'Request validation', 'Security headers'] },
-          { day: 6, hours: 3, title: 'Database Schema & Relational Integrity', topics: ['PostgreSQL', 'Supabase integration', 'Row-Level Security (RLS)', 'Indexing'] },
-          { day: 7, hours: 3, title: 'Component Engineering & UI Frameworks', topics: ['State management', 'Component lifecycles', 'Form validation', 'Interactive widgets'] },
-          { day: 8, hours: 3, title: 'Payment Gateways & Webhook Security', topics: ['Razorpay HMAC signatures', 'Idempotency patterns', 'Transaction handling', 'Receipt PDF generation'] },
-          { day: 9, hours: 3, title: 'Capstone Real-World Project Sprint', topics: ['Production deployment on Render', 'Reverse proxy configuration', 'Lighthouse optimization'] },
-          { day: 10, hours: 3, title: 'Project Report Defense & Certification', topics: ['1-page technical abstract defense', 'Code audit', 'Certificate verification issuance'] }
-        ]
-      },
-      {
-        id: 'tech-app',
-        domainType: 'Technical',
-        title: 'Android & Cross-Platform App Development',
-        duration: '30 Hours (10 Modules)',
-        pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
-        modules: [
-          { day: 1, hours: 3, title: 'Mobile OS Architecture & App Lifecycle', topics: ['Activity stack', 'Permissions model', 'Screen density adaptation'] },
-          { day: 2, hours: 3, title: 'MIT App Inventor & Visual Logic Blocks', topics: ['Event handlers', 'Component tree', 'UI layouts'] },
-          { day: 3, hours: 3, title: 'Sensors, Location & Hardware Integration', topics: ['GPS location', 'Accelerometer', 'Camera APIs'] },
-          { day: 4, hours: 3, title: 'Local Data Storage & TinyDB Mechanics', topics: ['Key-value stores', 'Offline caching', 'Persistent state'] },
-          { day: 5, hours: 3, title: 'RESTful API Connectivity for Mobile', topics: ['Web components', 'JSON parsing', 'Cloud backend sync'] },
-          { day: 6, hours: 3, title: 'UI/UX Design Patterns for Mobile', topics: ['Touch targets', 'Gesture navigation', 'Dark/light themes'] },
-          { day: 7, hours: 3, title: 'Push Notifications & Background Services', topics: ['Alert managers', 'Broadcast receivers', 'Timer events'] },
-          { day: 8, hours: 3, title: 'App Security & Permission Sandboxing', topics: ['Cryptographic storage', 'Secure transport HTTPS', 'Input sanitization'] },
-          { day: 9, hours: 3, title: 'APK Compilation, Testing & Debugging', topics: ['Logcat analysis', 'Package signing', 'Performance profiling'] },
-          { day: 10, hours: 3, title: 'Mobile Capstone Presentation', topics: ['Published APK demo', '1-page project report submission'] }
-        ]
-      },
-      {
-        id: 'nontech-marketing',
-        domainType: 'Non-Technical',
-        title: 'Digital Operations, Analytics & Growth Strategy',
-        duration: '30 Hours (10 Modules)',
-        pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
-        modules: [
-          { day: 1, hours: 3, title: 'Fundamentals of Digital Operations & Brand Funnels', topics: ['Customer journey', 'TOFU/MOFU/BOFU', 'Value proposition'] },
-          { day: 2, hours: 3, title: 'Search Engine Optimization (SEO)', topics: ['On-page optimization', 'Technical SEO', 'Keyword research methodologies'] },
-          { day: 3, hours: 3, title: 'Content Strategy & Creative Copywriting', topics: ['Editorial calendars', 'B2B storytelling', 'Conversion copywriting'] },
-          { day: 4, hours: 3, title: 'Social Media Strategy & Audience Engagement', topics: ['LinkedIn B2B outreach', 'Instagram growth strategies', 'Algorithm patterns'] },
-          { day: 5, hours: 3, title: 'Performance Marketing & Paid Ad Campaigns', topics: ['Google Ads search campaigns', 'Meta Ads Manager', 'Budgeting & ROAS'] },
-          { day: 6, hours: 3, title: 'Business Analytics & KPI Dashboards', topics: ['Google Analytics 4', 'UTM tracking parameters', 'Conversion funnels'] },
-          { day: 7, hours: 3, title: 'Email Marketing & Lead Nurturing Automations', topics: ['Drip sequences', 'Open rate optimization', 'Deliverability protocols'] },
-          { day: 8, hours: 3, title: 'Market Research & Competitive Intelligence', topics: ['Competitor benchmarking', 'SWOT analysis', 'Pricing strategy'] },
-          { day: 9, hours: 3, title: 'Growth Campaign Capstone Execution', topics: ['Live campaign simulation', 'A/B testing execution', 'Lead report'] },
-          { day: 10, hours: 3, title: 'Campaign Defense & Growth Presentation', topics: ['Executive pitch', '1-page campaign report presentation'] }
-        ]
-      }
-    ];
-
     const selectedTrackId = (domLower.includes('app') || domLower.includes('mobile') || domLower.includes('android'))
       ? 'tech-app'
       : (domainType === 'Non-Technical' || domLower.includes('marketing') || domLower.includes('business') || domLower.includes('operations'))
         ? 'nontech-marketing'
         : 'tech-web';
 
-    const myTrack = allTracks.find(t => t.id === selectedTrackId) || allTracks[0];
+    const myTrack = SYLLABUS_TRACKS.find(t => t.id === selectedTrackId) || SYLLABUS_TRACKS[0];
 
     res.json({
       enrolledTrackId: myTrack.id,
@@ -922,11 +860,16 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
   // ===================================================================
   app.get('/api/student/project-report.pdf', auth, wrap(async (req, res) => {
     const { profile, enrollment, appRecord, assignedMentor, studentId, mode } = await loadStudentContext(req);
+    const chosenDomain = enrollment?.courses?.title || appRecord?.domain_name || 'Winter Internship Program';
     const pdfBuf = await buildProjectReportPDF({
-      name: profile?.full_name || appRecord?.full_name || 'Student',
+      name: profile?.full_name || appRecord?.full_name || req.user.user_metadata?.full_name || 'Student',
       studentId,
-      courseTitle: enrollment?.courses?.title || appRecord?.domain_name || 'Winter Internship Program',
-      mode: `${mode} (30 Hours)`,
+      college: appRecord?.college || null,
+      department: appRecord?.department || null,
+      courseTitle: chosenDomain,
+      domainName: chosenDomain,
+      domainType: appRecord?.domain_type || null,
+      mode,
       mentorName: assignedMentor?.name || 'Plant Green Inertia Academic Team',
       date: new Date()
     });
@@ -995,7 +938,7 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
   }));
 
   app.get('/api/student/support', auth, wrap(async (req, res) => {
-    const tickets = localSupportTickets
+    const tickets = sharedSupportTickets
       .filter(t => t.userId === req.user.id)
       .slice()
       .reverse();
@@ -1016,10 +959,11 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
       attachmentNote: attachmentNote ? String(attachmentNote).trim() : null,
       priority: priority || 'Normal',
       status: 'Open',
+      adminReply: null,
       createdAt: new Date().toISOString()
     };
 
-    localSupportTickets.push(ticket);
+    sharedSupportTickets.push(ticket);
     res.json({
       ok: true,
       ticketId: ticket.id,

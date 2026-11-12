@@ -73,59 +73,192 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderDbCourses(courses) {
-    const container = document.getElementById('dynamicDbCourses');
+    const container = document.getElementById('syllabusContainer');
     if (!container) return;
 
-    const staticHeadings = Array.from(document.querySelectorAll('#syllabusContainer .syllabus-card h3'));
-    const findMatchingStatic = title => {
+    const staticHeadings = Array.from(container.querySelectorAll('.syllabus-card h3'));
+    const legacySeedTitles = [
+      'web development',
+      'app development',
+      'digital operations',
+      'business analysis',
+      'cloud fundamentals',
+      'mobile app'
+    ];
+
+    const matchesExisting = title => {
       const low = title.trim().toLowerCase();
-      return staticHeadings.find(h => {
+      if (legacySeedTitles.some(seed => low.includes(seed))) return true;
+      return staticHeadings.some(h => {
         const cur = h.textContent.trim().toLowerCase();
-        if (cur === low || low.includes(cur) || cur.includes(low)) return true;
-        if (cur.includes('web development') && low.includes('web development')) return true;
-        if (cur.includes('app development') && low.includes('app development')) return true;
-        if (cur.includes('digital operations') && low.includes('digital operations')) return true;
-        return cur.includes('business analysis') && low.includes('business analysis');
+        return cur === low || low.includes(cur) || cur.includes(low);
       });
     };
 
+    let added = false;
     courses.forEach(c => {
-      const existing = findMatchingStatic(c.title || '');
+      if (!c || !c.title || matchesExisting(c.title)) return;
       const skillsArr = Array.isArray(c.skills)
         ? c.skills
         : (typeof c.skills === 'string' ? c.skills.split(/[\n,;]+|\s{2,}/).map(s => s.trim()).filter(Boolean) : []);
 
-      if (existing) {
-        const card = existing.closest('.syllabus-card');
-        if (card && c.description && c.description.length > 10 && !c.title.includes('& Cloud') && !c.title.startsWith('Mobile ')) {
-          const descEl = card.querySelector('.syllabus-desc');
-          if (descEl) descEl.textContent = c.description;
-        }
-      } else {
-        const card = document.createElement('article');
-        card.className = 'frosted-card syllabus-card';
-        card.setAttribute('data-track', 'technical');
+      const trackType = String(c.track || '').toLowerCase().includes('non') ? 'non-technical' : 'technical';
+      const badgeClass = trackType === 'non-technical' ? 'badge-nontech' : 'badge-tech';
+      const badgeLabel = trackType === 'non-technical' ? 'Non-Technical Track' : 'Technical Track';
 
-        const skillsHtml = skillsArr.map(s => `<li class="syllabus-skill">${s}</li>`).join('');
+      const card = document.createElement('article');
+      card.className = 'frosted-card syllabus-card';
+      card.setAttribute('data-track', trackType);
 
-        card.innerHTML = `
-          <div class="syllabus-card-top">
-            <span class="syllabus-track-badge badge-tech">Live Course Track</span>
-            <span class="syllabus-duration">${c.duration || '10 Days &middot; 30 Hours'}</span>
-          </div>
-          <h3>${c.title}</h3>
-          <p class="syllabus-desc">${c.description || ''}</p>
-          <ul class="syllabus-skills-list">${skillsHtml}</ul>
-        `;
-        container.appendChild(card);
-      }
+      const skillsHtml = skillsArr.map(s => `<li class="syllabus-skill"></li>`).join('');
+      card.innerHTML = `
+        <div class="syllabus-card-top">
+          <span class="syllabus-track-badge ${badgeClass}">${badgeLabel}</span>
+          <span class="syllabus-duration">10 Days &middot; 30 Hours</span>
+        </div>
+        <h3></h3>
+        <p class="syllabus-desc"></p>
+        <ul class="syllabus-skills-list">${skillsHtml}</ul>
+      `;
+      card.querySelector('h3').textContent = c.title;
+      card.querySelector('.syllabus-desc').textContent = c.description || '';
+      if (c.duration) card.querySelector('.syllabus-duration').textContent = c.duration;
+      const skillEls = card.querySelectorAll('.syllabus-skill');
+      skillsArr.forEach((s, i) => {
+        if (skillEls[i]) skillEls[i].textContent = s;
+      });
+
+      container.appendChild(card);
+      added = true;
     });
+
+    if (added && typeof window.__refreshTrackCarousel === 'function') {
+      window.__refreshTrackCarousel(false);
+    }
   }
 
   loadProgramData();
 
-  // 4. Interactive Track Switcher
+  // 4. Horizontal Track Carousel & Track Switcher
+  const viewport = document.getElementById('syllabusViewport');
+  const track = document.getElementById('syllabusContainer');
+  const prevBtn = document.getElementById('syllabusPrevBtn');
+  const nextBtn = document.getElementById('syllabusNextBtn');
+  const counterEl = document.getElementById('syllabusCounter');
+  const dotsEl = document.getElementById('syllabusDots');
   const trackBtns = document.querySelectorAll('.track-btn');
+
+  function getVisibleCards() {
+    if (!track) return [];
+    return Array.from(track.querySelectorAll('.syllabus-card')).filter(
+      card => card.style.display !== 'none'
+    );
+  }
+
+  function getPerView() {
+    if (window.innerWidth <= 640) return 1;
+    if (window.innerWidth <= 1120) return 2;
+    return 3;
+  }
+
+  function getStepWidth(visibleCards) {
+    if (!track || visibleCards.length === 0) return 0;
+    const cardW = visibleCards[0].getBoundingClientRect().width;
+    const styles = window.getComputedStyle(track);
+    const gap = parseFloat(styles.columnGap || styles.gap || '21.6') || 21.6;
+    return cardW + gap;
+  }
+
+  function renderDots(total, perView, activePage) {
+    if (!dotsEl) return;
+    const pageCount = Math.max(1, Math.ceil(total / perView));
+    dotsEl.innerHTML = '';
+    for (let i = 0; i < pageCount; i++) {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.className = 'syllabus-dot' + (i === activePage ? ' active' : '');
+      dot.setAttribute('aria-label', `Show tracks page ${i + 1} of ${pageCount}`);
+      dot.addEventListener('click', () => {
+        if (!viewport) return;
+        const visible = getVisibleCards();
+        const step = getStepWidth(visible);
+        const maxLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+        const targetLeft = Math.min(maxLeft, Math.round(i * perView * step));
+        viewport.scrollTo({ left: targetLeft, behavior: 'smooth' });
+      });
+      dotsEl.appendChild(dot);
+    }
+  }
+
+  function updateCarouselUI(resetScroll) {
+    if (!viewport || !track) return;
+    if (resetScroll) {
+      viewport.scrollLeft = 0;
+    }
+
+    const visible = getVisibleCards();
+    const total = visible.length;
+    const perView = getPerView();
+    const step = getStepWidth(visible);
+    const maxLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+    const scrollLeft = Math.max(0, viewport.scrollLeft);
+
+    if (prevBtn) prevBtn.disabled = scrollLeft <= 2;
+    if (nextBtn) nextBtn.disabled = maxLeft <= 2 || scrollLeft >= maxLeft - 2;
+
+    const firstIdx = step > 0 ? Math.min(total, Math.round(scrollLeft / step) + 1) : 1;
+    const shownStart = scrollLeft >= maxLeft - 2 && total > perView
+      ? total - perView + 1
+      : firstIdx;
+    const shownEnd = Math.min(total, shownStart + perView - 1);
+
+    if (counterEl) {
+      counterEl.textContent = total === 0
+        ? 'No tracks found'
+        : `Showing ${shownStart}\u2013${shownEnd} of ${total} Tracks`;
+    }
+
+    const activePage = Math.min(
+      Math.max(0, Math.ceil(total / perView) - 1),
+      step > 0 ? Math.round(scrollLeft / (step * perView)) : 0
+    );
+    renderDots(total, perView, activePage);
+  }
+
+  window.__refreshTrackCarousel = updateCarouselUI;
+
+  function slideCarousel(direction) {
+    if (!viewport) return;
+    const visible = getVisibleCards();
+    const step = getStepWidth(visible);
+    if (step <= 0) return;
+    const perView = getPerView();
+    const delta = direction * step * perView;
+    viewport.scrollBy({ left: delta, behavior: 'smooth' });
+  }
+
+  if (prevBtn) prevBtn.addEventListener('click', () => slideCarousel(-1));
+  if (nextBtn) nextBtn.addEventListener('click', () => slideCarousel(1));
+
+  if (viewport) {
+    let scrollRaf = null;
+    viewport.addEventListener('scroll', () => {
+      if (scrollRaf) cancelAnimationFrame(scrollRaf);
+      scrollRaf = requestAnimationFrame(() => updateCarouselUI(false));
+    }, { passive: true });
+
+    viewport.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        slideCarousel(-1);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        slideCarousel(1);
+      }
+    });
+  }
+
+  window.addEventListener('resize', () => updateCarouselUI(false));
 
   trackBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -133,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.classList.add('active');
 
       const filter = btn.getAttribute('data-filter');
-      document.querySelectorAll('.syllabus-card').forEach(card => {
+      document.querySelectorAll('#syllabusContainer .syllabus-card').forEach(card => {
         const cardTrack = card.getAttribute('data-track');
         if (filter === 'all' || cardTrack === filter) {
           card.style.display = 'flex';
@@ -142,8 +275,12 @@ document.addEventListener('DOMContentLoaded', () => {
           card.style.display = 'none';
         }
       });
+
+      updateCarouselUI(true);
     });
   });
+
+  updateCarouselUI(false);
 
   // 5. Sample Certificate Modal Preview
   const certOpen = document.getElementById('certOpen');

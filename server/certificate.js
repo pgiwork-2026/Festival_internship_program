@@ -21,6 +21,11 @@ export const certificateNumber = (studentId, seq) => {
  * @returns {{ eligible: boolean, reason?: string }}
  */
 export function verifyCertificateEligibility(stats = {}) {
+  const modeStr = String(stats.mode || '').toLowerCase();
+  if (stats.completedOffline === true || modeStr.includes('completed offline')) {
+    return { eligible: true, completedOffline: true };
+  }
+
   const completedHours = Number(stats.completedHours || 0);
   const attendancePct = Number(stats.attendancePercentage || 0);
   const requiredHours = Number(stats.totalRequiredHours || 30.0);

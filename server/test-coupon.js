@@ -256,7 +256,7 @@ export async function validateCouponCode(db, { code, email }) {
   const rawDisc = Number(c.discount_percent);
   const discountPercent = testCoupon
     ? 99
-    : (rawDisc === 85 ? 88 : rawDisc);
+    : (rawDisc === 85 ? 88 : (rawDisc === 100 ? 90 : rawDisc));
 
   return {
     valid: true,

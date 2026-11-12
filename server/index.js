@@ -597,10 +597,8 @@ async function finalize(a, status) {
     passMark
   });
 
-  const { data: sg } = await db.from('attempt_signals').select('flag').eq('attempt_id', a.id).maybeSingle();
-  // 0–3 correct out of 25 (<=12%) -> ₹1,199 (88%); 4–24 (16%–96%) -> ₹999 (90%); 25 (100% unflagged) -> Free (100%).
-  const rawTier = winterTierFor(scoreRes.correctCount, qLen);
-  const disc = (rawTier === 100 && sg?.flag) ? 90 : rawTier;
+  // 0–3 correct out of 25 (<=12%) -> ₹1,199 (88%); 4–25 (16%–100%) -> ₹999 (90%).
+  const disc = winterTierFor(scoreRes.correctCount, qLen);
 
   const baseAttemptUpdate = {
     correct_count: scoreRes.correctCount,
@@ -691,7 +689,8 @@ const result = async (a, pre = {}) => {
     timeTakenSeconds = Math.max(1, Math.round((new Date(row.submitted_at) - new Date(row.started_at)) / 1000));
   }
 
-  const effectiveDisc = c ? (Number(c.discount_percent) === 85 ? 88 : Number(c.discount_percent)) : null;
+  const rawDisc = c ? Number(c.discount_percent) : null;
+  const effectiveDisc = c ? (rawDisc === 85 ? 88 : (rawDisc === 100 ? 90 : rawDisc)) : null;
 
   return {
     attemptId: a.id,
@@ -833,7 +832,9 @@ async function reportData(a, user) {
   const { data: at } = await db.from('assessment_attempts').select('*').eq('id', a.id).single();
   if (!profile) throw fail(404, 'Profile not found');
   let email = user?.email; if (!email) email = (await db.auth.admin.getUserById(a.user_id)).data?.user?.email;
-  return { profile, email, attempt: at, answered: answered || 0, violations: (vs || []).map(v => ({ ...v, counted: v.counted !== false })), coupon: c && { code: c.code, discount_percent: Number(c.discount_percent) === 85 ? 88 : Number(c.discount_percent), payable_paise: winterPayablePaise(c), expires_at: c.expires_at } };
+  const cDisc = c ? Number(c.discount_percent) : 0;
+  const normCDisc = cDisc === 85 ? 88 : (cDisc === 100 ? 90 : cDisc);
+  return { profile, email, attempt: at, answered: answered || 0, violations: (vs || []).map(v => ({ ...v, counted: v.counted !== false })), coupon: c && { code: c.code, discount_percent: normCDisc, payable_paise: winterPayablePaise(c), expires_at: c.expires_at } };
 }
 async function closedAttempt(req) { const a = await ownAttempt(req); if (a.status === 'in_progress') throw fail(403, 'Report is available after the test ends'); return a; }
 const sendPng = (res, buf, name) => { res.set({ 'Content-Type': 'image/png', 'Content-Disposition': `inline; filename="${name}"`, 'Cache-Control': 'private, no-store' }).send(buf); };
@@ -860,7 +861,7 @@ app.get('/r/:token', wrap(async (req, res) => {
   res.type('html').send(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:image" content="${esc((process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, ''))}/r/${esc(req.params.token)}/report.png"><meta name="twitter:card" content="summary_large_image"><link rel="stylesheet" href="/static/css/portal.css"></head><body><main><div class="card"><h1>${esc(title)}</h1><p>${esc(desc)}</p><p>Report ID: ${reportId(a.id)}</p><a href="/r/${esc(req.params.token)}/report.pdf"><button>Open report (PDF)</button></a></div></main></body></html>`);
 }));
 
-const { buildDashboardPayload } = registerPayments(app, { db, auth, wrap, fail });
+const { buildDashboardPayload } = registerPayments(app, { db, auth, wrap, fail, localApplications });
 registerStudentRoutes(app, { db, auth, wrap, fail, localApplications, onAuth: cacheAuthUser });
 
 app.get('/api/portal/boot', auth, wrap(async (req, res) => {

@@ -313,12 +313,15 @@ body.auth-stage .portal-main {
   line-height: 1.05;
 }
 .auth-card-logo {
+  width: 42px;
   height: 42px;
-  width: auto;
+  aspect-ratio: 1 / 1;
   border-radius: 8px;
   background: #ffffff;
-  padding: 3px 6px;
+  padding: 2px;
   object-fit: contain;
+  object-position: center;
+  flex-shrink: 0;
   border: 1px solid #E2E8F0;
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
 }
@@ -1189,10 +1192,13 @@ body.exam-fullscreen .portal-footer {
   display: none;
 }
 body.exam-fullscreen .portal-main {
-  max-width: 1320px;
+  max-width: 100%;
   width: 100%;
-  margin: 0 auto;
-  padding: 8px 20px 10px;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
   position: relative;
   z-index: 1;
 }
@@ -1200,7 +1206,9 @@ body.exam-fullscreen .portal-main {
 .exam-cockpit {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Top Assessment Header Card */
@@ -1208,7 +1216,7 @@ body.exam-fullscreen .portal-main {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   border-radius: 14px;
-  padding: 8px 18px 7px;
+  padding: 11px 20px 10px;
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
 }
 .exam-top-row {
@@ -1444,9 +1452,11 @@ body.exam-fullscreen .portal-main {
 /* Two-column Test Workspace */
 .test-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 370px;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) clamp(340px, 24vw, 410px);
+  gap: 14px;
   align-items: stretch;
+  flex: 1;
+  min-height: 0;
 }
 @media (max-width: 960px) {
   .test-workspace {
@@ -1458,7 +1468,7 @@ body.exam-fullscreen .portal-main {
 .question-column {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
   height: 100%;
 }
@@ -1466,7 +1476,7 @@ body.exam-fullscreen .portal-main {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   border-radius: 14px;
-  padding: 16px 20px 14px;
+  padding: 20px 26px 18px;
   box-shadow: 0 6px 24px rgba(15, 23, 42, 0.04);
   flex: 1;
   display: flex;
@@ -1523,11 +1533,11 @@ body.exam-fullscreen .portal-main {
 }
 .q-text {
   font-family: var(--font-display);
-  font-size: 1.12rem;
+  font-size: clamp(1.1rem, 1.35vw, 1.28rem);
   font-weight: 700;
   color: #0F172A;
-  line-height: 1.4;
-  margin-bottom: 14px;
+  line-height: 1.45;
+  margin-bottom: 18px;
 }
 .q-text code {
   background: #F1F5F9;
@@ -1541,20 +1551,20 @@ body.exam-fullscreen .portal-main {
 .q-options {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 11px;
 }
 .option-label {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 14px;
+  padding: 13px 16px;
   border: 1.5px solid #E2E8F0;
   border-radius: 10px;
   background: #FFFFFF;
   cursor: pointer;
   transition: all 0.14s ease;
-  font-size: 0.9rem;
+  font-size: 0.94rem;
   font-weight: 500;
   color: #1E293B;
   user-select: none;
@@ -1739,31 +1749,35 @@ body.exam-fullscreen .portal-main {
 .navigator-column {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 10px;
+  height: 100%;
 }
 .navigator-card {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   border-radius: 14px;
-  padding: 10px 13px;
+  padding: 13px 16px;
   box-shadow: 0 6px 24px rgba(15, 23, 42, 0.04);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 .nav-card-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 6px;
+  margin-bottom: 9px;
 }
 .nav-card-head h3 {
   font-family: var(--font-display);
-  font-size: 0.9rem;
+  font-size: 0.94rem;
   font-weight: 700;
   color: #0F172A;
   margin: 0;
 }
 .nav-subtitle {
   display: block;
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   color: #64748B;
   margin-top: 1px;
 }
@@ -1772,17 +1786,17 @@ body.exam-fullscreen .portal-main {
 .chips-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
-  margin-bottom: 7px;
+  gap: clamp(5px, 0.8dvh, 8px);
+  margin-bottom: 10px;
 }
 .q-chip {
-  height: 24px;
-  border-radius: 6px;
+  height: clamp(27px, 3.6dvh, 38px);
+  border-radius: 7px;
   border: 1.5px solid #E2E8F0;
   background: #F8FAFC;
   color: #475569;
   font-weight: 700;
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1822,24 +1836,25 @@ body.exam-fullscreen .portal-main {
   grid-template-columns: repeat(3, 1fr);
   background: #F8FAFC;
   border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  padding: 4px 6px;
-  margin-bottom: 6px;
+  border-radius: 9px;
+  padding: 6px 8px;
+  margin-top: auto;
+  margin-bottom: 9px;
   text-align: center;
 }
 .matrix-stat .stat-label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.64rem;
+  font-size: 0.66rem;
   color: #64748B;
   font-weight: 600;
 }
 .matrix-stat strong {
   display: block;
-  font-size: 0.86rem;
+  font-size: 0.9rem;
   color: #0F172A;
-  margin-top: 0;
+  margin-top: 1px;
 }
 .stat-dot {
   width: 7px;
@@ -1852,18 +1867,18 @@ body.exam-fullscreen .portal-main {
 .stat-dot.pending { background: #94A3B8; }
 
 .matrix-consumed-block {
-  margin-bottom: 7px;
+  margin-bottom: 9px;
 }
 .consumed-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 600;
   color: #64748B;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
 }
 .consumed-track {
-  height: 4px;
+  height: 5px;
   background: #E2E8F0;
   border-radius: 999px;
   overflow: hidden;
@@ -1879,10 +1894,10 @@ body.exam-fullscreen .portal-main {
   background: #296934;
   color: #FFFFFF;
   border: none;
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: 9px;
+  padding: 10px 14px;
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -1901,14 +1916,14 @@ body.exam-fullscreen .portal-main {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   border-radius: 14px;
-  padding: 8px 11px;
+  padding: 10px 13px;
   box-shadow: 0 6px 24px rgba(15, 23, 42, 0.04);
 }
 .feed-card-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 5px;
+  margin-bottom: 7px;
 }
 .feed-title {
   display: inline-flex;
@@ -1941,7 +1956,7 @@ body.exam-fullscreen .portal-main {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  max-height: 98px;
+  max-height: clamp(148px, 24dvh, 215px);
   background: #0F172A;
   border-radius: 10px;
   overflow: hidden;
@@ -1955,6 +1970,7 @@ body.exam-fullscreen .portal-main {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 32%;
   transform: scaleX(-1);
   display: block;
 }
@@ -2042,28 +2058,44 @@ body.exam-fullscreen .portal-main {
   background: #EFF6FF;
   border: 1px solid #DCEEF8;
   border-radius: 12px;
-  padding: 7px 11px;
+  padding: 9px 13px;
 }
 .protocol-title {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.64rem;
+  font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   color: #0369A1;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
 .protocol-notice-card p {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   color: #475569;
-  line-height: 1.28;
+  line-height: 1.36;
   margin: 0;
 }
 
-@media (min-width: 961px) and (max-height: 700px) {
+@media (max-width: 960px) {
   body.exam-fullscreen .portal-main {
-    padding: 8px 18px;
+    min-height: auto;
+    padding: 10px 14px 22px;
+  }
+  .navigator-card {
+    flex: 0 0 auto;
+  }
+  .matrix-stats-row {
+    margin-top: 4px;
+  }
+  .feed-video-stage {
+    max-height: 240px;
+  }
+}
+
+@media (min-width: 961px) and (max-height: 740px) {
+  body.exam-fullscreen .portal-main {
+    padding: 8px 16px;
   }
   .exam-cockpit {
     gap: 8px;
@@ -2072,20 +2104,23 @@ body.exam-fullscreen .portal-main {
     padding: 8px 16px 7px;
   }
   .question-card {
-    padding: 14px 18px;
+    padding: 14px 20px;
   }
   .q-text {
-    font-size: 1.05rem;
-    margin-bottom: 10px;
+    font-size: 1.08rem;
+    margin-bottom: 12px;
+  }
+  .q-options {
+    gap: 8px;
   }
   .option-label {
-    padding: 8px 12px;
+    padding: 10px 13px;
   }
   .q-chip {
-    height: 24px;
+    height: 26px;
   }
   .feed-video-stage {
-    max-height: 100px;
+    max-height: 148px;
   }
 }
 
@@ -2431,17 +2466,27 @@ body.exam-fullscreen .portal-main {
 }
 
 .res-auth-seal {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #0f172a 0%, #296934 100%);
-  color: #ffffff;
+  width: 46px;
+  height: 46px;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  padding: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-weight: 800;
-  font-size: 0.8rem;
+  overflow: hidden;
+}
+
+.res-auth-seal img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
 }
 
 .res-auth-text h4 {

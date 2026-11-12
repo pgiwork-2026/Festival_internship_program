@@ -20,26 +20,23 @@ export function isTestCoupon(c) {
 // Integer-only tier calc. correct/total compared via cross-multiplication (no floats).
 export function tierFor(correct, total) {
   if (!Number.isInteger(correct) || !Number.isInteger(total) || total <= 0 || correct < 0 || correct > total) throw new Error('invalid score');
-  if (correct === total) return 100;
   return correct * 100 >= total * 50 ? 90 : 85;
 }
 
 export function payablePaise(basePaise, discountPercent) {
-  if (![0, 85, 88, 90, 100].includes(discountPercent)) throw new Error('invalid tier');
+  if (![0, 85, 88, 90].includes(discountPercent)) throw new Error('invalid tier');
   if (!Number.isInteger(basePaise) || basePaise < 0) throw new Error('invalid price');
-  if (discountPercent === 100) return 0;
   if (discountPercent === 0) return basePaise;
   // Winter Internship: ₹9,999/₹10,000 base -> 88% tier = ₹1,199, 90% tier = ₹999
   if (discountPercent === 88 && (basePaise === 999900 || basePaise === 1000000)) return 119900;
   if (basePaise === 1000000 && discountPercent === 90) return 99900;
-  // integer half-up rounding; for legacy 999900 base this is exact (149985 / 99990 / 0)
+  // integer half-up rounding; for legacy 999900 base this is exact (149985 / 99990)
   return Math.floor((basePaise * (100 - discountPercent) + 50) / 100);
 }
 
-// Winter Cohort tiers: 0–3 correct out of 25 (0%–12%) -> ₹1,199 (88% grant); 4–24 (16%–96%) -> ₹999 (90% grant); 25 (100%) -> ₹0 Free.
+// Winter Cohort tiers: 0–3 correct out of 25 (0%–12%) -> ₹1,199 (88% grant); 4–25 (16%–100%) -> ₹999 (90% grant).
 export function winterTierFor(correct, total) {
   if (!Number.isInteger(correct) || !Number.isInteger(total) || total <= 0 || correct < 0 || correct > total) throw new Error('invalid score');
-  if (correct === total) return 100;
   return correct * 100 <= total * 12 ? 88 : 90;
 }
 
@@ -52,8 +49,7 @@ export function winterPayablePaise(coupon) {
       : TEST_COUPON_PAISE;
   }
   const disc = Number(coupon.discount_percent ?? coupon.discountPercent);
-  if (disc === 100) return 0;
-  if (disc === 90) return 99900;
+  if (disc === 90 || disc === 100) return 99900;
   if (disc === 88 || disc === 85) return 119900;
   return BASE_PRICE_PAISE;
 }
@@ -229,3 +225,65 @@ export function normalizeLoginPassword(rawPw) {
   if (month < 1 || month > 12 || day < 1 || day > 31) return raw;
   return `${m[1]}${m[2]}${m[3]}`;
 }
+
+export const SYLLABUS_TRACKS = [
+  {
+    id: 'tech-web',
+    domainType: 'Technical',
+    title: 'Full-Stack Web Development & Modern Architecture',
+    duration: '30 Hours (10 Comprehensive Modules)',
+    pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
+    modules: [
+      { day: 1, hours: 3, title: 'Web Fundamentals & Semantic HTML5', topics: ['DOM hierarchy', 'Accessibility standards', 'Modern HTML5 APIs', 'Meta viewports'] },
+      { day: 2, hours: 3, title: 'Modern CSS3, Flexbox & Grid Systems', topics: ['CSS variables', 'Responsive layout engineering', 'Fluid typography', 'Micro-animations'] },
+      { day: 3, hours: 3, title: 'JavaScript ES6+ & Asynchronous Pipelines', topics: ['Promises', 'Async/Await', 'Fetch API', 'Event loop mechanics'] },
+      { day: 4, hours: 3, title: 'Git & Distributed Version Control', topics: ['Branching models', 'Pull requests', 'Merge conflict resolution', 'GitHub Actions'] },
+      { day: 5, hours: 3, title: 'Node.js & Express API Microservices', topics: ['Middleware pipelines', 'Routing architecture', 'Request validation', 'Security headers'] },
+      { day: 6, hours: 3, title: 'Database Schema & Relational Integrity', topics: ['PostgreSQL', 'Supabase integration', 'Row-Level Security (RLS)', 'Indexing'] },
+      { day: 7, hours: 3, title: 'Component Engineering & UI Frameworks', topics: ['State management', 'Component lifecycles', 'Form validation', 'Interactive widgets'] },
+      { day: 8, hours: 3, title: 'Payment Gateways & Webhook Security', topics: ['Razorpay HMAC signatures', 'Idempotency patterns', 'Transaction handling', 'Receipt PDF generation'] },
+      { day: 9, hours: 3, title: 'Capstone Real-World Project Sprint', topics: ['Production deployment on Render', 'Reverse proxy configuration', 'Lighthouse optimization'] },
+      { day: 10, hours: 3, title: 'Project Report Defense & Certification', topics: ['1-page technical abstract defense', 'Code audit', 'Certificate verification issuance'] }
+    ]
+  },
+  {
+    id: 'tech-app',
+    domainType: 'Technical',
+    title: 'Android & Cross-Platform App Development',
+    duration: '30 Hours (10 Modules)',
+    pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
+    modules: [
+      { day: 1, hours: 3, title: 'Mobile OS Architecture & App Lifecycle', topics: ['Activity stack', 'Permissions model', 'Screen density adaptation'] },
+      { day: 2, hours: 3, title: 'MIT App Inventor & Visual Logic Blocks', topics: ['Event handlers', 'Component tree', 'UI layouts'] },
+      { day: 3, hours: 3, title: 'Sensors, Location & Hardware Integration', topics: ['GPS location', 'Accelerometer', 'Camera APIs'] },
+      { day: 4, hours: 3, title: 'Local Data Storage & TinyDB Mechanics', topics: ['Key-value stores', 'Offline caching', 'Persistent state'] },
+      { day: 5, hours: 3, title: 'RESTful API Connectivity for Mobile', topics: ['Web components', 'JSON parsing', 'Cloud backend sync'] },
+      { day: 6, hours: 3, title: 'UI/UX Design Patterns for Mobile', topics: ['Touch targets', 'Gesture navigation', 'Dark/light themes'] },
+      { day: 7, hours: 3, title: 'Push Notifications & Background Services', topics: ['Alert managers', 'Broadcast receivers', 'Timer events'] },
+      { day: 8, hours: 3, title: 'App Security & Permission Sandboxing', topics: ['Cryptographic storage', 'Secure transport HTTPS', 'Input sanitization'] },
+      { day: 9, hours: 3, title: 'APK Compilation, Testing & Debugging', topics: ['Logcat analysis', 'Package signing', 'Performance profiling'] },
+      { day: 10, hours: 3, title: 'Mobile Capstone Presentation', topics: ['Published APK demo', '1-page project report submission'] }
+    ]
+  },
+  {
+    id: 'nontech-marketing',
+    domainType: 'Non-Technical',
+    title: 'Digital Operations, Analytics & Growth Strategy',
+    duration: '30 Hours (10 Modules)',
+    pdfUrl: '/static/pdf/PGI_Winter_Internship_Syllabus.pdf',
+    modules: [
+      { day: 1, hours: 3, title: 'Fundamentals of Digital Operations & Brand Funnels', topics: ['Customer journey', 'TOFU/MOFU/BOFU', 'Value proposition'] },
+      { day: 2, hours: 3, title: 'Search Engine Optimization (SEO)', topics: ['On-page optimization', 'Technical SEO', 'Keyword research methodologies'] },
+      { day: 3, hours: 3, title: 'Content Strategy & Creative Copywriting', topics: ['Editorial calendars', 'B2B storytelling', 'Conversion copywriting'] },
+      { day: 4, hours: 3, title: 'Social Media Strategy & Audience Engagement', topics: ['LinkedIn B2B outreach', 'Instagram growth strategies', 'Algorithm patterns'] },
+      { day: 5, hours: 3, title: 'Performance Marketing & Paid Ad Campaigns', topics: ['Google Ads search campaigns', 'Meta Ads Manager', 'Budgeting & ROAS'] },
+      { day: 6, hours: 3, title: 'Business Analytics & KPI Dashboards', topics: ['Google Analytics 4', 'UTM tracking parameters', 'Conversion funnels'] },
+      { day: 7, hours: 3, title: 'Email Marketing & Lead Nurturing Automations', topics: ['Drip sequences', 'Open rate optimization', 'Deliverability protocols'] },
+      { day: 8, hours: 3, title: 'Market Research & Competitive Intelligence', topics: ['Competitor benchmarking', 'SWOT analysis', 'Pricing strategy'] },
+      { day: 9, hours: 3, title: 'Growth Campaign Capstone Execution', topics: ['Live campaign simulation', 'A/B testing execution', 'Lead report'] },
+      { day: 10, hours: 3, title: 'Campaign Defense & Growth Presentation', topics: ['Executive pitch', '1-page campaign report presentation'] }
+    ]
+  }
+];
+
+export const sharedSupportTickets = [];

@@ -227,7 +227,7 @@ test('logic: PGITEST1 pricing and reusable non-expiring state while keeping norm
     assert.equal(winterPayablePaise(null), 999900);
     assert.equal(winterPayablePaise({ code: 'WIN-NORMAL', discount_percent: 90 }), 99900);
     assert.equal(winterPayablePaise({ code: 'WIN-BASE', discount_percent: 88 }), 119900);
-    assert.equal(winterPayablePaise({ code: 'WIN-FREE', discount_percent: 100 }), 0);
+    assert.equal(winterPayablePaise({ code: 'WIN-LEGACY100', discount_percent: 100 }), 99900);
   } finally {
     process.env.ENABLE_TEST_COUPON = prevEnv;
   }

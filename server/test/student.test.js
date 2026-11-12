@@ -77,6 +77,30 @@ test('1-page project report PDF generation', async () => {
   assert.ok(pdfBuffer.length > 1000);
   // Verify PDF header magic bytes "%PDF-"
   assert.equal(pdfBuffer.slice(0, 5).toString('ascii'), '%PDF-');
+
+  const mupdf = (await import('mupdf')).default;
+  const domainCases = [
+    ['Web Development & Cloud Deployment', 'Technical', 'Full-Stack Responsive Web Platform'],
+    ['Mobile App Development', 'Technical', 'Cross-Platform Android Utility'],
+    ['Digital Operations & Agile Management', 'Non-Technical', 'Enterprise Digital Operations Workflow'],
+    ['Business Analysis & Tech Communication', 'Non-Technical', 'Enterprise Business Requirements Dossier'],
+    ['Digital Growth & Product Marketing', 'Non-Technical', 'Omnichannel Digital Growth Funnel']
+  ];
+  for (const [domName, domType, expectedTitlePart] of domainCases) {
+    const buf = await buildProjectReportPDF({
+      studentId: 'PGI-S26-1002',
+      name: 'Dhakshana Moorthy',
+      courseTitle: domName,
+      domainName: domName,
+      domainType: domType,
+      mode: 'Offline'
+    });
+    const doc = mupdf.Document.openDocument(buf, 'application/pdf');
+    assert.equal(doc.countPages(), 1, `${domName} report must fit strictly on 1 page`);
+    const pageText = doc.loadPage(0).toStructuredText('preserve-whitespace').asText();
+    assert.ok(pageText.includes(expectedTitlePart), `${domName} report must match its domain project`);
+    assert.equal((pageText.match(/30 Hours/g) || []).length, 1, 'Training mode must not duplicate (30 Hours)');
+  }
 });
 
 test('student identifier resolution logic: email vs student ID format', () => {

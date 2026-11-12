@@ -31,7 +31,7 @@ export function clearLocalPaymentStores() {
   localEnrollments.clear();
 }
 
-export function registerPayments(app, { db, auth, wrap, fail }) {
+export function registerPayments(app, { db, auth, wrap, fail, localApplications = new Map() }) {
   const { activeBatch } = batchTools(db, fail);
   const NO_BATCH = '00000000-0000-0000-0000-000000000000';
 
@@ -274,54 +274,13 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
     const effectiveDiscountPercent = isTestOrder
       ? 99
       : (appliedCoupon
-        ? (Number(appliedCoupon.discount_percent) === 85 ? 88 : Number(appliedCoupon.discount_percent))
+        ? (Number(appliedCoupon.discount_percent) === 85
+          ? 88
+          : (Number(appliedCoupon.discount_percent) === 100 ? 90 : Number(appliedCoupon.discount_percent)))
         : 0);
 
-    if (amount === 0) {
-      if (isTestOrder) throw fail(403, 'Test coupon requires ₹1 payment verification');
-      // 100% full scholarship waiver
-      if (coupon.discount_percent !== 100 || Number(coupon.score_percent) !== 100) {
-        throw fail(403, 'Not eligible for 100% tuition waiver');
-      }
-      const { prof, studentId, receiptNo, portalPassword, userEmail } = await provisionStudentCredentials(req.user.id);
-      const txRef = 'FREE-' + coupon.code;
-      const enr = await enroll({
-        userId: req.user.id,
-        course,
-        coupon,
-        kind: 'free',
-        amount: 0,
-        txRef,
-        studentId,
-        receiptNo,
-        batchId: coupon.batch_id || b?.id || null,
-        isTest: false
-      });
-      if (userEmail) {
-        sendEnrollmentReceiptEmail({
-          studentName: prof?.full_name || 'Candidate',
-          studentId,
-          email: userEmail,
-          password: portalPassword,
-          courseTitle: course.title,
-          duration: course.duration,
-          receiptNo,
-          transactionRef: txRef,
-          enrollmentId: enr.id,
-          amountPaise: 0,
-          basePricePaise: basePaise,
-          couponCode: coupon.code
-        }).catch(err => console.error('[Enrollment Receipt Email Error]', err));
-      }
-      return res.json({
-        status: 'enrolled',
-        enrollmentId: enr.id,
-        studentId,
-        receiptNo,
-        portalPassword,
-        orderId: null,
-        paymentId: txRef
-      });
+    if (!Number.isInteger(amount) || amount <= 0) {
+      throw fail(400, 'Invalid payable amount.');
     }
 
     // Reuse existing open order for this user+coupon to prevent double charges on retries
@@ -814,7 +773,9 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       attempt: att,
       coupon: coup && {
         code: coup.code,
-        discountPercent: coup.discount_percent,
+        discountPercent: Number(coup.discount_percent) === 85
+          ? 88
+          : (Number(coup.discount_percent) === 100 ? 90 : Number(coup.discount_percent)),
         issuedAt: coup.issued_at,
         expiresAt: coup.expires_at,
         state: couponState(coup)
@@ -875,12 +836,36 @@ export function registerPayments(app, { db, auth, wrap, fail }) {
       prof = data;
     } catch {}
 
+    let appRec = null;
+    try {
+      const { data } = await db
+        .from('internship_applications')
+        .select('full_name,address,domain_name,mode,duration,phone')
+        .ilike('email', req.user.email)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      appRec = data;
+    } catch {}
+
+    if (!appRec && localApplications) {
+      for (const a of localApplications.values()) {
+        if (String(a.email || '').toLowerCase() === String(req.user.email || '').toLowerCase()) {
+          appRec = a;
+          break;
+        }
+      }
+    }
+
     const buf = await buildOfferPDF({
-      name: prof?.full_name || 'Candidate',
+      name: appRec?.full_name || prof?.full_name || req.user.user_metadata?.full_name || 'Candidate',
+      address: appRec?.address || '',
       email: req.user.email,
-      phone: prof?.phone || '-',
-      course: e.courses?.title || 'Winter Internship Program',
-      duration: e.courses?.duration || '30 Hours (10 Days)',
+      phone: appRec?.phone || prof?.phone || '',
+      domain: appRec?.domain_name || e.courses?.title || 'Full-Stack Web Development',
+      course: e.courses?.title || appRec?.domain_name || 'Winter Internship Program',
+      mode: appRec?.mode || 'Online',
+      duration: '30 hours',
       enrollmentId: e.id,
       transactionRef: e.transaction_ref,
       enrolledAt: e.enrolled_at,

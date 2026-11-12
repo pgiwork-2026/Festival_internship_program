@@ -37,6 +37,16 @@ test('certificate eligibility validation: strictly enforces 30 hours and 75% att
     totalRequiredHours: 30.0
   });
   assert.equal(passHigh.eligible, true);
+
+  // Case 5: Completed Offline bypasses 30h/75% portal attendance check -> ELIGIBLE
+  const passOffline = verifyCertificateEligibility({
+    completedHours: 1.0,
+    attendancePercentage: 0,
+    totalRequiredHours: 30.0,
+    mode: 'Completed Offline (30 Hours)'
+  });
+  assert.equal(passOffline.eligible, true);
+  assert.equal(passOffline.completedOffline, true);
 });
 
 test('certificate number formatting', () => {

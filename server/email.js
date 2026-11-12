@@ -7,9 +7,8 @@ import { winterPayablePaise } from './logic.js';
 
 function couponPayableSummary(coupon) {
   const paise = winterPayablePaise(coupon);
-  if (paise === 0) return '₹0 (100% Full Scholarship)';
-  if (paise === 119900) return '₹1,199 (₹9,999 fee with 0%–12% tier scholarship)';
-  if (paise === 99900) return '₹999 (₹9,999 fee with 16%–96% tier scholarship)';
+  if (paise === 119900) return '₹1,199 (₹9,999 fee with 88% Foundation Scholarship)';
+  if (paise === 99900) return '₹999 (₹9,999 fee with 90% Merit Scholarship)';
   return '₹' + Math.round(paise / 100).toLocaleString('en-IN');
 }
 
@@ -81,7 +80,7 @@ export function buildConfirmationEmailHtml(app) {
 
       <div class="cta-box">
         <h3 style="margin:0 0 8px 0; color:#101D35;">Next Step: Scholarship Assessment</h3>
-        <p style="margin:0 0 16px 0; font-size:14px; color:#33475B;">Complete your 100-mark proctored assessment to unlock your merit scholarship (up to 100% full tuition coverage).</p>
+        <p style="margin:0 0 16px 0; font-size:14px; color:#33475B;">Complete your 100-mark proctored assessment to unlock up to 90% merit scholarship (&#8377;999 or &#8377;1,199 cohort fee).</p>
         <a class="btn" href="${assessmentUrl}">Start Your Assessment Now &rarr;</a>
       </div>
 
@@ -131,7 +130,7 @@ Password (DOB):    ${app.password}
 ` : ''}
 NEXT STEP:
 ----------
-Take your 100-mark online proctored scholarship assessment to claim up to 100% scholarship:
+Take your 100-mark online proctored scholarship assessment to claim up to 90% scholarship (₹999 or ₹1,199 cohort fee):
 ${assessmentUrl}
 
 For assistance, email us at plantgreeninertia@gmail.com or call +91 82206 99083.

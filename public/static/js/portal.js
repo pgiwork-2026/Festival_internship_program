@@ -1250,10 +1250,9 @@
 
     const coupon = r.coupon || null;
     lastCoupon = coupon;
-    const isFullGrant = coupon && coupon.discountPercent === 100;
-    const payableText = coupon ? (isFullGrant ? '₹0' : inr(coupon.payablePaise)) : '₹9,999';
+    const payableText = coupon ? inr(coupon.payablePaise) : '₹9,999';
     const subsidyPct = coupon
-      ? Number(coupon.effectiveDiscountPercent ?? (coupon.payablePaise === 119900 ? 88 : coupon.discountPercent || 0))
+      ? Number(coupon.effectiveDiscountPercent ?? (coupon.payablePaise === 119900 ? 88 : (coupon.discountPercent === 100 ? 90 : coupon.discountPercent || 0)))
       : 0;
 
     box.innerHTML = `
@@ -1334,7 +1333,9 @@
           </div>
 
           <div class="res-card res-auth-card">
-            <div class="res-auth-seal" aria-hidden="true">PGI</div>
+            <div class="res-auth-seal">
+              <img src="static/images/pgi-logo-sq.png" alt="Plant Green Inertia" onerror="this.src='static/images/pgi-logo.jpg'">
+            </div>
             <div class="res-auth-text">
               <h4>
                 <span>EVALUATION AUTHENTICITY</span>
@@ -1357,9 +1358,7 @@
 
               <h2 class="res-voucher-title">Institutional Scholarship Voucher Granted</h2>
               <p class="res-voucher-desc">
-                ${isFullGrant
-                  ? 'Full merit waiver unlocked for achieving 100/100 with clean proctoring integrity. Zero-fee enrollment is ready below.'
-                  : 'Subsidized cohort matriculation voucher unlocked for your Winter 2026 Internship assessment completion. Complete enrollment below within 24 hours.'}
+                Subsidized cohort matriculation voucher unlocked for your Winter 2026 Internship assessment completion. Complete enrollment below within 24 hours.
               </p>
 
               <div class="res-fee-grid">
@@ -1494,7 +1493,7 @@
     enrollBtn.type = 'button';
     enrollBtn.id = 'btn-choose-course';
     enrollBtn.className = 'res-btn-pay';
-    const priceLbl = coupon.discountPercent === 100 ? '₹0' : inr(coupon.payablePaise);
+    const priceLbl = inr(coupon.payablePaise);
     enrollBtn.innerHTML = `<span>Proceed to Subsidized Payment &bull; ${priceLbl}</span><span aria-hidden="true">&rarr;</span>`;
     enrollBtn.onclick = showCourses;
     wrap.appendChild(enrollBtn);
@@ -1628,22 +1627,22 @@
   function resolveCheckoutPricing(coupon) {
     const basePaise = DEFAULT_TUITION_PAISE;
     if (!coupon) {
-      return { basePaise, payablePaise: basePaise, discountPaise: 0, subsidyPct: 0, isFree: false, isTest: false };
+      return { basePaise, payablePaise: basePaise, discountPaise: 0, subsidyPct: 0, isTest: false };
     }
     const isTest = Boolean(coupon.isTest || coupon.code === 'PGITEST1');
     const rawPayable = isTest
       ? 100
-      : (Number.isFinite(coupon.payablePaise)
+      : (Number.isFinite(coupon.payablePaise) && Number(coupon.payablePaise) > 0
         ? Number(coupon.payablePaise)
-        : (coupon.discountPercent === 100 ? 0 : coupon.discountPercent === 90 ? 99900 : 119900));
-    const payablePaise = Math.max(0, rawPayable);
+        : (Number(coupon.discountPercent) >= 90 ? 99900 : 119900));
+    const payablePaise = Math.max(100, rawPayable);
     const discountPaise = Number.isFinite(coupon.discountPaise)
       ? Math.max(0, Number(coupon.discountPaise))
       : Math.max(0, basePaise - payablePaise);
     const subsidyPct = isTest
       ? 99
-      : Number(coupon.effectiveDiscountPercent ?? (payablePaise === 0 ? 100 : payablePaise === 99900 ? 90 : 88));
-    return { basePaise, payablePaise, discountPaise, subsidyPct, isFree: payablePaise === 0, isTest };
+      : Number(coupon.effectiveDiscountPercent ?? (payablePaise === 99900 ? 90 : 88));
+    return { basePaise, payablePaise, discountPaise, subsidyPct, isTest };
   }
 
   function startCheckoutExpiryTimer(expiresAtIso) {
@@ -1683,7 +1682,7 @@
     if ($('btn-back-result')) $('btn-back-result').classList.toggle('hidden', !lastResult);
     const c = lastCoupon;
     $('c-coupon').textContent = c?.code
-      ? `Voucher ${c.code} ready (${c.discountPercent === 100 ? '₹0 Free' : inr(c.payablePaise)}). Select your internship domain below — default checkout fee is ₹9,999 until you apply your coupon.`
+      ? `Voucher ${c.code} ready (${inr(c.payablePaise)}). Select your internship domain below — default checkout fee is ₹9,999 until you apply your coupon.`
       : 'Standard cohort tuition is ₹9,999. Select your internship domain below to proceed to remittance.';
     msg('c-msg', '');
 
@@ -1703,7 +1702,7 @@
         card.className = 'course-card';
 
         const voucherLine = c?.code
-          ? `<div style="font-size:0.84rem;color:var(--text-muted);margin-top:4px;">With voucher <code>${escHtml(c.code)}</code>: <strong style="color:var(--plant-green);">${c.discountPercent === 100 ? '₹0 (100% Free)' : inr(c.payablePaise)}</strong></div>`
+          ? `<div style="font-size:0.84rem;color:var(--text-muted);margin-top:4px;">With voucher <code>${escHtml(c.code)}</code>: <strong style="color:var(--plant-green);">${inr(c.payablePaise)}</strong></div>`
           : '';
 
         card.innerHTML = `
@@ -1790,10 +1789,7 @@
         if (radio) radio.checked = active;
       });
       if (!lastOrderId && $('co-order-ref')) {
-        const pricing = resolveCheckoutPricing(appliedCoupon);
-        $('co-order-ref').textContent = pricing.isFree
-          ? 'Zero-fee 100% merit waiver — instant activation without gateway charge'
-          : `Gateway: Razorpay · Method: ${RAZORPAY_METHOD_LABELS[selectedMethod]}`;
+        $('co-order-ref').textContent = `Gateway: Razorpay · Method: ${RAZORPAY_METHOD_LABELS[selectedMethod]}`;
       }
     };
 
@@ -1823,21 +1819,16 @@
       $('cm-discount').textContent = appliedCoupon
         ? `-${inr(p.discountPaise)}`
         : '₹0';
-      $('cm-payable').textContent = p.isFree ? '₹0 (Free)' : inr(p.payablePaise);
-      $('co-rzp-payable').textContent = p.isFree ? '₹0.00' : inrDecimal(p.payablePaise);
+      $('cm-payable').textContent = inr(p.payablePaise);
+      $('co-rzp-payable').textContent = inrDecimal(p.payablePaise);
 
       if (removeBtn) removeBtn.classList.toggle('hidden', !appliedCoupon);
       if (payBtn) {
-        const btnText = p.isFree
-          ? 'Confirm Free Enrollment (100% Scholarship)'
-          : `Pay ${inr(p.payablePaise)}`;
-        payBtn.innerHTML = payButtonMarkup(btnText);
+        payBtn.innerHTML = payButtonMarkup(`Pay ${inr(p.payablePaise)}`);
       }
 
       if (!lastOrderId && $('co-order-ref')) {
-        $('co-order-ref').textContent = p.isFree
-          ? 'Zero-fee 100% merit waiver — instant activation without gateway charge'
-          : `Gateway: Razorpay · Method: ${RAZORPAY_METHOD_LABELS[selectedMethod]}`;
+        $('co-order-ref').textContent = `Gateway: Razorpay · Method: ${RAZORPAY_METHOD_LABELS[selectedMethod]}`;
       }
 
       startCheckoutExpiryTimer(p.isTest ? null : (appliedCoupon?.expiresAt || lastCoupon?.expiresAt || null));
@@ -1864,7 +1855,7 @@
         lastOrderId = null;
         if (couponInput) couponInput.value = res.code || code;
         renderCheckoutPricing();
-        const payableTxt = res.payablePaise === 0 ? '₹0 (100% Free)' : inr(res.payablePaise);
+        const payableTxt = inr(res.payablePaise);
         msg('co-coupon-msg', `Coupon ${res.code} applied! Payable fee updated to ${payableTxt}.`, true);
       } catch (err) {
         msg('co-coupon-msg', err.message || 'Unable to validate coupon right now.');
@@ -1928,7 +1919,7 @@
             portalPassword: ord.portalPassword || null,
             orderId: null,
             paymentId: ord.paymentId,
-            methodLabel: '100% Merit Grant'
+            methodLabel: 'Verified Online'
           });
           window.__pgiBootPromise = null;
           window.__pgiBootToken = null;
@@ -2083,14 +2074,13 @@
     const orderId = e.orderId || (matchesRecent ? recent.orderId : null) || receiptNo;
     const txRef = e.transactionRef || (matchesRecent ? recent.paymentId : null) || receiptNo;
 
-    const isFree = e.kind === 'free' || Number(e.amountPaise) === 0;
     const basePaise = Number(e.basePricePaise || DEFAULT_TUITION_PAISE);
     const paidPaise = Math.max(0, Number(e.amountPaise ?? 0));
     const discountPaise = Math.max(0, basePaise - paidPaise);
     const couponTag = e.couponCode || d.coupon?.code || '';
-    const methodText = isFree
-      ? '100% Merit Grant'
-      : (matchesRecent?.methodLabel ? `Razorpay (${matchesRecent.methodLabel})` : 'Razorpay Online');
+    const methodText = matchesRecent?.methodLabel
+      ? `Razorpay (${matchesRecent.methodLabel})`
+      : 'Razorpay Online';
 
     const candName = escHtml(d.profile?.full_name || 'Candidate');
     const candEmail = escHtml(d.email || '');
@@ -2127,7 +2117,7 @@
         <div class="confirm-hero-chips">
           <span class="confirm-chip">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>
-            ${isFree ? '100% Scholarship Verified' : 'Razorpay Verified'}
+            Razorpay Verified
           </span>
           <span class="confirm-chip is-amt">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
@@ -2154,7 +2144,7 @@
                 <span class="confirm-head-sub">Invoice #${escHtml(receiptNo)}</span>
               </div>
             </div>
-            <span class="confirm-pill">&#10003; ${isFree ? 'Waived' : 'Paid'}</span>
+            <span class="confirm-pill">&#10003; Paid</span>
           </div>
 
           <div class="confirm-meta-box">
@@ -2269,7 +2259,7 @@
             <div class="confirm-step-list">
               <div class="confirm-step-item">
                 <span class="confirm-step-left"><span class="confirm-step-ico">&#10003;</span> Fee Remitted</span>
-                <span class="confirm-step-right is-muted">${paidPaise === 0 ? '₹0 Free' : escHtml(inr(paidPaise))}</span>
+                <span class="confirm-step-right is-muted">${escHtml(inr(paidPaise))}</span>
               </div>
               <div class="confirm-step-item">
                 <span class="confirm-step-left"><span class="confirm-step-ico">&#10003;</span> Student ID Provisioned</span>

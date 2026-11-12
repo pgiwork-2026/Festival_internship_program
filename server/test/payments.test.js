@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { verifySignature, verifyWebhook } from '../razorpay.js';
 import { payablePaise } from '../logic.js';
 import { buildReceiptPDF, receiptId } from '../receipt.js';
+import { buildOfferPDF, offerId } from '../offer.js';
 import { buildEnrollmentReceiptEmailHtml, buildEnrollmentReceiptEmailText } from '../email.js';
 
 const h = (k, m) => crypto.createHmac('sha256', k).update(m).digest('hex');
@@ -53,11 +54,11 @@ test('pricing: base fee ₹10,000 (1000000 paise) with 90% scholarship yields ex
   assert.equal(payable, 99900); // Exactly ₹999.00
 });
 
-test('pricing: 100% full merit scholarship yields ₹0', () => {
+test('pricing: base fee ₹10,000 (1000000 paise) with 88% foundation scholarship yields exactly ₹1,199 (119900 paise)', () => {
   const basePaise = 1000000;
-  const discountPercent = 100;
+  const discountPercent = 88;
   const payable = payablePaise(basePaise, discountPercent);
-  assert.equal(payable, 0);
+  assert.equal(payable, 119900);
 });
 
 test('receipt ID format generator', () => {
@@ -156,7 +157,7 @@ test('idempotent order state transition logic prevents double enrollment', () =>
 });
 
 
-test('Winter 2026 remittance pricing: default ₹9,999 without coupon vs ₹1,199 / ₹999 / ₹0 with coupon', async () => {
+test('Winter 2026 remittance pricing: default ₹9,999 without coupon vs ₹1,199 / ₹999 with coupon', async () => {
   const { winterPayablePaise, payablePaise } = await import('../logic.js');
 
   assert.equal(winterPayablePaise(null), 999900);
@@ -164,17 +165,17 @@ test('Winter 2026 remittance pricing: default ₹9,999 without coupon vs ₹1,19
   assert.equal(winterPayablePaise({ discount_percent: 88 }), 119900);
   assert.equal(winterPayablePaise({ discount_percent: 85 }), 119900);
   assert.equal(winterPayablePaise({ discount_percent: 90 }), 99900);
-  assert.equal(winterPayablePaise({ discount_percent: 100 }), 0);
+  assert.equal(winterPayablePaise({ discount_percent: 100 }), 99900);
   assert.equal(payablePaise(999900, 88), 119900);
 });
 
 
-test('payment receipt PDF builds cleanly across ₹9,999, ₹1,199, ₹999, and ₹0 Free amounts', async () => {
+test('payment receipt PDF builds cleanly across ₹9,999, ₹1,199, ₹999, and ₹1 test amounts', async () => {
   for (const [amountPaise, couponCode] of [
     [999900, null],
     [119900, 'WIN-LOW123'],
     [99900, 'WIN-MID456'],
-    [0, 'WIN-FREE100']
+    [100, 'PGITEST1']
   ]) {
     const pdfBuffer = await buildReceiptPDF({
       studentId: 'PGI-S26-TEST',
@@ -192,4 +193,25 @@ test('payment receipt PDF builds cleanly across ₹9,999, ₹1,199, ₹999, and 
     assert.ok(pdfBuffer instanceof Buffer);
     assert.equal(pdfBuffer.subarray(0, 5).toString('ascii'), '%PDF-');
   }
+});
+
+test('1-page offer letter PDF builds cleanly matching official template fields', async () => {
+  const id = offerId('PGI-S26-1002');
+  assert.match(id, /^PGI-OL-[A-Z0-9]+$/);
+  const pdfBuffer = await buildOfferPDF({
+    name: 'Dhakshana Moorthy',
+    address: 'No. 42, Anna Salai, Teynampet, Chennai - 600018',
+    email: 'dhakshana@example.com',
+    phone: '9876543210',
+    domain: 'Digital Operations & Agile Management',
+    mode: 'Offline',
+    duration: '30 hours',
+    enrollmentId: 'PGI-S26-1002',
+    enrolledAt: '2026-11-12T06:00:00Z'
+  });
+  assert.ok(pdfBuffer instanceof Buffer);
+  assert.equal(pdfBuffer.subarray(0, 5).toString('ascii'), '%PDF-');
+  const raw = pdfBuffer.toString('latin1');
+  const pageCount = (raw.match(/\/Type\s*\/Page\b(?!s)/g) || []).length;
+  assert.equal(pageCount, 1, `Expected 1 page, got ${pageCount}`);
 });

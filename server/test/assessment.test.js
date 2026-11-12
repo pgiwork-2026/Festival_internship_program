@@ -113,7 +113,7 @@ test('Assessment scoring: bounds clamping (0 <= score <= 100)', () => {
 test('Pricing: Winter ₹10,000 fee with 90% scholarship = ₹999 (99900 paise)', () => {
   const payable = payablePaise(WINTER_PRICE_PAISE, 90);
   assert.equal(payable, 99900); // 999.00 INR
-  assert.equal(payablePaise(WINTER_PRICE_PAISE, 100), 0); // 100% full scholarship = ₹0
+  assert.equal(payablePaise(WINTER_PRICE_PAISE, 88), 119900); // 88% scholarship = ₹1,199
   // Legacy price 999900 paise preserved
   assert.equal(payablePaise(BASE_PRICE_PAISE, 90), 99990);
   assert.equal(payablePaise(BASE_PRICE_PAISE, 85), 149985);
@@ -216,24 +216,23 @@ test('Partial attendance (< 30 passMark) computes exact attended/wrong counts an
 });
 
 
-test('Winter 2026 scholarship tiers: 0-3 (0%-12%) -> ₹1,199, 4-24 (16%-96%) -> ₹999, 25 (100%) -> Free', () => {
+test('Winter 2026 scholarship tiers: 0-3 (0%-12%) -> ₹1,199, 4-25 (16%-100%) -> ₹999', () => {
   for (const c of [0, 1, 2, 3]) {
     assert.equal(winterTierFor(c, 25), 88, `${c}/25 should map to 88 tier (₹1,199)`);
   }
-  for (const c of [4, 5, 12, 24]) {
+  for (const c of [4, 5, 12, 24, 25]) {
     assert.equal(winterTierFor(c, 25), 90, `${c}/25 should map to 90 tier (₹999)`);
   }
-  assert.equal(winterTierFor(25, 25), 100);
 
   // Legacy 20-question proportional check
   for (const c of [0, 1, 2]) {
     assert.equal(winterTierFor(c, 20), 88, `${c}/20 (0%-10%) should map to 88 tier (₹1,199)`);
   }
-  for (const c of [3, 10, 19]) {
-    assert.equal(winterTierFor(c, 20), 90, `${c}/20 (15%-95%) should map to 90 tier (₹999)`);
+  for (const c of [3, 10, 19, 20]) {
+    assert.equal(winterTierFor(c, 20), 90, `${c}/20 (15%-100%) should map to 90 tier (₹999)`);
   }
-  assert.equal(winterTierFor(20, 20), 100);
 
   assert.equal(payablePaise(999900, 88), 119900);
   assert.equal(winterPayablePaise({ discount_percent: 88 }), 119900);
+  assert.equal(winterPayablePaise({ discount_percent: 100 }), 99900);
 });

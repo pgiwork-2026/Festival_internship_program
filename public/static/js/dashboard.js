@@ -24,6 +24,18 @@ function setMsg(id, text, isOk = false) {
   el.className = 'msg ' + (isOk ? 'ok' : 'err');
 }
 
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderHubLoader(text) {
+  return `<div class="hub-loader-center" role="status" aria-live="polite"><div class="hub-loader-ring" aria-hidden="true"></div><p class="hub-loader-text">${escHtml(text || 'Loading…')}</p></div>`;
+}
+
 function toggleMobileSidebar(open) {
   const side = document.getElementById('hubSidebar');
   const back = document.getElementById('hubSideBackdrop');
@@ -172,7 +184,7 @@ function renderStudentInfo(s, t) {
   if (payBadge) {
     payBadge.textContent = t.isTest
       ? 'Test Enrollment (PGITEST1)'
-      : (t.amountPaise === 0 ? '100% Free Scholarship' : (t.enrollmentId ? 'Verified Enrollment' : 'Pending Enrollment'));
+      : (t.enrollmentId ? 'Verified Enrollment' : 'Pending Enrollment');
   }
   setText('ov-payment-status', t.paymentAmountLabel || '—');
   setText('ov-payment-badge', t.enrollmentId ? 'Verified' : 'Pending');
@@ -282,7 +294,7 @@ function renderOverviewCurriculumPreview(track, completedHours) {
 
 async function loadSyllabusTrack() {
   const box = document.getElementById('syllabus-container');
-  if (box) box.innerHTML = '<div class="dash-module"><p style="margin:0;color:var(--hub-muted);">Loading your track modules…</p></div>';
+  if (box) box.innerHTML = renderHubLoader('Loading your track modules…');
 
   try {
     const res = await fetch('/api/student/syllabus', { headers: getHeaders() });
@@ -636,7 +648,7 @@ function renderMaterialsView() {
 
 async function loadMaterials() {
   const listBox = document.getElementById('materials-list');
-  if (listBox) listBox.innerHTML = '<div class="dash-module"><p style="margin:0;color:var(--hub-muted);">Loading recordings…</p></div>';
+  if (listBox) listBox.innerHTML = renderHubLoader('Loading recordings…');
 
   const sEl = document.getElementById('vid-search');
   const fEl = document.getElementById('vid-filter');
@@ -659,14 +671,6 @@ async function loadMaterials() {
 let cachedAssignmentsList = [];
 let activeAssignmentId = null;
 let assignmentsViewMode = 'detail';
-
-function escHtml(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
 
 function safeHref(url) {
   const clean = String(url || '').trim();
@@ -697,7 +701,7 @@ function statusMeta(status) {
 async function loadAssignments(preserveMsg = false) {
   const listBox = document.getElementById('assignments-list');
   if (listBox && !cachedAssignmentsList.length) {
-    listBox.innerHTML = '<p style="color:var(--hub-muted);">Loading submissions…</p>';
+    listBox.innerHTML = renderHubLoader('Loading submissions…');
   }
 
   try {
@@ -1132,7 +1136,7 @@ async function loadMentors() {
   const advCohortEl = document.getElementById('mentors-adv-cohort');
   const batchPill = document.getElementById('mentors-batch-pill');
   if (!box) return;
-  box.innerHTML = '<div class="dash-module"><p style="margin:0;color:var(--hub-muted);">Loading mentors…</p></div>';
+  box.innerHTML = renderHubLoader('Loading mentors…');
 
   try {
     const res = await fetch('/api/student/mentors', { headers: getHeaders() });

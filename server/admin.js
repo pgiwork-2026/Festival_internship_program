@@ -1,8 +1,10 @@
 import {
+  SYLLABUS_TRACKS,
   VIOLATION_LABELS,
   TEST_COUPON_CODE,
   isTestCoupon,
-  isTestCouponEnabled
+  isTestCouponEnabled,
+  sharedSupportTickets
 } from './logic.js';
 import {
   deleteCouponByCode,
@@ -113,14 +115,21 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
     const onlineApps = apps.filter(a => String(a.mode || '').toLowerCase().includes('online')).length;
     const offlineApps = apps.filter(a => String(a.mode || '').toLowerCase().includes('offline')).length;
 
-    // Referral link breakdown
+    // Referral link & Domain track breakdowns
     const referralMap = {};
+    const domainMap = {};
     apps.forEach(a => {
       const ref = a.referral_code ? a.referral_code.trim().toLowerCase() : 'direct';
       referralMap[ref] = (referralMap[ref] || 0) + 1;
+      const dom = String(a.domain_name || 'Unassigned').trim();
+      if (!domainMap[dom]) domainMap[dom] = { domain: dom, domainType: a.domain_type || 'Technical', count: 0 };
+      domainMap[dom].count += 1;
     });
     const referralBreakdown = Object.entries(referralMap)
       .map(([code, count]) => ({ code, count, percentage: totalApps ? Math.round((count / totalApps) * 100) : 0 }))
+      .sort((a, b) => b.count - a.count);
+    const domainBreakdown = Object.values(domainMap)
+      .map(d => ({ ...d, percentage: totalApps ? Math.round((d.count / totalApps) * 100) : 0 }))
       .sort((a, b) => b.count - a.count);
 
     // Assessments & Eligibility
@@ -150,7 +159,8 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
         total: totalApps,
         online: onlineApps,
         offline: offlineApps,
-        referrals: referralBreakdown
+        referrals: referralBreakdown,
+        domains: domainBreakdown
       },
       assessments: {
         totalStarted: attempts.length,
@@ -259,18 +269,19 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
       const cp = coupons.find(c => c.user_id === uid);
       const en = enrollments.find(e => e.user_id === uid);
       const sid = en?.student_id || prof?.student_id || appRec.application_id?.replace('PGI-W26-', 'PGI-S26-') || 'PGI-S26-0001';
-      const att = attMap[sid] || (uid ? attMap[uid] : null) || { present: 6, absent: 1, hours: 18.0 };
+      const att = attMap[sid] || (uid ? attMap[uid] : null) || { present: 0, absent: 0, hours: 0 };
 
-      const totalDays = att.present + att.absent || 1;
-      const attPct = Math.round((att.present / totalDays) * 100);
+      const totalDays = att.present + att.absent;
+      const attPct = totalDays ? Math.round((att.present / totalDays) * 100) : 0;
 
       studentDossiers.push({
         id: uid || appRec.id,
+        applicationRecordId: appRec.id,
         applicationId: appRec.application_id,
         studentId: sid,
         name: appRec.full_name || prof?.full_name || 'Candidate',
         email,
-        phone: appRec.mobile || prof?.phone || '',
+        phone: appRec.phone || appRec.mobile || prof?.phone || '',
         college: appRec.college || 'Engineering College',
         department: appRec.department || 'Computer Science',
         passedOutYear: appRec.passed_out_year || '2026',
@@ -298,6 +309,8 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
           percentage: attPct,
           meetsCriteria: att.hours >= 30.0 && attPct >= 75.0
         },
+        assignedBatchId: appRec.assigned_batch_id || null,
+        assignedMentorId: appRec.assigned_mentor_id || null,
         assignedBatch: batchMap[appRec.assigned_batch_id] || 'Winter 2026 Alpha',
         assignedMentor: mentorMap[appRec.assigned_mentor_id] || 'Dr. K. Ravindran',
         appliedAt: appRec.created_at
@@ -339,24 +352,112 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
     res.json(filtered);
   });
 
+  // Add New Candidate / Student Manually from Admin Console
+  A('post', '/students', async (req, res) => {
+    const b = req.body || {};
+    const fullName = String(b.fullName || b.name || '').trim();
+    const email = String(b.email || '').trim().toLowerCase();
+    const phoneRaw = String(b.phone || '').replace(/\D/g, '');
+    const phoneNorm = phoneRaw.length > 10 ? phoneRaw.slice(-10) : phoneRaw;
+    const college = String(b.college || 'Engineering College').trim();
+    const department = String(b.department || 'Computer Science').trim();
+    const passedOutYear = String(b.passedOutYear || '2026').trim();
+    const domainType = b.domainType === 'Non-Technical' ? 'Non-Technical' : 'Technical';
+    const domainName = String(b.domainName || 'Web Development').trim();
+    const mode = String(b.mode || 'Online').toLowerCase() === 'offline' ? 'Offline' : 'Online';
+    const internshipPeriod = String(b.internshipPeriod || '1 month').trim();
+    const batchId = b.batchId || null;
+    const mentorId = b.mentorId || null;
+
+    if (fullName.length < 2) throw fail(400, 'Candidate full name is required (min 2 chars).');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw fail(400, 'Please enter a valid email address.');
+    if (phoneNorm.length !== 10) throw fail(400, 'Please enter a valid 10-digit mobile number.');
+
+    const { data: existing } = await db
+      .from('internship_applications')
+      .select('id,application_id')
+      .ilike('email', email)
+      .maybeSingle()
+      .catch(() => ({ data: null }));
+    if (existing) throw fail(409, `Candidate with ${email} already exists (${existing.application_id}).`);
+
+    const appId = 'PGI-W26-' + String(Math.floor(1000 + Math.random() * 9000));
+    const record = {
+      application_id: appId,
+      full_name: fullName,
+      email,
+      phone: phoneNorm,
+      phone_norm: phoneNorm,
+      college,
+      department,
+      passed_out_year: passedOutYear,
+      domain_type: domainType,
+      domain_name: domainName,
+      mode,
+      duration: '30 Hours',
+      internship_period: internshipPeriod,
+      address: String(b.address || 'Admin Registered Candidate').trim(),
+      why_hire: String(b.whyHire || 'Registered via Admin Control Center.').trim(),
+      assigned_batch_id: batchId || null,
+      assigned_mentor_id: mentorId || null,
+      status: 'submitted'
+    };
+
+    const { data, error } = await db.from('internship_applications').insert(record).select().single();
+    if (error) throw fail(500, error.message);
+
+    await logAudit(req, 'CREATE_STUDENT', 'student', data?.id || appId, { email, applicationId: appId, domainName });
+    res.json({ ok: true, applicationId: appId, student: data });
+  });
+
   // Assign Domain, Batch, Mentor to Student
   A('post', '/students/:id/assign', async (req, res) => {
-    const { domainName, domainType, batchId, mentorId } = req.body || {};
-    const studentIdOrAppId = req.params.id;
+    const { domainName, domainType, batchId, mentorId, applicationId, applicationRecordId, email } = req.body || {};
+    const targetId = req.params.id;
+    const isUuid = v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
 
     const updates = {};
     if (domainName) updates.domain_name = domainName;
     if (domainType) updates.domain_type = domainType;
-    if (batchId) updates.assigned_batch_id = batchId;
-    if (mentorId) updates.assigned_mentor_id = mentorId;
+    if (batchId !== undefined) updates.assigned_batch_id = batchId || null;
+    if (mentorId !== undefined) updates.assigned_mentor_id = mentorId || null;
 
-    try {
-      await db.from('internship_applications')
-        .update(updates)
-        .or(`id.eq.${studentIdOrAppId},application_id.eq.${studentIdOrAppId}`);
-    } catch {}
+    let resolvedEmail = email ? String(email).trim().toLowerCase() : null;
+    if (!resolvedEmail && isUuid(targetId)) {
+      try {
+        const { data: u } = await db.auth.admin.getUserById(targetId);
+        if (u?.user?.email) resolvedEmail = u.user.email.toLowerCase();
+      } catch {}
+    }
 
-    await logAudit(req, 'ASSIGN_STUDENT_DETAILS', 'student', studentIdOrAppId, updates);
+    if (Object.keys(updates).length) {
+      try {
+        let updated = false;
+        if (applicationRecordId && isUuid(applicationRecordId)) {
+          const r = await db.from('internship_applications').update(updates).eq('id', applicationRecordId).select('id');
+          if (!r.error && r.data?.length) updated = true;
+        }
+        if (!updated && applicationId) {
+          const r = await db.from('internship_applications').update(updates).eq('application_id', applicationId).select('id');
+          if (!r.error && r.data?.length) updated = true;
+        }
+        if (!updated && resolvedEmail) {
+          const r = await db.from('internship_applications').update(updates).ilike('email', resolvedEmail).select('id');
+          if (!r.error && r.data?.length) updated = true;
+        }
+        if (!updated && isUuid(targetId)) {
+          await db.from('internship_applications').update(updates).eq('id', targetId);
+        }
+      } catch {}
+
+      if (batchId && isUuid(targetId)) {
+        try {
+          await db.from('enrollments').update({ batch_id: batchId }).eq('user_id', targetId);
+        } catch {}
+      }
+    }
+
+    await logAudit(req, 'ASSIGN_STUDENT_DETAILS', 'student', targetId, updates);
     res.json({ ok: true, message: 'Student assignments updated successfully.', updates });
   });
 
@@ -838,6 +939,9 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   // Check student certificate eligibility
   A('get', '/certificates/eligibility/:studentId', async (req, res) => {
     const rawId = req.params.studentId;
+    const mode = String(req.query?.mode || '');
+    const isCompletedOffline = mode.toLowerCase().includes('completed offline');
+
     let attRecords = [];
     try {
       const { data } = await db.from('student_attendance').select('*').eq('student_id', rawId);
@@ -846,27 +950,34 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
 
     const presentDays = attRecords.filter(r => r.status === 'present').length;
     const absentDays = attRecords.filter(r => r.status === 'absent').length;
-    const completedHours = attRecords.filter(r => r.status === 'present').reduce((sum, r) => sum + Number(r.hours_logged || 0), 0);
-    const totalDays = attRecords.length || 1;
-    const attendancePercentage = Number(((presentDays / (presentDays + absentDays || 1)) * 100).toFixed(1));
+    const rawCompletedHours = attRecords.filter(r => r.status === 'present').reduce((sum, r) => sum + Number(r.hours_logged || 0), 0);
+    const rawAttendancePct = Number(((presentDays / (presentDays + absentDays || 1)) * 100).toFixed(1));
 
-    const check = verifyCertificateEligibility({ completedHours, attendancePercentage, totalRequiredHours: 30.0 });
+    const check = verifyCertificateEligibility({
+      completedHours: rawCompletedHours,
+      attendancePercentage: rawAttendancePct,
+      totalRequiredHours: 30.0,
+      mode
+    });
     res.json({
       studentId: rawId,
-      completedHours,
+      completedHours: isCompletedOffline ? Math.max(rawCompletedHours, 30.0) : rawCompletedHours,
       totalRequiredHours: 30.0,
-      attendancePercentage,
+      attendancePercentage: isCompletedOffline ? (rawAttendancePct > 0 ? rawAttendancePct : 100.0) : rawAttendancePct,
       presentDays,
       absentDays,
+      completedOffline: isCompletedOffline,
       eligible: check.eligible,
       reason: check.reason || null
     });
   });
 
-  // Issue Certificate (Strictly gated by 30-hour completion requirement)
+  // Issue Certificate (Strictly gated by 30-hour completion requirement unless Completed Offline)
   A('post', '/certificates/issue', async (req, res) => {
     const { studentId, studentName, domain, college, mode } = req.body || {};
     if (!studentId) throw fail(400, 'Student ID is required');
+
+    const isCompletedOffline = String(mode || '').toLowerCase().includes('completed offline');
 
     // Retrieve verified attendance from DB
     let attRecords = [];
@@ -877,14 +988,22 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
 
     const presentDays = attRecords.filter(r => r.status === 'present').length;
     const absentDays = attRecords.filter(r => r.status === 'absent').length;
-    const completedHours = attRecords.filter(r => r.status === 'present').reduce((sum, r) => sum + Number(r.hours_logged || 0), 0);
-    const attendancePercentage = attRecords.length ? Number(((presentDays / (presentDays + absentDays || 1)) * 100).toFixed(1)) : 0;
+    const rawCompletedHours = attRecords.filter(r => r.status === 'present').reduce((sum, r) => sum + Number(r.hours_logged || 0), 0);
+    const rawAttendancePct = attRecords.length ? Number(((presentDays / (presentDays + absentDays || 1)) * 100).toFixed(1)) : 0;
 
-    // CRITICAL ENFORCEMENT GATE: Verify completion criteria
-    const check = verifyCertificateEligibility({ completedHours, attendancePercentage, totalRequiredHours: 30.0 });
+    // CRITICAL ENFORCEMENT GATE: Verify completion criteria (bypassed only when Completed Offline is verified by admin)
+    const check = verifyCertificateEligibility({
+      completedHours: rawCompletedHours,
+      attendancePercentage: rawAttendancePct,
+      totalRequiredHours: 30.0,
+      mode
+    });
     if (!check.eligible) {
       throw fail(400, check.reason || 'Completion criteria not met: Candidate must fulfill 30 verified training hours and >= 75% attendance.');
     }
+
+    const completedHours = isCompletedOffline ? Math.max(rawCompletedHours, 30.0) : rawCompletedHours;
+    const attendancePercentage = isCompletedOffline ? (rawAttendancePct > 0 ? rawAttendancePct : 100.0) : rawAttendancePct;
 
     const certId = certificateNumber(studentId);
     const certRecord = {
@@ -906,7 +1025,13 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
     } catch {}
     localCertificates.set(certId, certRecord);
 
-    await logAudit(req, 'ISSUE_CERTIFICATE', 'certificate', certId, { studentId, completedHours, attendancePercentage });
+    await logAudit(req, 'ISSUE_CERTIFICATE', 'certificate', certId, {
+      studentId,
+      mode: mode || 'Online (30 Hours)',
+      completedOffline: isCompletedOffline,
+      completedHours,
+      attendancePercentage
+    });
     res.json({ ok: true, message: `Certificate ${certId} issued successfully.`, certificate: certRecord });
   });
 
@@ -952,6 +1077,217 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   });
 
   // ===================================================================
+  // 9B. PROCTORING ATTEMPTS, ATTENDANCE & SUBMISSIONS REVIEW
+  // ===================================================================
+  A('get', '/attempts', async (req, res) => {
+    const B = await scope(req);
+    const { em, by } = await people();
+    const [attempts, rawViols, coupons] = await Promise.all([
+      rows(S(B, db.from('assessment_attempts').select('id,batch_id,user_id,status,correct_count,total_questions,score_percent,started_at,submitted_at,application_id')).order('started_at', { ascending: false }).limit(500)),
+      db.from('proctoring_violations').select('attempt_id,type,counted,occurred_at').limit(10000).then(r => r.data || []).catch(() => []),
+      rows(S(B, db.from('scholarship_coupons').select('attempt_id,code,discount_percent,status')).limit(5000)).catch(() => [])
+    ]);
+
+    const violMap = {};
+    for (const v of rawViols) {
+      if (!violMap[v.attempt_id]) {
+        violMap[v.attempt_id] = { total: 0, strikes: 0, types: {}, latestType: null, latestAt: null };
+      }
+      const bucket = violMap[v.attempt_id];
+      bucket.total += 1;
+      if (v.counted !== false) bucket.strikes += 1;
+      const tKey = String(v.type || 'other');
+      bucket.types[tKey] = (bucket.types[tKey] || 0) + 1;
+      if (!bucket.latestAt || (v.occurred_at && v.occurred_at > bucket.latestAt)) {
+        bucket.latestAt = v.occurred_at || bucket.latestAt;
+        bucket.latestType = tKey;
+      }
+    }
+    const coupByAttempt = Object.fromEntries((coupons || []).map(c => [c.attempt_id, c]));
+
+    res.json(attempts.map(a => {
+      const c = coupByAttempt[a.id];
+      const vm = violMap[a.id] || { total: 0, strikes: 0, types: {}, latestType: null, latestAt: null };
+      const topType = Object.entries(vm.types).sort((x, y) => y[1] - x[1])[0]?.[0] || vm.latestType;
+      return {
+        id: a.id,
+        applicationId: a.application_id || null,
+        name: by[a.user_id]?.full_name || 'Candidate',
+        email: em[a.user_id] || '',
+        status: a.status,
+        correctCount: a.correct_count ?? 0,
+        totalQuestions: a.total_questions ?? 25,
+        scorePercent: Number(a.score_percent ?? 0),
+        strikes: vm.strikes,
+        violationEvents: vm.total,
+        violationBreakdown: vm.types,
+        topViolationType: topType || null,
+        topViolationLabel: topType ? (VIOLATION_LABELS?.[topType] || topType) : null,
+        lastViolationAt: vm.latestAt,
+        couponCode: c?.code || null,
+        couponDiscount: c?.discount_percent ?? null,
+        startedAt: a.started_at,
+        submittedAt: a.submitted_at
+      };
+    }));
+  });
+
+  A('get', '/attempts/:id/violations', async (req, res) => {
+    const { data, error } = await db
+      .from('proctoring_violations')
+      .select('id,attempt_id,type,counted,occurred_at,snapshot')
+      .eq('attempt_id', req.params.id)
+      .order('occurred_at', { ascending: true });
+    if (error) throw fail(500, error.message);
+
+    res.json((data || []).map(v => ({
+      ...v,
+      counted: v.counted !== false,
+      label: VIOLATION_LABELS?.[v.type] || v.type
+    })));
+  });
+
+  A('get', '/attendance', async (req, res) => {
+    const sid = String(req.query?.studentId || '').trim();
+    try {
+      let q = db.from('student_attendance').select('*').order('date', { ascending: false }).limit(500);
+      if (sid) q = q.eq('student_id', sid);
+      const { data, error } = await q;
+      if (error) throw error;
+      return res.json(data || []);
+    } catch {
+      return res.json([]);
+    }
+  });
+
+  A('post', '/attendance', async (req, res) => {
+    const b = req.body || {};
+    const studentId = String(b.studentId || '').trim().toUpperCase();
+    if (!studentId) throw fail(400, 'Student ID is required');
+    const dayNumber = Math.max(1, Math.min(30, Number(b.dayNumber || 1)));
+    const status = ['present', 'absent', 'late', 'excused', 'holiday'].includes(b.status) ? b.status : 'present';
+    const mode = String(b.mode || 'Online').toLowerCase() === 'offline' ? 'Offline' : 'Online';
+    const hoursLogged = status === 'present'
+      ? Math.max(0.5, Math.min(12, Number(b.hoursLogged ?? 3.0)))
+      : (status === 'late' ? Math.max(0, Math.min(12, Number(b.hoursLogged ?? 2.0))) : 0);
+    const sessionTitle = String(b.sessionTitle || `Day ${dayNumber} Cohort Session`).trim().slice(0, 160);
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || '')) ? b.date : new Date().toISOString().slice(0, 10);
+    const remarks = String(b.remarks || '').trim().slice(0, 300) || null;
+
+    let userId = null;
+    try {
+      const { data: enr } = await db.from('enrollments').select('user_id').eq('student_id', studentId).maybeSingle();
+      userId = enr?.user_id || null;
+      if (!userId) {
+        const { data: prof } = await db.from('profiles').select('id').eq('student_id', studentId).maybeSingle();
+        userId = prof?.id || null;
+      }
+    } catch {}
+
+    const record = {
+      student_id: studentId,
+      user_id: userId,
+      date,
+      day_number: dayNumber,
+      session_title: sessionTitle,
+      mode,
+      status,
+      hours_logged: hoursLogged,
+      verification_method: 'admin_console',
+      remarks
+    };
+
+    let saved = null;
+    const { data: existing } = await db
+      .from('student_attendance')
+      .select('id')
+      .eq('student_id', studentId)
+      .eq('day_number', dayNumber)
+      .maybeSingle();
+
+    if (existing?.id) {
+      const { data, error } = await db.from('student_attendance').update(record).eq('id', existing.id).select().single();
+      if (error) throw fail(500, error.message);
+      saved = data;
+    } else {
+      const { data, error } = await db.from('student_attendance').insert(record).select().single();
+      if (error) throw fail(500, error.message);
+      saved = data;
+    }
+
+    await logAudit(req, 'LOG_ATTENDANCE', 'student', studentId, { dayNumber, status, hoursLogged, date });
+    res.json({ ok: true, record: saved });
+  });
+
+  A('get', '/submissions', async (_q, res) => {
+    const { by, em } = await people();
+    try {
+      const { data, error } = await db
+        .from('student_assignments')
+        .select('*')
+        .order('submitted_at', { ascending: false, nullsFirst: false })
+        .limit(500);
+      if (error) throw error;
+      return res.json((data || []).map(item => ({
+        ...item,
+        studentName: by[item.user_id]?.full_name || 'Student',
+        studentEmail: em[item.user_id] || ''
+      })));
+    } catch {
+      return res.json([]);
+    }
+  });
+
+  A('post', '/submissions/:id/review', async (req, res) => {
+    const { status, score, feedback } = req.body || {};
+    const valid = ['pending', 'submitted', 'reviewed'];
+    const updates = {};
+    if (status && valid.includes(status)) updates.status = status;
+    else updates.status = 'reviewed';
+    if (score !== undefined && score !== null && score !== '') {
+      updates.score = Math.max(0, Math.min(100, Number(score)));
+    }
+    if (feedback !== undefined) updates.feedback = String(feedback || '').trim().slice(0, 1000);
+
+    const { data, error } = await db
+      .from('student_assignments')
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .maybeSingle();
+    if (error) throw fail(500, error.message);
+    if (!data) throw fail(404, 'Submission record not found');
+
+    await logAudit(req, 'REVIEW_SUBMISSION', 'submission', req.params.id, { status: updates.status, score: updates.score });
+    res.json({ ok: true, submission: data });
+  });
+
+  A('post', '/submissions/batch-approve', async (req, res) => {
+    const score = Math.max(0, Math.min(100, Number(req.body?.defaultScore ?? 90)));
+    const feedback = String(req.body?.feedback || 'Approved via Admin batch evaluation.').trim().slice(0, 500);
+    const { data: pendingRows, error: fetchErr } = await db
+      .from('student_assignments')
+      .select('id,submission_url,status')
+      .eq('status', 'submitted')
+      .not('submission_url', 'is', null);
+    if (fetchErr) throw fail(500, fetchErr.message);
+
+    const eligibleIds = (pendingRows || []).filter(r => String(r.submission_url || '').trim()).map(r => r.id);
+    if (!eligibleIds.length) {
+      return res.json({ ok: true, approvedCount: 0, message: 'No submitted pending assignments with repository links to approve.' });
+    }
+
+    const { error: updErr } = await db
+      .from('student_assignments')
+      .update({ status: 'reviewed', score, feedback })
+      .in('id', eligibleIds);
+    if (updErr) throw fail(500, updErr.message);
+
+    await logAudit(req, 'BATCH_APPROVE_SUBMISSIONS', 'submission', 'batch', { count: eligibleIds.length, score });
+    res.json({ ok: true, approvedCount: eligibleIds.length, message: `Approved ${eligibleIds.length} submitted assignment(s).` });
+  });
+
+  // ===================================================================
   // 10. AUDIT LOGS
   // ===================================================================
   A('get', '/audit-logs', async (req, res) => {
@@ -981,5 +1317,99 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
     }
 
     res.json(filtered);
+  });
+
+  // ===================================================================
+  // 11. MODULES & CURRICULUM CATALOG + STUDENT QUERIES
+  // ===================================================================
+  A('get', '/curriculum', async (_q, res) => {
+    let courses = [];
+    try {
+      const { data } = await db.from('courses').select('id,title,duration,domain_type,access_url').order('title', { ascending: true });
+      if (data) courses = data;
+    } catch {}
+    res.json({ tracks: SYLLABUS_TRACKS, courses });
+  });
+
+  A('post', '/curriculum/module', async (req, res) => {
+    const b = req.body || {};
+    const track = SYLLABUS_TRACKS.find(t => t.id === b.trackId) || SYLLABUS_TRACKS[0];
+    if (!track) throw fail(404, 'Curriculum track not found');
+
+    const day = Math.max(1, Math.min(30, Number(b.day || 1)));
+    const title = String(b.title || '').trim();
+    const hours = Math.max(0.5, Math.min(12, Number(b.hours ?? 3)));
+    const topics = Array.isArray(b.topics)
+      ? b.topics.map(x => String(x || '').trim()).filter(Boolean)
+      : String(b.topics || '').split(',').map(x => x.trim()).filter(Boolean);
+    if (!title) throw fail(400, 'Module title is required');
+
+    const status = ['completed', 'active', 'scheduled'].includes(b.status) ? b.status : undefined;
+    const modIndex = Number.isInteger(Number(b.index)) && Number(b.index) >= 0 ? Number(b.index) : -1;
+
+    if (modIndex >= 0 && track.modules[modIndex]) {
+      track.modules[modIndex] = {
+        ...track.modules[modIndex],
+        day,
+        hours,
+        title,
+        topics: topics.length ? topics : track.modules[modIndex].topics,
+        ...(status ? { status } : {})
+      };
+    } else {
+      track.modules.push({
+        day,
+        hours,
+        title,
+        topics: topics.length ? topics : ['Guided Lab Exercise', 'Deliverable Checkpoint'],
+        ...(status ? { status } : {})
+      });
+      track.modules.sort((x, y) => Number(x.day) - Number(y.day));
+    }
+
+    const totalHours = track.modules.reduce((sum, m) => sum + Number(m.hours || 3), 0);
+    track.duration = `${totalHours} Hours (${track.modules.length} Modules)`;
+
+    await logAudit(req, 'UPDATE_CURRICULUM', 'track', track.id, { day, title, hours });
+    res.json({ ok: true, track });
+  });
+
+  A('get', '/queries', async (_q, res) => {
+    res.json(sharedSupportTickets.slice().reverse());
+  });
+
+  A('post', '/queries/:id/resolve', async (req, res) => {
+    const ticket = sharedSupportTickets.find(t => t.id === req.params.id);
+    if (!ticket) throw fail(404, 'Support query not found');
+    const { status, reply, assignedMentorId, assignedMentorName } = req.body || {};
+    ticket.status = status === 'Open' ? 'Open' : 'Resolved';
+    if (reply !== undefined) ticket.adminReply = String(reply || '').trim().slice(0, 1000) || null;
+    if (assignedMentorId !== undefined) ticket.assignedMentorId = assignedMentorId || null;
+    if (assignedMentorName !== undefined) ticket.assignedMentorName = assignedMentorName ? String(assignedMentorName).trim().slice(0, 120) : null;
+    ticket.resolvedAt = ticket.status === 'Resolved' ? new Date().toISOString() : null;
+    await logAudit(req, 'RESOLVE_QUERY', 'ticket', ticket.id, { status: ticket.status, assignedMentorId: ticket.assignedMentorId });
+    res.json({ ok: true, ticket });
+  });
+
+  A('post', '/queries/auto-assign', async (req, res) => {
+    let mentors = [];
+    try {
+      const { data } = await db.from('mentors').select('id,name,domain').eq('active', true);
+      if (data?.length) mentors = data;
+    } catch {}
+    if (!mentors.length) mentors = localMentors.filter(m => m.active !== false);
+
+    const pending = sharedSupportTickets.filter(t => t.status !== 'Resolved' && !t.assignedMentorId);
+    if (!pending.length || !mentors.length) {
+      return res.json({ ok: true, assignedCount: 0, message: 'No unassigned open queries in queue.' });
+    }
+
+    pending.forEach((ticket, idx) => {
+      const m = mentors[idx % mentors.length];
+      ticket.assignedMentorId = m.id;
+      ticket.assignedMentorName = m.name;
+    });
+    await logAudit(req, 'AUTO_ASSIGN_QUERIES', 'ticket', 'batch', { assignedCount: pending.length });
+    res.json({ ok: true, assignedCount: pending.length, message: `Assigned ${pending.length} open query ticket(s) across ${mentors.length} mentor(s).` });
   });
 }
