@@ -287,3 +287,94 @@ export const SYLLABUS_TRACKS = [
 ];
 
 export const sharedSupportTickets = [];
+
+export const sharedDevicePolicyState = {
+  // Explicitly toggled value when DB test_settings.desktop_only column is absent
+  desktopOnlyOverride: null,
+  // Map of lowercase key (`uid:<id>`, `email:<email>`, `app:<appId>`) -> { allowed: boolean, reason: string, updatedAt: string }
+  mobileOverrides: new Map(),
+  // Shared in-memory mirror of recent blocked attempts (also persisted to admin_audit_logs)
+  blockedEvents: []
+};
+
+const MOBILE_UA_RE = /\b(Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Kindle|Silk|PlayBook|Mobile|Tablet|Windows Phone|webOS)\b/i;
+const MOBILE_CH_PLATFORM_RE = /^(Android|iOS|iPhone|iPad)$/i;
+
+/**
+ * Normalizes untrusted client device signal payload into typed flags.
+ */
+export function normalizeClientDeviceSignals(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const src = raw.deviceSignals && typeof raw.deviceSignals === 'object' ? raw.deviceSignals : raw;
+  const hasAny = ['ua', 'userAgent', 'userAgentDataMobile', 'maxTouchPoints', 'pointerCoarse', 'hoverNone', 'screenWidth']
+    .some(k => src[k] !== undefined);
+  if (!hasAny) return null;
+  const sw = Number(src.screenWidth);
+  const tp = Number(src.maxTouchPoints);
+  return {
+    ua: typeof (src.ua ?? src.userAgent) === 'string' ? String(src.ua ?? src.userAgent).slice(0, 400) : '',
+    userAgentDataMobile: src.userAgentDataMobile === true,
+    maxTouchPoints: Number.isFinite(tp) && tp >= 0 ? tp : 0,
+    pointerCoarse: src.pointerCoarse === true,
+    hoverNone: src.hoverNone === true,
+    screenWidth: Number.isFinite(sw) && sw > 0 ? sw : 0
+  };
+}
+
+/**
+ * Evaluates whether a request originates from an allowed laptop/desktop computer.
+ * Never rejects touch-capable laptops on touch count alone; rejects mobile/tablet UAs,
+ * Sec-CH-UA-Mobile: ?1, coarse+no-hover devices, iPadOS desktop mode, and screens < 1024px.
+ */
+export function assessAssessmentDevice({
+  headers = {},
+  clientSignals = null,
+  desktopOnly = true,
+  mobileOverride = false
+} = {}) {
+  if (desktopOnly === false) {
+    return { allowed: true, code: null, reason: 'desktop_only_disabled', signals: null };
+  }
+  if (mobileOverride === true) {
+    return { allowed: true, code: null, reason: 'admin_mobile_override', signals: null };
+  }
+
+  const normalizedHeaders = {};
+  for (const [k, v] of Object.entries(headers || {})) {
+    normalizedHeaders[String(k).toLowerCase()] = Array.isArray(v) ? v[0] : v;
+  }
+
+  const headerUa = String(normalizedHeaders['user-agent'] || '').trim();
+  const secChMobile = String(normalizedHeaders['sec-ch-ua-mobile'] || '').trim();
+  const secChPlatform = String(normalizedHeaders['sec-ch-ua-platform'] || '').trim().replace(/^"|"$/g, '');
+  const sig = normalizeClientDeviceSignals(clientSignals);
+  const effectiveUa = headerUa || sig?.ua || '';
+
+  if (secChMobile === '?1') {
+    return { allowed: false, code: 'DEVICE_NOT_ALLOWED', reason: 'sec_ch_ua_mobile', signals: sig };
+  }
+  if (MOBILE_UA_RE.test(effectiveUa)) {
+    return { allowed: false, code: 'DEVICE_NOT_ALLOWED', reason: 'user_agent_mobile_or_tablet', signals: sig };
+  }
+  if (MOBILE_CH_PLATFORM_RE.test(secChPlatform)) {
+    return { allowed: false, code: 'DEVICE_NOT_ALLOWED', reason: 'sec_ch_ua_platform', signals: sig };
+  }
+
+  if (sig) {
+    if (sig.userAgentDataMobile) {
+      return { allowed: false, code: 'DEVICE_NOT_ALLOWED', reason: 'client_uadata_mobile', signals: sig };
+    }
+    if (sig.pointerCoarse && sig.hoverNone) {
+      return { allowed: false, code: 'DEVICE_NOT_ALLOWED', reason: 'coarse_pointer_no_hover', signals: sig };
+    }
+    // iPadOS "Request Desktop Site" presents a Macintosh UA with multi-touch (>1 touch point)
+    if (/Macintosh/i.test(effectiveUa) && sig.maxTouchPoints > 1) {
+      return { allowed: false, code: 'DEVICE_NOT_ALLOWED', reason: 'ipad_desktop_mode', signals: sig };
+    }
+    if (sig.screenWidth > 0 && sig.screenWidth < 1024) {
+      return { allowed: false, code: 'DEVICE_NOT_ALLOWED', reason: 'small_screen_width', signals: sig };
+    }
+  }
+
+  return { allowed: true, code: null, reason: 'desktop_verified', signals: sig };
+}

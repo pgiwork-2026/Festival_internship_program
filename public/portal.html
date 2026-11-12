@@ -11,8 +11,8 @@
   <meta property="og:description" content="Take the Winter Internship 2026 Scholarship Assessment to unlock up to 90% merit sponsorship.">
   <meta property="og:image" content="/static/images/share-link.png">
   <meta property="og:image:type" content="image/png">
-  <meta property="og:image:width" content="1520">
-  <meta property="og:image:height" content="732">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="578">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="/static/images/share-link.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -44,8 +44,19 @@
         if (tok && (!qEm || !em || em === qEm)) {
           window.__pgiBootToken = tok;
           window.__pgiBootEmail = em;
+          var devHdr = '';
+          try {
+            devHdr = JSON.stringify({
+              ua: navigator.userAgent || '',
+              userAgentDataMobile: Boolean(navigator.userAgentData && navigator.userAgentData.mobile === true),
+              maxTouchPoints: Number(navigator.maxTouchPoints || 0),
+              pointerCoarse: Boolean(window.matchMedia && window.matchMedia('(pointer: coarse)').matches),
+              hoverNone: Boolean(window.matchMedia && window.matchMedia('(hover: none)').matches),
+              screenWidth: Number(window.screen && window.screen.width ? window.screen.width : 0)
+            });
+          } catch (e) {}
           window.__pgiBootPromise = fetch('/api/portal/boot', {
-            headers: { Authorization: 'Bearer ' + tok }
+            headers: devHdr ? { Authorization: 'Bearer ' + tok, 'X-PGI-Device-Signals': devHdr } : { Authorization: 'Bearer ' + tok }
           }).then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); });
         }
       } catch (e) {}
@@ -261,6 +272,29 @@
         <input id="p-phone" type="tel" placeholder="10-digit mobile number">
         <button id="p-save" class="btn btn-primary" style="margin-top:16px;">Save &amp; Continue &rarr;</button>
         <div class="msg" id="p-msg"></div>
+      </div>
+    </section>
+
+    <!-- Desktop-Only Assessment Blocked Screen (Mobile / Tablet Gate) -->
+    <section id="s-device-blocked" class="device-blocked-shell hidden" aria-live="polite">
+      <div class="device-blocked-card">
+        <div class="device-blocked-icon" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="12" rx="2"></rect>
+            <line x1="2" y1="20" x2="22" y2="20"></line>
+          </svg>
+        </div>
+        <h1 class="device-blocked-title">Use a laptop or desktop</h1>
+        <p class="device-blocked-desc">The assessment can only be taken on a laptop or desktop computer.</p>
+        <div class="device-blocked-app">
+          <span>Application ID:</span>
+          <strong id="blocked-app-id">PGI-W26</strong>
+        </div>
+        <div class="device-blocked-actions">
+          <button type="button" id="btn-blocked-copy" class="btn btn-primary">Copy link</button>
+          <button type="button" id="btn-blocked-email" class="btn btn-outline">Send link to my email</button>
+        </div>
+        <div class="msg" id="blocked-msg" style="margin-top:12px;"></div>
       </div>
     </section>
 

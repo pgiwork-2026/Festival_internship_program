@@ -21,7 +21,7 @@
       checkoutExpiryInterval = null;
     }
     const navPayBtn = $('nav-payment-btn');
-    if (navPayBtn) navPayBtn.classList.toggle('hidden', !['s-auth', 's-profile', 's-inst'].includes(id));
+    if (navPayBtn) navPayBtn.classList.toggle('hidden', !['s-auth', 's-profile', 's-inst', 's-device-blocked'].includes(id));
     resetScrollTop();
     requestAnimationFrame(() => resetScrollTop());
   };
@@ -90,7 +90,64 @@
   let currentUser = null;
   let pendingPaymentRedirect = false;
   let manualAuthCompleted = false;
+  let devicePaused = false;
 
+  const MOBILE_UA_RE = /\b(Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Kindle|Silk|PlayBook|Mobile|Tablet|Windows Phone|webOS)\b/i;
+
+  function collectClientDeviceSignals() {
+    const ua = String(navigator.userAgent || '');
+    const userAgentDataMobile = Boolean(navigator.userAgentData && navigator.userAgentData.mobile === true);
+    const maxTouchPoints = Number(navigator.maxTouchPoints || 0);
+    const pointerCoarse = Boolean(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    const hoverNone = Boolean(window.matchMedia && window.matchMedia('(hover: none)').matches);
+    const screenWidth = Number(window.screen && window.screen.width ? window.screen.width : 0);
+    return { ua, userAgentDataMobile, maxTouchPoints, pointerCoarse, hoverNone, screenWidth };
+  }
+
+  function evaluateClientDeviceBlock(policy = currentUser?.devicePolicy) {
+    if (policy && policy.desktopOnly === false) return { blocked: false, reason: null };
+    if (policy && policy.mobileOverride === true) return { blocked: false, reason: null };
+    if (policy && policy.serverAllowed === false) return { blocked: true, reason: policy.blockReason || 'server_header_blocked' };
+
+    const sig = collectClientDeviceSignals();
+    if (MOBILE_UA_RE.test(sig.ua)) return { blocked: true, reason: 'user_agent_mobile_or_tablet' };
+    if (sig.userAgentDataMobile) return { blocked: true, reason: 'client_uadata_mobile' };
+    if (sig.pointerCoarse && sig.hoverNone) return { blocked: true, reason: 'coarse_pointer_no_hover' };
+    if (/Macintosh/i.test(sig.ua) && sig.maxTouchPoints > 1) return { blocked: true, reason: 'ipad_desktop_mode' };
+    if (sig.screenWidth > 0 && sig.screenWidth < 1024) return { blocked: true, reason: 'small_screen_width' };
+    return { blocked: false, reason: null };
+  }
+
+  function resolveDesktopAssessmentUrl() {
+    const u = new URL('/portal.html', window.location.origin);
+    u.searchParams.set('mode', 'login');
+    const appId = currentUser?.applicationId || sessionStorage.getItem('pgi_application_id') || localStorage.getItem('pgi_application_id');
+    const em = currentUser?.email || sessionStorage.getItem('pgi_student_email') || localStorage.getItem('pgi_student_email');
+    if (appId) u.searchParams.set('appId', appId);
+    if (em) u.searchParams.set('email', em);
+    return u.toString();
+  }
+
+  function pauseForBlockedDevice({ reason = 'device_not_allowed', applicationId = null, stage = 'assessment_gate', report = true } = {}) {
+    devicePaused = true;
+    finishing = false;
+    endMonitoring();
+    if ($('begin')) $('begin').disabled = false;
+    const resolvedAppId = applicationId || currentUser?.applicationId || sessionStorage.getItem('pgi_application_id') || localStorage.getItem('pgi_application_id') || 'PGI-W26';
+    if ($('blocked-app-id')) $('blocked-app-id').textContent = resolvedAppId;
+    msg('blocked-msg', '');
+    show('s-device-blocked');
+    if (report && token) {
+      api('/assessment/device-blocked', {
+        reason,
+        stage,
+        applicationId: resolvedAppId,
+        deviceSignals: collectClientDeviceSignals()
+      }).catch(() => {});
+    }
+  }
+
+  const isLive = () => !$('s-test').classList.contains('hidden') && !finishing && !devicePaused;
   const VIOLATION_LABELS = {
     blocked_shortcut: 'Blocked keyboard shortcut used',
     multiple_faces: 'More than one person detected',
@@ -105,8 +162,6 @@
     looking_down: 'Looked down for extended period',
     noise_detected: 'Sustained voices or background noise detected'
   };
-
-  const isLive = () => !$('s-test').classList.contains('hidden') && !finishing;
 
   function hasAnyStoredAuth() {
     try {
@@ -218,18 +273,23 @@
   }
 
   async function api(path, body, method) {
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + token,
+      'X-PGI-Device-Signals': JSON.stringify(collectClientDeviceSignals())
+    };
     const res = await fetch('/api' + path, {
       method: method || (body ? 'POST' : 'GET'),
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + token
-      },
+      headers,
       body: body ? JSON.stringify(body) : undefined
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
       const err = new Error(json.error || 'Request failed');
       err.status = res.status;
+      if (json.code) err.code = json.code;
+      if (json.reason) err.reason = json.reason;
+      if (json.applicationId) err.applicationId = json.applicationId;
       throw err;
     }
     return json;
@@ -789,7 +849,51 @@
 
   let reviewSet = new Set();
 
+  if ($('btn-blocked-copy')) {
+    $('btn-blocked-copy').onclick = async () => {
+      const url = resolveDesktopAssessmentUrl();
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = url;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        msg('blocked-msg', 'Link copied.', true);
+      } catch {
+        msg('blocked-msg', url, true);
+      }
+    };
+  }
+
+  if ($('btn-blocked-email')) {
+    $('btn-blocked-email').onclick = async () => {
+      const btn = $('btn-blocked-email');
+      btn.disabled = true;
+      msg('blocked-msg', 'Sending link to your email...', true);
+      try {
+        const res = await api('/assessment/send-link', {
+          applicationId: currentUser?.applicationId || localStorage.getItem('pgi_application_id') || null
+        });
+        msg('blocked-msg', res.message || 'Assessment link sent to your email.', true);
+      } catch (err) {
+        msg('blocked-msg', err.message || 'Could not send assessment link.');
+      } finally {
+        btn.disabled = false;
+      }
+    };
+  }
+
   $('begin').onclick = async () => {
+    const devCheck = evaluateClientDeviceBlock(currentUser?.devicePolicy);
+    if (devCheck.blocked) {
+      pauseForBlockedDevice({ reason: devCheck.reason, stage: 'start_button' });
+      return;
+    }
     requestExamFullscreen();
     $('begin').disabled = true;
     const camOk = await startCamera();
@@ -799,13 +903,19 @@
     }
 
     try {
+      devicePaused = false;
       const dev = await deviceInfo();
+      const deviceSignals = collectClientDeviceSignals();
       const appId = sessionStorage.getItem('pgi_application_id') || localStorage.getItem('pgi_application_id') || null;
-      attempt = await api('/attempts/start', { ...dev, applicationId: appId });
+      attempt = await api('/attempts/start', { ...dev, deviceSignals, applicationId: appId });
       runTest();
       if (!camOk) recordViolation('camera_unavailable');
     } catch (err) {
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      if (err.code === 'DEVICE_NOT_ALLOWED') {
+        pauseForBlockedDevice({ reason: err.reason, applicationId: err.applicationId, stage: 'attempts_start', report: false });
+        return;
+      }
       msg('inst-msg', err.message);
       $('begin').disabled = false;
     }
@@ -927,8 +1037,30 @@
     return frag;
   }
 
+  function verifyMidTestServerDevice() {
+    if (!attempt?.attemptId || !isLive()) return;
+    api(`/attempts/${attempt.attemptId}/questions?check=1`).catch(err => {
+      if (err.code === 'DEVICE_NOT_ALLOWED' && isLive()) {
+        pauseForBlockedDevice({ reason: err.reason, applicationId: err.applicationId, stage: 'mid_test_server_check', report: false });
+      }
+    });
+  }
+
+  function recheckDeviceState(stage) {
+    const inPreFlight = !$('s-inst')?.classList.contains('hidden');
+    if (!isLive() && !inPreFlight) return true;
+    const devCheck = evaluateClientDeviceBlock(currentUser?.devicePolicy);
+    if (devCheck.blocked) {
+      pauseForBlockedDevice({ reason: devCheck.reason, stage, report: true });
+      return false;
+    }
+    if (isLive()) verifyMidTestServerDevice();
+    return true;
+  }
+
   function showQuestion(idx) {
     if (!attempt || !attempt.questions || idx < 0 || idx >= attempt.questions.length) return;
+    if (!recheckDeviceState('question_load')) return;
     currentQIndex = idx;
     const q = attempt.questions[idx];
     const total = attempt.questions.length;
@@ -1056,6 +1188,10 @@
         if (savedBox) savedBox.className = 'exam-bottom-right';
         return;
       } catch (err) {
+        if (err.code === 'DEVICE_NOT_ALLOWED') {
+          pauseForBlockedDevice({ reason: err.reason, applicationId: err.applicationId, stage: 'save_answer', report: false });
+          return;
+        }
         if (err.status === 410) return finishTest(true);
         await new Promise(r => setTimeout(r, 600 * (i + 1)));
       }
@@ -1157,8 +1293,15 @@
   $('warn-resume-btn')?.addEventListener('click', resumeFromWarning);
   $('vm-ok').onclick = resumeFromWarning;
 
-  // Proctoring event listeners
-  document.addEventListener('visibilitychange', () => { if (document.hidden && isLive()) recordViolation('tab_switch'); });
+  // Proctoring & mid-test device-eligibility focus listeners
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (isLive()) recordViolation('tab_switch');
+    } else {
+      recheckDeviceState('visibility_regain');
+    }
+  });
+  window.addEventListener('focus', () => { recheckDeviceState('window_focus'); });
   window.addEventListener('blur', () => setTimeout(() => { if (isLive() && !document.hasFocus()) recordViolation('tab_switch'); }, 700));
   document.addEventListener('fullscreenchange', () => { if (isLive() && document.fullscreenEnabled && !document.fullscreenElement) recordViolation('fullscreen_exit'); });
   ['copy', 'cut', 'paste'].forEach(ev => document.addEventListener(ev, e => { if (isLive()) { e.preventDefault(); recordViolation('copy_paste'); } }));
@@ -1202,7 +1345,13 @@
         const res = await api(`/attempts/${attempt.attemptId}/submit`, {});
         endMonitoring();
         return showResult(res);
-      } catch {
+      } catch (err) {
+        if (err.code === 'DEVICE_NOT_ALLOWED') {
+          finishing = false;
+          $('btn-submit-q').disabled = false;
+          pauseForBlockedDevice({ reason: err.reason, applicationId: err.applicationId, stage: 'submit_attempt', report: false });
+          return;
+        }
         await new Promise(r => setTimeout(r, 1200));
       }
     }
@@ -2593,6 +2742,18 @@
         return showResult(completedResult || await api(`/attempts/${me.attempt.id}/result`));
       }
 
+      const preFlightCheck = evaluateClientDeviceBlock(me.devicePolicy);
+      if (preFlightCheck.blocked) {
+        pauseForBlockedDevice({
+          reason: preFlightCheck.reason,
+          applicationId: me.applicationId,
+          stage: 'portal_preflight',
+          report: true
+        });
+        return;
+      }
+
+      devicePaused = false;
       setPvPaymentAlert('');
       show('s-inst');
       initPreFlightProctor(me);

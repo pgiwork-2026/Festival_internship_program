@@ -9,17 +9,25 @@ import { createClient } from '@supabase/supabase-js';
 import { registerPayments } from './payments.js';
 import { registerStudentRoutes } from './student.js';
 import { batchTools } from './batches.js';
-import { tierFor, winterTierFor, winterPayablePaise, payablePaise, scorePercent, shuffle, pickQuestions, makeCouponCode, couponState, validateAnswer, BASE_PRICE_PAISE, WINTER_PRICE_PAISE, VIOLATION_TYPES, violationDecision, MAX_WARNINGS, STATUS_TEXT, ADVISORY_TYPES, MAX_SNAPSHOTS, ADVISORY_GAP_MS, cleanSnapshot, calculateAssessmentScore, canRequestExtension, parseDobCredentials, isTestCoupon, isTestCouponEnabled, TEST_COUPON_CODE } from './logic.js';
+import { tierFor, winterTierFor, winterPayablePaise, payablePaise, scorePercent, shuffle, pickQuestions, makeCouponCode, couponState, validateAnswer, BASE_PRICE_PAISE, WINTER_PRICE_PAISE, VIOLATION_TYPES, violationDecision, MAX_WARNINGS, STATUS_TEXT, ADVISORY_TYPES, MAX_SNAPSHOTS, ADVISORY_GAP_MS, cleanSnapshot, calculateAssessmentScore, canRequestExtension, parseDobCredentials, isTestCoupon, isTestCouponEnabled, TEST_COUPON_CODE, sharedSupportTickets, assessAssessmentDevice, normalizeClientDeviceSignals, sharedDevicePolicyState } from './logic.js';
 import { validateCouponCode } from './test-coupon.js';
 import { buildReportPDF, buildReportPNG, reportId, fmtDate } from './report.js';
-import { sendApplicationConfirmation, sendCouponEmail } from './email.js';
+import { sendApplicationConfirmation, sendCouponEmail, sendContactInquiryEmail, sendAssessmentLinkEmail } from './email.js';
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const app = express(); app.disable('x-powered-by');
 app.set('trust proxy', 1); // Render & reverse proxy compatibility (accurate HTTPS protocol & client IPs)
-app.use((_q, res, next) => { res.set({ 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'Permissions-Policy': 'camera=(self), microphone=(self), geolocation=()' }); next(); });
+app.use((req, res, next) => {
+  if (process.env.FORCE_HTTPS === 'true' && !req.secure && req.method === 'GET' && req.headers.host && !/localhost|127\.0\.0\.1/.test(req.headers.host)) {
+    return res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
+  }
+  const hdrs = { 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'Permissions-Policy': 'camera=(self), microphone=(self), geolocation=()', 'Accept-CH': 'Sec-CH-UA-Mobile, Sec-CH-UA-Platform' };
+  if (req.secure) hdrs['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains';
+  res.set(hdrs);
+  next();
+});
 // small in-memory rate limiter (per IP): 240 API calls/min overall, 20/min for the sensitive writes
-const hits = new Map(), SENSITIVE = /^\/api\/(profile|attempts\/start|checkout\/create|checkout\/verify|attempts\/[^/]+\/share|applications)$/;
+const hits = new Map(), SENSITIVE = /^\/api\/(profile|attempts\/start|checkout\/create|checkout\/verify|attempts\/[^/]+\/share|applications|contact)$/;
 setInterval(() => { const n = Date.now(); for (const [k, v] of hits) if (v.reset < n) hits.delete(k); }, 60e3).unref();
 app.use('/api', (req, res, next) => {
   if (req.path === '/webhooks/razorpay' || req.path === '/checkout/failed') return next();
@@ -32,8 +40,18 @@ app.use(express.json({ limit: '100kb', verify: (req, _res, buf) => { req.rawBody
 const VIOLATIONS = VIOLATION_TYPES;
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
-const wrap = f => (req, res) => f(req, res).catch(e => { console.error(req.method, req.url, e); const internal = !e.status && (e instanceof TypeError || e instanceof ReferenceError || e instanceof RangeError); res.status(internal ? 500 : e.status || 400).json({ error: internal || e.status >= 500 && e.status !== 502 ? 'Something went wrong. Please try again.' : e.message }); });
-const fail = (status, message) => Object.assign(new Error(message), { status });
+const wrap = f => (req, res) => f(req, res).catch(e => {
+  console.error(req.method, req.url, e);
+  const internal = !e.status && (e instanceof TypeError || e instanceof ReferenceError || e instanceof RangeError);
+  const masked = internal || (e.status >= 500 && e.status !== 502);
+  res.status(internal ? 500 : e.status || 400).json({
+    error: masked ? 'Something went wrong. Please try again.' : e.message,
+    ...(!masked && e.code ? { code: e.code } : {}),
+    ...(!masked && e.reason ? { reason: e.reason } : {}),
+    ...(!masked && e.applicationId ? { applicationId: e.applicationId } : {})
+  });
+});
+const fail = (status, message, extra = {}) => Object.assign(new Error(message), { status }, extra);
 const { activeBatch } = batchTools(db, fail);
 
 const authCache = new Map(); // token -> { user, exp }: skips Supabase Auth round trip on subsequent requests (30 s)
@@ -60,6 +78,182 @@ const RETRY_MONTHS = 6, QUALIFY_PERCENT = 30; // default pass mark is 30%
 const qualified = a => Boolean(a.is_qualified) || (a.total_score != null ? Number(a.total_score) >= (a.pass_mark || 30) : Number(a.score_percent) >= (a.pass_mark || QUALIFY_PERCENT));
 const nextEligible = list => { const d = (list || []).filter(a => a.status !== 'in_progress' && !qualified(a)).map(a => new Date(a.started_at)).sort((a, b) => b - a)[0]; if (!d) return null; const n = new Date(d); n.setMonth(n.getMonth() + RETRY_MONTHS); return n; };
 const settings = async () => (await db.from('test_settings').select('*').single()).data;
+
+function parseClientSignalsFromReq(req) {
+  if (req.body && (req.body.deviceSignals || req.body.screenWidth !== undefined || req.body.userAgentDataMobile !== undefined || req.body.pointerCoarse !== undefined || req.body.hoverNone !== undefined)) {
+    return normalizeClientDeviceSignals(req.body.deviceSignals || req.body);
+  }
+  const hdr = req.headers['x-pgi-device-signals'];
+  if (typeof hdr === 'string' && hdr.trim().startsWith('{')) {
+    try { return normalizeClientDeviceSignals(JSON.parse(hdr)); } catch {}
+  }
+  return null;
+}
+
+async function resolveDesktopOnlySetting() {
+  if (typeof sharedDevicePolicyState.desktopOnlyOverride === 'boolean') {
+    return sharedDevicePolicyState.desktopOnlyOverride;
+  }
+  try {
+    const s = await settings();
+    if (s && typeof s.desktop_only === 'boolean') {
+      return s.desktop_only;
+    }
+  } catch {}
+  try {
+    const { data } = await db.from('admin_audit_logs')
+      .select('details')
+      .eq('action', 'UPDATE_TEST_SETTINGS')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data?.details && typeof data.details.desktop_only === 'boolean') {
+      sharedDevicePolicyState.desktopOnlyOverride = data.details.desktop_only;
+      return data.details.desktop_only;
+    }
+  } catch {}
+  return true; // Default ON
+}
+
+async function resolveApplicationContext(user, hintAppId = null) {
+  const emailLower = String(user?.email || '').trim().toLowerCase();
+  let appId = hintAppId || user?.user_metadata?.application_id || null;
+  let appRow = null;
+  if (emailLower) {
+    for (const rec of localApplications.values()) {
+      if (String(rec.email || '').toLowerCase() === emailLower) {
+        appRow = rec;
+        appId = appId || rec.application_id || rec.applicationId || null;
+        break;
+      }
+    }
+    try {
+      const { data } = await db.from('internship_applications')
+        .select('*')
+        .ilike('email', emailLower)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data) {
+        appRow = data;
+        appId = appId || data.application_id || null;
+      }
+    } catch {}
+  }
+  return { applicationId: appId, appRow };
+}
+
+async function getStudentMobileOverride(user, appCtx = null) {
+  if (!user) return { allowed: false, reason: null };
+  const emailLower = String(user.email || '').trim().toLowerCase();
+  const keys = [`uid:${user.id}`];
+  if (emailLower) keys.push(`email:${emailLower}`);
+  if (appCtx?.applicationId) keys.push(`app:${String(appCtx.applicationId).trim().toUpperCase()}`);
+  for (const k of keys) {
+    const mem = sharedDevicePolicyState.mobileOverrides.get(k);
+    if (mem) return { allowed: Boolean(mem.allowed), reason: mem.reason || null };
+  }
+
+  // Always check live user_metadata so admin toggle applies immediately inside authCache TTL
+  try {
+    const { data } = await db.auth.admin.getUserById(user.id);
+    const meta = data?.user?.user_metadata;
+    if (meta && typeof meta.allow_mobile_assessment === 'boolean') {
+      return { allowed: meta.allow_mobile_assessment, reason: meta.mobile_override_reason || null };
+    }
+  } catch {}
+
+  if (typeof user.user_metadata?.allow_mobile_assessment === 'boolean') {
+    return { allowed: user.user_metadata.allow_mobile_assessment, reason: user.user_metadata.mobile_override_reason || null };
+  }
+  if (appCtx?.appRow && typeof appCtx.appRow.allow_mobile_assessment === 'boolean') {
+    return { allowed: appCtx.appRow.allow_mobile_assessment, reason: appCtx.appRow.mobile_override_reason || null };
+  }
+  return { allowed: false, reason: null };
+}
+
+const recentClientBlockLogs = new Map();
+async function logBlockedAssessmentAttempt({ req, user, applicationId, reason, endpoint, clientSignals, dedupeWindowMs = 0 }) {
+  const uid = user?.id || 'anon';
+  if (dedupeWindowMs > 0) {
+    const key = `${uid}|${endpoint}|${reason}`;
+    const last = recentClientBlockLogs.get(key) || 0;
+    if (Date.now() - last < dedupeWindowMs) return;
+    recentClientBlockLogs.set(key, Date.now());
+  }
+  const nowIso = new Date().toISOString();
+  const ua = String(req.headers['user-agent'] || clientSignals?.ua || '').slice(0, 400);
+  const entry = {
+    id: crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2),
+    admin_id: user?.id || null,
+    admin_email: user?.email || 'candidate@plantgreeninertia.com',
+    action: 'ASSESSMENT_DEVICE_BLOCKED',
+    target_type: 'assessment_device',
+    target_id: String(applicationId || user?.id || 'UNKNOWN'),
+    details: {
+      application_id: applicationId || null,
+      user_id: user?.id || null,
+      email: user?.email || null,
+      time: nowIso,
+      user_agent: ua,
+      sec_ch_ua_mobile: String(req.headers['sec-ch-ua-mobile'] || ''),
+      reason: String(reason || 'device_not_allowed'),
+      endpoint: String(endpoint || ''),
+      client_signals: clientSignals || null
+    },
+    ip_address: clientIp(req),
+    created_at: nowIso
+  };
+  sharedDevicePolicyState.blockedEvents.unshift(entry);
+  if (sharedDevicePolicyState.blockedEvents.length > 500) sharedDevicePolicyState.blockedEvents.pop();
+  try {
+    await db.from('admin_audit_logs').insert(entry);
+  } catch {}
+}
+
+async function getAssessmentDeviceStatus(req, user, hintAppId = null) {
+  const [desktopOnly, appCtx] = await Promise.all([
+    resolveDesktopOnlySetting(),
+    resolveApplicationContext(user, hintAppId)
+  ]);
+  const override = await getStudentMobileOverride(user, appCtx);
+  const clientSignals = parseClientSignalsFromReq(req);
+  const verdict = assessAssessmentDevice({
+    headers: req.headers,
+    clientSignals,
+    desktopOnly,
+    mobileOverride: override.allowed
+  });
+  return {
+    desktopOnly,
+    mobileOverride: override.allowed,
+    mobileOverrideReason: override.reason,
+    applicationId: appCtx.applicationId,
+    appRow: appCtx.appRow,
+    clientSignals,
+    verdict
+  };
+}
+
+async function enforceAssessmentDevice(req, endpointLabel) {
+  const status = await getAssessmentDeviceStatus(req, req.user, req.body?.applicationId || null);
+  if (!status.verdict.allowed) {
+    await logBlockedAssessmentAttempt({
+      req,
+      user: req.user,
+      applicationId: status.applicationId,
+      reason: status.verdict.reason,
+      endpoint: endpointLabel,
+      clientSignals: status.clientSignals
+    });
+    throw fail(403, 'The assessment can only be taken on a laptop or desktop computer.', {
+      code: 'DEVICE_NOT_ALLOWED',
+      reason: status.verdict.reason,
+      applicationId: status.applicationId
+    });
+  }
+  return status;
+}
 function clientIp(req) { // first forwarded address, IPv4-mapped IPv6 unwrapped, IPv6 reduced to its /64 network
   let ip = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim().replace(/^::ffff:/i, '');
   if (ip.includes(':') && !/^\d+\.\d+\.\d+\.\d+$/.test(ip)) ip = ip.split(':').slice(0, 4).join(':');
@@ -111,7 +305,54 @@ async function view(a) { // questions WITHOUT correct answers, in the stored shu
   };
 }
 
-app.get('/api/config', (_q, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabaseAnonKey: process.env.SUPABASE_ANON_KEY, requireCamera: process.env.REQUIRE_CAMERA !== 'false', razorpayConfigured: !!process.env.RAZORPAY_KEY_ID }));
+app.get('/api/config', (_q, res) => res.json({ supabaseUrl: process.env.SUPABASE_URL, supabaseAnonKey: process.env.SUPABASE_ANON_KEY, requireCamera: process.env.REQUIRE_CAMERA !== 'false', razorpayConfigured: !!process.env.RAZORPAY_KEY_ID, gaMeasurementId: String(process.env.GA_MEASUREMENT_ID || '').trim() }));
+
+app.post('/api/contact', wrap(async (req, res) => {
+  const b = req.body || {};
+  const name = String(b.name || '').trim();
+  const email = String(b.email || '').trim().toLowerCase();
+  const phone = String(b.phone || '').replace(/\D/g, '').slice(-10);
+  const subject = String(b.subject || 'General Inquiry').trim().slice(0, 120);
+  const message = String(b.message || '').trim().slice(0, 2000);
+
+  if (name.length < 2) throw fail(400, 'Please enter your full name (at least 2 characters).');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw fail(400, 'Please enter a valid email address.');
+  if (message.length < 10) throw fail(400, 'Please enter a brief message (at least 10 characters).');
+
+  const referenceId = 'PGI-INQ-' + String(Math.floor(100000 + Math.random() * 900000));
+  const ticket = {
+    id: referenceId,
+    student_email: email,
+    student_name: name,
+    category: 'Public Contact Inquiry',
+    subject,
+    message: phone ? `[Phone: ${phone}] ${message}` : message,
+    status: 'Open',
+    priority: 'Normal',
+    created_at: new Date().toISOString()
+  };
+
+  if (Array.isArray(sharedSupportTickets)) {
+    sharedSupportTickets.unshift({
+      id: referenceId,
+      studentName: name,
+      email,
+      phone,
+      category: 'Public Contact Inquiry',
+      subject,
+      message,
+      status: 'Open',
+      priority: 'Normal',
+      createdAt: ticket.created_at
+    });
+  }
+  try {
+    await db.from('student_queries').insert(ticket);
+  } catch {}
+
+  await sendContactInquiryEmail({ referenceId, name, email, phone, subject, message });
+  res.json({ ok: true, referenceId, message: 'Thank you! Your inquiry has been received and our admissions team will reply shortly.' });
+}));
 app.get('/api/program', wrap(async (_req, res) => {
   let b = null;
   try { b = await activeBatch(true); } catch {}
@@ -417,14 +658,24 @@ function resolveMeFromRows(user, profileRow, B, attempt) {
 }
 
 app.get('/api/me', auth, wrap(async (req, res) => {
-  const [{ data: profileRow }, B] = await Promise.all([
+  const [{ data: profileRow }, B, devStatus] = await Promise.all([
     db.from('profiles').select('full_name,phone,role').eq('id', req.user.id).maybeSingle(),
-    activeBatch(true)
+    activeBatch(true),
+    getAssessmentDeviceStatus(req, req.user).catch(() => null)
   ]);
   const { data: attempt } = B
     ? await db.from('assessment_attempts').select('id,status,started_at,score_percent').eq('user_id', req.user.id).eq('batch_id', B.id).order('started_at', { ascending: false }).limit(1).maybeSingle()
     : { data: null };
-  res.json(resolveMeFromRows(req.user, profileRow, B, attempt));
+  const payload = resolveMeFromRows(req.user, profileRow, B, attempt);
+  if (!payload.applicationId && devStatus?.applicationId) payload.applicationId = devStatus.applicationId;
+  payload.devicePolicy = devStatus ? {
+    desktopOnly: devStatus.desktopOnly,
+    mobileOverride: devStatus.mobileOverride,
+    mobileOverrideReason: devStatus.mobileOverrideReason,
+    serverAllowed: devStatus.verdict.allowed,
+    blockReason: devStatus.verdict.reason
+  } : { desktopOnly: true, mobileOverride: false, mobileOverrideReason: null, serverAllowed: true, blockReason: null };
+  res.json(payload);
 }));
 app.post('/api/profile', auth, wrap(async (req, res) => {
   const n = String(req.body?.fullName || '').trim(), p = String(req.body?.phone || '').trim();
@@ -436,6 +687,7 @@ app.post('/api/profile', auth, wrap(async (req, res) => {
   if (pe) { console.error('profile update failed (run phone_unique.sql?):', pe.message); throw fail(500, 'Could not save your profile'); } res.json({ ok: true });
 }));
 app.post('/api/attempts/start', auth, wrap(async (req, res) => {
+  await enforceAssessmentDevice(req, '/api/attempts/start');
   let { data: prof } = await db.from('profiles').select('full_name,phone').eq('id', req.user.id).maybeSingle();
   if ((!prof?.full_name || !prof?.phone) && req.user.user_metadata?.full_name && req.user.user_metadata?.phone) {
     prof = { full_name: req.user.user_metadata.full_name, phone: req.user.user_metadata.phone };
@@ -496,7 +748,16 @@ app.post('/api/attempts/start', auth, wrap(async (req, res) => {
   res.json(await view(data));
 }));
 
+app.get('/api/attempts/:id/questions', auth, wrap(async (req, res) => {
+  await enforceAssessmentDevice(req, '/api/attempts/:id/questions');
+  const a = await ownAttempt(req);
+  if (a.status !== 'in_progress') throw fail(409, 'attempt closed');
+  if (new Date(a.expires_at) <= new Date()) { await finalize(a, 'timed_out'); throw fail(410, 'time expired'); }
+  res.json(await view(a));
+}));
+
 app.post('/api/attempts/:id/answer', auth, wrap(async (req, res) => {
+  await enforceAssessmentDevice(req, '/api/attempts/:id/answer');
   validateAnswer(req.body); const a = await ownAttempt(req);
   if (a.status !== 'in_progress') throw fail(409, 'attempt closed');
   if (new Date(a.expires_at) <= new Date()) { await finalize(a, 'timed_out'); throw fail(410, 'time expired'); }
@@ -727,6 +988,7 @@ const result = async (a, pre = {}) => {
 };
 
 app.post('/api/attempts/:id/submit', auth, wrap(async (req, res) => {
+  await enforceAssessmentDevice(req, '/api/attempts/:id/submit');
   const a = await ownAttempt(req);
   await finalize(a, new Date(a.expires_at) <= new Date() ? 'timed_out' : 'submitted');
   res.json(await result(a)); // repeat calls return same result; no duplicate coupon
@@ -736,6 +998,40 @@ app.get('/api/attempts/:id/result', auth, wrap(async (req, res) => {
   const a = await ownAttempt(req);
   if (a.status === 'in_progress') { if (new Date(a.expires_at) <= new Date()) await finalize(a, 'timed_out'); else throw fail(403, 'result not available'); }
   res.json(await result(a));
+}));
+
+app.post('/api/assessment/device-blocked', auth, wrap(async (req, res) => {
+  const ctx = await resolveApplicationContext(req.user, req.body?.applicationId || null);
+  const clientSignals = parseClientSignalsFromReq(req);
+  const reason = String(req.body?.reason || 'client_device_blocked').slice(0, 80);
+  const endpoint = String(req.body?.stage || 'portal_device_gate').slice(0, 80);
+  await logBlockedAssessmentAttempt({
+    req,
+    user: req.user,
+    applicationId: ctx.applicationId,
+    reason,
+    endpoint,
+    clientSignals,
+    dedupeWindowMs: 4000
+  });
+  res.json({ ok: true, applicationId: ctx.applicationId });
+}));
+
+app.post('/api/assessment/send-link', auth, wrap(async (req, res) => {
+  const ctx = await resolveApplicationContext(req.user, req.body?.applicationId || null);
+  const email = ctx.appRow?.email || req.user.email;
+  if (!email) throw fail(400, 'No registered email found for this application.');
+  const { data: prof } = await db.from('profiles').select('full_name').eq('id', req.user.id).maybeSingle();
+  const fullName = ctx.appRow?.full_name || prof?.full_name || req.user.user_metadata?.full_name || 'Candidate';
+  const baseUrl = String(process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  const assessmentUrl = `${baseUrl}/portal.html?mode=login${ctx.applicationId ? `&appId=${encodeURIComponent(ctx.applicationId)}` : ''}&email=${encodeURIComponent(email)}`;
+  const delivery = await sendAssessmentLinkEmail({
+    fullName,
+    email,
+    applicationId: ctx.applicationId,
+    assessmentUrl
+  });
+  res.json({ ok: true, email, applicationId: ctx.applicationId, provider: delivery?.provider || 'simulated', message: `Assessment link sent to ${email}.` });
 }));
 
 app.get('/api/assessment/payment-eligibility', auth, wrap(async (req, res) => {
@@ -867,12 +1163,13 @@ registerStudentRoutes(app, { db, auth, wrap, fail, localApplications, onAuth: ca
 
 app.get('/api/portal/boot', auth, wrap(async (req, res) => {
   const u = req.user.id;
-  const [B, profRes, attRes, coupRes, enrRes] = await Promise.all([
+  const [B, profRes, attRes, coupRes, enrRes, devStatus] = await Promise.all([
     activeBatch(true).catch(() => null),
     db.from('profiles').select('full_name,phone,role,student_id').eq('id', u).maybeSingle(),
     db.from('assessment_attempts').select('*').eq('user_id', u).order('started_at', { ascending: false }).limit(5),
     db.from('scholarship_coupons').select('*').eq('user_id', u).order('issued_at', { ascending: false }).limit(3),
-    db.from('enrollments').select('*, courses(title,description,duration,skills,benefits,access_url)').eq('user_id', u).limit(3)
+    db.from('enrollments').select('*, courses(title,description,duration,skills,benefits,access_url)').eq('user_id', u).limit(3),
+    getAssessmentDeviceStatus(req, req.user).catch(() => null)
   ]);
 
   const bid = B?.id;
@@ -889,6 +1186,14 @@ app.get('/api/portal/boot', auth, wrap(async (req, res) => {
     started_at: batchAtt.started_at,
     score_percent: batchAtt.score_percent
   } : null);
+  if (!me.applicationId && devStatus?.applicationId) me.applicationId = devStatus.applicationId;
+  me.devicePolicy = devStatus ? {
+    desktopOnly: devStatus.desktopOnly,
+    mobileOverride: devStatus.mobileOverride,
+    mobileOverrideReason: devStatus.mobileOverrideReason,
+    serverAllowed: devStatus.verdict.allowed,
+    blockReason: devStatus.verdict.reason
+  } : { desktopOnly: true, mobileOverride: false, mobileOverrideReason: null, serverAllowed: true, blockReason: null };
 
   const dashboard = await buildDashboardPayload(req.user, {
     prefetched: true,
@@ -913,6 +1218,21 @@ app.get('/api/portal/boot', auth, wrap(async (req, res) => {
 }));
 mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, buildReportPDF, reportId });
 app.get('/admin', (_q, res) => res.sendFile(path.join(PUBLIC, 'admin.html')));
+// Dynamic sitemap.xml & robots.txt using active public origin
+app.get('/sitemap.xml', (req, res) => {
+  const baseUrl = String(process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  const xmlPath = path.join(PUBLIC, 'sitemap.xml');
+  if (!fs.existsSync(xmlPath)) return res.status(404).end();
+  const xml = fs.readFileSync(xmlPath, 'utf8').replace(/https:\/\/pgi-internship\.onrender\.com/g, esc(baseUrl));
+  res.type('application/xml').send(xml);
+});
+app.get('/robots.txt', (req, res) => {
+  const baseUrl = String(process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  const txtPath = path.join(PUBLIC, 'robots.txt');
+  if (!fs.existsSync(txtPath)) return res.status(404).end();
+  const txt = fs.readFileSync(txtPath, 'utf8').replace(/https:\/\/pgi-internship\.onrender\.com/g, baseUrl);
+  res.type('text/plain').send(txt);
+});
 // Resolve absolute og:image / twitter:image URLs on HTML responses for social link scrapers (WhatsApp, LinkedIn, X)
 app.use((req, res, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return next();
@@ -921,7 +1241,7 @@ app.use((req, res, next) => {
   const target = path.resolve(PUBLIC, rel);
   const publicRoot = path.resolve(PUBLIC);
   if (!target.startsWith(publicRoot + path.sep) || !fs.existsSync(target)) return next();
-  const baseUrl = (process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  const baseUrl = esc(String(process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, ''));
   const html = fs.readFileSync(target, 'utf8').replace(/content="\/static\/images\/share-link\.png"/g, `content="${baseUrl}/static/images/share-link.png"`);
   res.setHeader('Cache-Control', 'no-store');
   res.type('html').send(html);
@@ -931,6 +1251,7 @@ app.use(express.static(PUBLIC, {
     if (f.endsWith('.wasm')) r.type('application/wasm');
     else if (f.endsWith('.mjs')) r.type('text/javascript');
     if (/\.(html|js|css)$/i.test(f)) r.setHeader('Cache-Control', 'no-store');
+    else if (/\.(png|jpg|jpeg|svg|webp|ico|woff2)$/i.test(f)) r.setHeader('Cache-Control', 'public, max-age=604800');
   }
 }));
 app.use((e, _req, res, _n) => { if (!e.status || e.status >= 500) console.error(e); res.status(e.status || 500).json({ error: !e.status || e.status >= 500 ? 'Something went wrong. Please try again.' : e.message }); });

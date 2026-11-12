@@ -604,3 +604,123 @@ export async function sendPasswordResetEmail(d) {
   console.log('----------------------------------------------------');
   return { ok: true, provider: 'simulated', id: `sim-reset-${Date.now()}` };
 }
+
+export async function sendContactInquiryEmail(d) {
+  const adminEmail = process.env.CONTACT_EMAIL_TO || 'plantgreeninertia@gmail.com';
+  const subject = `[Portal Inquiry ${d.referenceId}] ${d.subject} — ${d.name}`;
+  const html = `<div style="font-family:sans-serif;max-width:600px;color:#101D35;">
+    <h2 style="margin:0 0 10px;color:#296934;">New Portal Contact Inquiry</h2>
+    <p><strong>Reference ID:</strong> ${escapeHtml(d.referenceId)}</p>
+    <p><strong>Name:</strong> ${escapeHtml(d.name)}</p>
+    <p><strong>Email:</strong> ${escapeHtml(d.email)}</p>
+    <p><strong>Phone:</strong> ${escapeHtml(d.phone || 'Not provided')}</p>
+    <p><strong>Topic:</strong> ${escapeHtml(d.subject)}</p>
+    <div style="background:#F5FAFF;border:1px solid #D8E2EC;border-radius:8px;padding:12px 14px;margin-top:10px;">
+      ${escapeHtml(d.message).replace(/\n/g, '<br>')}
+    </div>
+  </div>`;
+  const text = `New Portal Contact Inquiry (${d.referenceId})\nName: ${d.name}\nEmail: ${d.email}\nPhone: ${d.phone || 'N/A'}\nTopic: ${d.subject}\n\n${d.message}`;
+
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: process.env.EMAIL_FROM || 'Plant Green Inertia <admissions@plantgreeninertia.com>',
+          to: [adminEmail],
+          reply_to: d.email,
+          subject,
+          html,
+          text
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return { ok: true, provider: 'resend', id: data.id };
+      }
+    } catch (err) {
+      console.error('[Email] Resend contact inquiry failed:', err.message);
+    }
+  }
+
+  console.log('----------------------------------------------------');
+  console.log(`[Contact Inquiry] Ref: ${d.referenceId} | From: ${d.name} <${d.email}> | Topic: ${d.subject}`);
+  console.log('----------------------------------------------------');
+  return { ok: true, provider: 'simulated', id: `sim-contact-${Date.now()}` };
+}
+
+/**
+ * Sends the candidate's assessment portal link to their registered email so they
+ * can open it on a laptop or desktop computer.
+ */
+export function buildAssessmentLinkEmailHtml(d) {
+  const portalBase = (process.env.PUBLIC_BASE_URL || 'http://localhost:8787').replace(/\/$/, '');
+  const assessmentUrl = d.assessmentUrl || `${portalBase}/portal.html?mode=login${d.applicationId ? `&appId=${encodeURIComponent(d.applicationId)}` : ''}${d.email ? `&email=${encodeURIComponent(d.email)}` : ''}`;
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Assessment Link - Plant Green Inertia</title>
+</head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#F5FAFF;margin:0;padding:20px;color:#101D35;">
+  <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;border:1px solid #D8E2EC;overflow:hidden;">
+    <div style="background:#101D35;padding:24px;text-align:center;color:#F5FAFF;">
+      <h1 style="margin:0 0 6px 0;font-size:20px;font-weight:800;">Plant Green Inertia Pvt. Ltd.</h1>
+      <p style="margin:0;font-size:12px;color:#B9DDF5;text-transform:uppercase;letter-spacing:0.1em;">Winter Internship Scholarship Assessment</p>
+    </div>
+    <div style="padding:28px;line-height:1.6;">
+      <p>Dear <strong>${escapeHtml(d.fullName || 'Candidate')}</strong>,</p>
+      <p>Open the link below on a laptop or desktop computer to continue your Scholarship Assessment:</p>
+      ${d.applicationId ? `<p><strong>Application ID:</strong> ${escapeHtml(d.applicationId)}</p>` : ''}
+      <div style="text-align:center;margin:26px 0;">
+        <a href="${escapeHtml(assessmentUrl)}" style="display:inline-block;background:#296934;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:12px 26px;border-radius:8px;">Open Assessment Portal on Computer</a>
+      </div>
+      <p style="font-size:13px;color:#627D98;word-break:break-all;">Direct URL: ${escapeHtml(assessmentUrl)}</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+export async function sendAssessmentLinkEmail(d) {
+  const portalBase = (process.env.PUBLIC_BASE_URL || 'http://localhost:8787').replace(/\/$/, '');
+  const assessmentUrl = d.assessmentUrl || `${portalBase}/portal.html?mode=login${d.applicationId ? `&appId=${encodeURIComponent(d.applicationId)}` : ''}${d.email ? `&email=${encodeURIComponent(d.email)}` : ''}`;
+  const payload = { ...d, assessmentUrl };
+  const html = buildAssessmentLinkEmailHtml(payload);
+  const text = `Plant Green Inertia - Winter Internship Assessment\n\nDear ${d.fullName || 'Candidate'},\n\nOpen this link on a laptop or desktop computer to take your assessment:\n${assessmentUrl}\n${d.applicationId ? `\nApplication ID: ${d.applicationId}\n` : ''}`;
+  const subject = `Assessment Link for Laptop/Desktop: Plant Green Inertia${d.applicationId ? ` [${d.applicationId}]` : ''}`;
+
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: process.env.EMAIL_FROM || 'Plant Green Inertia <admissions@plantgreeninertia.com>',
+          to: [d.email],
+          subject,
+          html,
+          text
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return { ok: true, provider: 'resend', id: data.id };
+      }
+    } catch (err) {
+      console.error('[Email] Resend assessment link email failed:', err.message);
+    }
+  }
+
+  console.log('----------------------------------------------------');
+  console.log(`[Assessment Link Email] To: ${d.email} | App ID: ${d.applicationId || '-'} | URL: ${assessmentUrl}`);
+  console.log('----------------------------------------------------');
+  return { ok: true, provider: 'simulated', id: `sim-link-${Date.now()}` };
+}

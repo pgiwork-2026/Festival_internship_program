@@ -4469,3 +4469,78 @@ body.exam-fullscreen .portal-main {
     font-size: 16px;
   }
 }
+
+/* Desktop-Only Assessment Blocked Screen */
+.device-blocked-shell {
+  max-width: 540px;
+  margin: 40px auto;
+  padding: 0 12px;
+}
+.device-blocked-card {
+  background: #ffffff;
+  border: 1px solid #d8e2ec;
+  border-radius: 16px;
+  padding: 32px 26px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(16, 29, 53, 0.06);
+}
+.device-blocked-icon {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 16px;
+  border-radius: 14px;
+  background: #ebf4fc;
+  color: #101d35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.device-blocked-title {
+  margin: 0 0 10px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #101d35;
+}
+.device-blocked-desc {
+  margin: 0 0 18px;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: #475569;
+}
+.device-blocked-app {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #f5faff;
+  border: 1px solid #d8e2ec;
+  font-size: 0.88rem;
+  color: #334e68;
+  margin-bottom: 22px;
+}
+.device-blocked-app strong {
+  font-family: 'JetBrains Mono', monospace;
+  color: #101d35;
+}
+.device-blocked-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.device-blocked-actions .btn {
+  min-width: 170px;
+}
+@media (max-width: 480px) {
+  .device-blocked-shell {
+    margin: 20px auto;
+  }
+  .device-blocked-card {
+    padding: 24px 16px;
+  }
+  .device-blocked-actions .btn {
+    width: 100%;
+  }
+}

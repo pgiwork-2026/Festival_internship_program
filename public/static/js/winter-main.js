@@ -320,4 +320,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // 6. Footer year
   const yrEl = document.getElementById('yr');
   if (yrEl) yrEl.textContent = new Date().getFullYear();
+
+  // 7. Optional Google Analytics loader when GA_MEASUREMENT_ID is configured
+  fetch('/api/config').then(r => (r.ok ? r.json() : null)).then(cfg => {
+    const gaId = String(cfg?.gaMeasurementId || '').trim();
+    if (!/^(G|GT|AW)-[A-Z0-9]+$/i.test(gaId)) return;
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    window.gtag('js', new Date());
+    window.gtag('config', gaId);
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`;
+    document.head.appendChild(s);
+  }).catch(() => {});
 });

@@ -4,7 +4,8 @@ import {
   TEST_COUPON_CODE,
   isTestCoupon,
   isTestCouponEnabled,
-  sharedSupportTickets
+  sharedSupportTickets,
+  sharedDevicePolicyState
 } from './logic.js';
 import {
   deleteCouponByCode,
@@ -72,12 +73,59 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   const people = async () => {
     const ps = await rows(db.from('profiles').select('id,full_name,phone,role,created_at,student_id').order('created_at', { ascending: false }).limit(5000));
     let em = {};
+    let metaById = {};
     try {
       const { data: u } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
       em = Object.fromEntries((u?.users || []).map(x => [x.id, x.email]));
+      metaById = Object.fromEntries((u?.users || []).map(x => [x.id, x.user_metadata || {}]));
     } catch {}
-    return { ps, em, by: Object.fromEntries(ps.map(p => [p.id, p])) };
+    return { ps, em, metaById, by: Object.fromEntries(ps.map(p => [p.id, p])) };
   };
+
+  async function resolveDesktopOnlyFlag(settingsRow) {
+    if (typeof sharedDevicePolicyState.desktopOnlyOverride === 'boolean') {
+      return sharedDevicePolicyState.desktopOnlyOverride;
+    }
+    if (settingsRow && typeof settingsRow.desktop_only === 'boolean') {
+      return settingsRow.desktop_only;
+    }
+    try {
+      const { data } = await db.from('admin_audit_logs')
+        .select('details')
+        .eq('action', 'UPDATE_TEST_SETTINGS')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data?.details && typeof data.details.desktop_only === 'boolean') {
+        sharedDevicePolicyState.desktopOnlyOverride = data.details.desktop_only;
+        return data.details.desktop_only;
+      }
+    } catch {}
+    return true;
+  }
+
+  async function fetchBlockedDeviceLogs() {
+    let dbLogs = [];
+    try {
+      const { data } = await db.from('admin_audit_logs')
+        .select('*')
+        .eq('action', 'ASSESSMENT_DEVICE_BLOCKED')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (Array.isArray(data)) dbLogs = data;
+    } catch {}
+    const seen = new Set();
+    const combined = [];
+    for (const row of [...sharedDevicePolicyState.blockedEvents, ...localAuditLogs, ...dbLogs]) {
+      if (!row || row.action !== 'ASSESSMENT_DEVICE_BLOCKED') continue;
+      const key = row.id || `${row.target_id}|${row.created_at}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      combined.push(row);
+    }
+    combined.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    return combined;
+  }
 
   const { resolveBatch } = batchTools(db, fail);
   const scope = q => resolveBatch(q.query?.batch);
@@ -89,7 +137,7 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   async function getFullAnalytics(B) {
     const [
       apps, attempts, rawPaidOrders, rawCreatedOrders, rawFailedOrders,
-      rawCoupons, rawEnrollments, settings
+      rawCoupons, rawEnrollments, settings, blockedLogs
     ] = await Promise.all([
       rows(db.from('internship_applications').select('*').limit(50000)),
       rows(S(B, db.from('assessment_attempts').select('*')).limit(50000)),
@@ -98,7 +146,8 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
       rows(S(B, db.from('payment_orders').select('*')).in('status', ['cancelled', 'needs_refund', 'failed']).limit(50000)),
       rows(S(B, db.from('scholarship_coupons').select('*')).limit(50000)),
       rows(S(B, db.from('enrollments').select('*')).limit(50000)),
-      db.from('test_settings').select('*').eq('id', 1).maybeSingle().then(r => r.data || { pass_mark: 30 })
+      db.from('test_settings').select('*').eq('id', 1).maybeSingle().then(r => r.data || { pass_mark: 30 }),
+      fetchBlockedDeviceLogs().catch(() => [])
     ]);
 
     // Filter out test coupon transactions and test enrollments from revenue, payment reports, and metrics
@@ -154,6 +203,8 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
     const couponsExpired = coupons.filter(c => c.status !== 'redeemed' && new Date(c.expires_at) < now).length;
     const couponsActive = coupons.filter(c => c.status === 'active' && new Date(c.expires_at) >= now).length;
 
+    const desktopOnly = await resolveDesktopOnlyFlag(settings);
+
     return {
       applications: {
         total: totalApps,
@@ -168,7 +219,18 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
         inProgress: inProgressAttempts,
         eligible: eligibleCount,
         passMark,
-        passRate: submittedAttempts.length ? Math.round((eligibleCount / submittedAttempts.length) * 100) : 0
+        passRate: submittedAttempts.length ? Math.round((eligibleCount / submittedAttempts.length) * 100) : 0,
+        desktopOnly,
+        blockedDeviceCount: blockedLogs.length,
+        recentBlockedDevices: blockedLogs.slice(0, 15).map(b => ({
+          id: b.id,
+          applicationId: b.details?.application_id || b.target_id || 'UNKNOWN',
+          email: b.details?.email || b.admin_email || '',
+          time: b.details?.time || b.created_at,
+          userAgent: b.details?.user_agent || '',
+          reason: b.details?.reason || 'device_not_allowed',
+          endpoint: b.details?.endpoint || ''
+        }))
       },
       payments: {
         completedCount: completedPaymentsCount,
@@ -214,6 +276,8 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
       revenuePaise: a.payments.revenuePaise,
       pending: a.payments.pendingCount,
       failed: a.payments.failedCount,
+      blockedDeviceCount: a.assessments.blockedDeviceCount,
+      desktopOnly: a.assessments.desktopOnly,
       applications: a.applications,
       referrals: a.applications.referrals
     });
@@ -223,7 +287,7 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   // 2. STUDENTS (Search, Filter, Full Dossier, Assignment & Status Update)
   // ===================================================================
   A('get', '/students', async (req, res) => {
-    const { ps, em, by } = await people();
+    const { ps, em, metaById, by } = await people();
     const [apps, attempts, coupons, enrollments, attLogs, batches, mentors] = await Promise.all([
       rows(db.from('internship_applications').select('*').order('created_at', { ascending: false }).limit(5000)),
       rows(db.from('assessment_attempts').select('id,user_id,status,score_percent,started_at,correct_count,total_questions').order('started_at', { ascending: false })),
@@ -265,6 +329,17 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
 
       const prof = ps.find(p => em[p.id]?.toLowerCase() === email);
       const uid = prof?.id;
+      const meta = uid ? (metaById[uid] || {}) : {};
+      const memOv = (uid && sharedDevicePolicyState.mobileOverrides.get(`uid:${uid}`))
+        || sharedDevicePolicyState.mobileOverrides.get(`email:${email}`)
+        || (appRec.application_id && sharedDevicePolicyState.mobileOverrides.get(`app:${String(appRec.application_id).toUpperCase()}`))
+        || null;
+      const mobileOverride = memOv
+        ? Boolean(memOv.allowed)
+        : Boolean(meta.allow_mobile_assessment || appRec.allow_mobile_assessment);
+      const mobileOverrideReason = memOv
+        ? (memOv.reason || null)
+        : (meta.mobile_override_reason || appRec.mobile_override_reason || null);
       const at = attempts.find(a => a.user_id === uid);
       const cp = coupons.find(c => c.user_id === uid);
       const en = enrollments.find(e => e.user_id === uid);
@@ -313,6 +388,8 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
         assignedMentorId: appRec.assigned_mentor_id || null,
         assignedBatch: batchMap[appRec.assigned_batch_id] || 'Winter 2026 Alpha',
         assignedMentor: mentorMap[appRec.assigned_mentor_id] || 'Unassigned',
+        mobileOverride,
+        mobileOverrideReason,
         appliedAt: appRec.created_at
       });
     });
@@ -476,6 +553,82 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
     res.json({ ok: true, status });
   });
 
+  // Per-Student Assessment Mobile Override (allow/revoke taking assessment on phone/tablet)
+  A('post', '/students/:id/mobile-override', async (req, res) => {
+    const b = req.body || {};
+    const allowed = Boolean(b.allowed);
+    const reason = String(b.reason || '').trim().slice(0, 300);
+    if (allowed && reason.length < 3) {
+      throw fail(400, 'Please enter a short reason for allowing mobile assessment access.');
+    }
+
+    const targetId = String(req.params.id || '').trim();
+    const email = String(b.email || '').trim().toLowerCase();
+    const applicationId = String(b.applicationId || '').trim().toUpperCase();
+
+    const record = { allowed, reason: reason || (allowed ? 'Approved by admin' : 'Revoked by admin'), updatedAt: new Date().toISOString() };
+    if (targetId) sharedDevicePolicyState.mobileOverrides.set(`uid:${targetId}`, record);
+    if (email) sharedDevicePolicyState.mobileOverrides.set(`email:${email}`, record);
+    if (applicationId) sharedDevicePolicyState.mobileOverrides.set(`app:${applicationId}`, record);
+
+    let resolvedUserId = null;
+    try {
+      const { data: uById } = await db.auth.admin.getUserById(targetId);
+      if (uById?.user) resolvedUserId = uById.user.id;
+    } catch {}
+    if (!resolvedUserId && email) {
+      try {
+        const { data: uList } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        const matched = (uList?.users || []).find(u => u.email?.toLowerCase() === email);
+        if (matched) resolvedUserId = matched.id;
+      } catch {}
+    }
+
+    if (resolvedUserId) {
+      sharedDevicePolicyState.mobileOverrides.set(`uid:${resolvedUserId}`, record);
+      try {
+        const { data: uData } = await db.auth.admin.getUserById(resolvedUserId);
+        await db.auth.admin.updateUserById(resolvedUserId, {
+          user_metadata: {
+            ...(uData?.user?.user_metadata || {}),
+            allow_mobile_assessment: allowed,
+            mobile_override_reason: record.reason,
+            mobile_override_at: record.updatedAt
+          }
+        });
+      } catch {}
+    }
+
+    try {
+      if (applicationId) {
+        await db.from('internship_applications')
+          .update({ allow_mobile_assessment: allowed, mobile_override_reason: record.reason })
+          .eq('application_id', applicationId);
+      } else if (email) {
+        await db.from('internship_applications')
+          .update({ allow_mobile_assessment: allowed, mobile_override_reason: record.reason })
+          .ilike('email', email);
+      }
+    } catch {}
+
+    await logAudit(req, 'ASSESSMENT_MOBILE_OVERRIDE', 'student', applicationId || resolvedUserId || targetId, {
+      application_id: applicationId || null,
+      user_id: resolvedUserId || targetId,
+      email: email || null,
+      allowed,
+      reason: record.reason
+    });
+
+    res.json({
+      ok: true,
+      allowed,
+      reason: record.reason,
+      message: allowed
+        ? `Mobile assessment override enabled (${record.reason}).`
+        : 'Mobile assessment override revoked (Desktop-only enforced).'
+    });
+  });
+
   // Remove ALL Student & Candidate Details (Preserves admin accounts, mentors, batches, questions, courses & settings)
   A('delete', '/students', async (req, res) => {
     const adminIds = new Set();
@@ -624,37 +777,59 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
       const { data } = await db.from('test_settings').select('*').eq('id', 1).maybeSingle();
       s = data;
     } catch {}
-    res.json(s || {
-      id: 1,
-      question_count: 25,
-      duration_seconds: 1200,
-      marks_per_question: 4,
-      total_marks: 100,
-      pass_mark: 30,
-      negative_marking: 0,
-      attempt_limit: 1,
-      coupon_valid_hours: 24
+    const desktopOnly = await resolveDesktopOnlyFlag(s);
+    res.json({
+      ...(s || {
+        id: 1,
+        question_count: 25,
+        duration_seconds: 1200,
+        marks_per_question: 4,
+        total_marks: 100,
+        pass_mark: 30,
+        negative_marking: 0,
+        attempt_limit: 1,
+        coupon_valid_hours: 24
+      }),
+      desktop_only: desktopOnly
     });
   });
 
   A('post', '/settings', async (req, res) => {
     const b = req.body || {};
-    const updates = {
-      pass_mark: Math.max(0, Math.min(100, Number(b.pass_mark ?? b.passMark ?? 30))),
-      total_marks: Math.max(10, Math.min(500, Number(b.total_marks ?? b.totalMarks ?? 100))),
-      question_count: Math.max(1, Math.min(100, Number(b.question_count ?? b.questionCount ?? 25))),
-      marks_per_question: Math.max(1, Math.min(50, Number(b.marks_per_question ?? b.marksPerQuestion ?? 4))),
-      duration_seconds: Math.max(60, Math.min(14400, Number(b.duration_seconds ?? (b.durationMinutes ? b.durationMinutes * 60 : 1200)))),
-      negative_marking: Math.max(0, Math.min(10, Number(b.negative_marking ?? b.negativeMarking ?? 0))),
-      attempt_limit: Math.max(1, Math.min(10, Number(b.attempt_limit ?? b.attemptLimit ?? 1))),
-      coupon_valid_hours: Math.max(1, Math.min(168, Number(b.coupon_valid_hours ?? b.couponValidHours ?? 24)))
+    let cur = null;
+    try {
+      const { data } = await db.from('test_settings').select('*').eq('id', 1).maybeSingle();
+      cur = data;
+    } catch {}
+    const curDesktopOnly = await resolveDesktopOnlyFlag(cur);
+    const nextDesktopOnly = (b.desktop_only !== undefined || b.desktopOnly !== undefined)
+      ? Boolean(b.desktop_only ?? b.desktopOnly)
+      : curDesktopOnly;
+
+    const coreUpdates = {
+      pass_mark: Math.max(0, Math.min(100, Number(b.pass_mark ?? b.passMark ?? cur?.pass_mark ?? 30))),
+      total_marks: Math.max(10, Math.min(500, Number(b.total_marks ?? b.totalMarks ?? cur?.total_marks ?? 100))),
+      question_count: Math.max(1, Math.min(100, Number(b.question_count ?? b.questionCount ?? cur?.question_count ?? 25))),
+      marks_per_question: Math.max(1, Math.min(50, Number(b.marks_per_question ?? b.marksPerQuestion ?? cur?.marks_per_question ?? 4))),
+      duration_seconds: Math.max(60, Math.min(14400, Number(b.duration_seconds ?? (b.durationMinutes ? b.durationMinutes * 60 : (cur?.duration_seconds ?? 1200))))),
+      negative_marking: Math.max(0, Math.min(10, Number(b.negative_marking ?? b.negativeMarking ?? cur?.negative_marking ?? 0))),
+      attempt_limit: Math.max(1, Math.min(10, Number(b.attempt_limit ?? b.attemptLimit ?? cur?.attempt_limit ?? 1))),
+      coupon_valid_hours: Math.max(1, Math.min(168, Number(b.coupon_valid_hours ?? b.couponValidHours ?? cur?.coupon_valid_hours ?? 24)))
     };
 
-    const { data, error } = await db.from('test_settings').update(updates).eq('id', 1).select().maybeSingle();
-    if (error) throw fail(500, error.message);
+    sharedDevicePolicyState.desktopOnlyOverride = nextDesktopOnly;
 
-    await logAudit(req, 'UPDATE_TEST_SETTINGS', 'settings', '1', updates);
-    res.json({ ok: true, settings: data || updates });
+    let saved = null;
+    let err = null;
+    ({ data: saved, error: err } = await db.from('test_settings').update({ ...coreUpdates, desktop_only: nextDesktopOnly }).eq('id', 1).select().maybeSingle());
+    if (err && /column|desktop_only|schema cache|PGRST204/i.test(err.message || '')) {
+      ({ data: saved, error: err } = await db.from('test_settings').update(coreUpdates).eq('id', 1).select().maybeSingle());
+    }
+    if (err) throw fail(500, err.message);
+
+    const auditPayload = { ...coreUpdates, desktop_only: nextDesktopOnly };
+    await logAudit(req, 'UPDATE_TEST_SETTINGS', 'settings', '1', auditPayload);
+    res.json({ ok: true, settings: { ...(saved || coreUpdates), desktop_only: nextDesktopOnly } });
   });
 
   // Export assessment results to CSV
@@ -1413,15 +1588,22 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   // 10. AUDIT LOGS
   // ===================================================================
   A('get', '/audit-logs', async (req, res) => {
-    let logs = [];
+    let dbLogs = [];
     try {
       const { data } = await db.from('admin_audit_logs').select('*').order('created_at', { ascending: false }).limit(200);
-      if (data && data.length) logs = data;
+      if (Array.isArray(data)) dbLogs = data;
     } catch {}
 
-    if (!logs.length && localAuditLogs.length) {
-      logs = localAuditLogs;
+    const seen = new Set();
+    let logs = [];
+    for (const row of [...sharedDevicePolicyState.blockedEvents, ...localAuditLogs, ...dbLogs]) {
+      if (!row) continue;
+      const key = row.id || `${row.action}|${row.target_id}|${row.created_at}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      logs.push(row);
     }
+    logs.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
     const { action, q } = req.query || {};
     let filtered = logs;

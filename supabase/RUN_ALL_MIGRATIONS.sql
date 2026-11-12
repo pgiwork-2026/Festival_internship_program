@@ -121,7 +121,12 @@ ALTER TABLE public.test_settings
   ADD COLUMN IF NOT EXISTS total_marks int NOT NULL DEFAULT 100,
   ADD COLUMN IF NOT EXISTS pass_mark numeric(5,2) NOT NULL DEFAULT 30,
   ADD COLUMN IF NOT EXISTS negative_marking numeric(5,2) NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS attempt_limit int NOT NULL DEFAULT 1;
+  ADD COLUMN IF NOT EXISTS attempt_limit int NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS desktop_only boolean NOT NULL DEFAULT true;
+
+ALTER TABLE public.internship_applications
+  ADD COLUMN IF NOT EXISTS allow_mobile_assessment boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS mobile_override_reason text;
 
 UPDATE public.test_settings SET
   question_count = 25,

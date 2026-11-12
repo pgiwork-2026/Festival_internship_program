@@ -30,6 +30,8 @@ let cacheCertificates = [];
 let cacheQueries = [];
 let cacheCurriculum = { tracks: [], courses: [] };
 let cacheSettings = {};
+let cacheBlockedDevices = [];
+let cacheBlockedDeviceCount = 0;
 
 const TAB_META = {
   overview:     { eyebrow: 'WINTER COHORT 2026 // OPERATIONS',      title: 'Overview',                   loader: 'Loading cohort overview & pending actions...' },
@@ -554,6 +556,8 @@ async function loadOverview() {
   const coup = a.coupons || {};
   const domains = apps.domains || [];
   const referrals = apps.referrals || [];
+  cacheBlockedDeviceCount = Number(assm.blockedDeviceCount || 0);
+  cacheBlockedDevices = Array.isArray(assm.recentBlockedDevices) ? assm.recentBlockedDevices : [];
 
   const pendingItems = buildRecentActivityItems(cacheStudents, cacheSubmissions, cacheAttempts, cacheCertificates, cacheQueries);
 
@@ -573,6 +577,7 @@ async function loadOverview() {
     <div class="kpi-grid">
       ${kpiCard('Total Applications', String(apps.total ?? 0), `Online ${apps.online ?? 0} · Offline ${apps.offline ?? 0}`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>', 'blue', "showTab('students')")}
       ${kpiCard('Assessments Completed', `${assm.completed ?? 0} / ${assm.totalStarted ?? 0}`, `Eligible ${assm.eligible ?? 0} · Pass Rate ${assm.passRate ?? 0}% (Cutoff ${assm.passMark ?? 30}%)`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>', 'green', "showTab('assessments', 'attempts')")}
+      ${kpiCard('Blocked Mobile Attempts', String(cacheBlockedDeviceCount), `${assm.desktopOnly === false ? 'Desktop-only OFF' : 'Desktop-only ON'} · Click to inspect logs`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>', cacheBlockedDeviceCount > 0 ? 'red' : 'blue', 'openBlockedDevicesModal()')}
       ${kpiCard('Enrolled Interns', String(ints.totalEnrolled ?? 0), `Active ${ints.active ?? 0} · Completed ${ints.completed ?? 0} · Offline ${ints.offline ?? 0}`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/></svg>', 'blue', "showTab('submissions', 'attendance')")}
       ${kpiCard('Tuition Collected', fmtRupees(pay.revenueRupees), `${pay.completedCount ?? 0} Paid · ${pay.pendingCount ?? 0} Pending · Coupons Used ${coup.used ?? 0}/${coup.issued ?? 0}`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>', 'green', "showTab('settings', 'payments')")}
     </div>
@@ -845,6 +850,7 @@ function renderStudentsTable() {
           <div style="font-size:0.84rem;color:var(--adm-muted);margin-top:4px;">
             ${Number(att.completedHours || 0).toFixed(1)} / 30h (${Number(att.percentage || 0)}%) ${att.meetsCriteria ? '<strong style="color:var(--adm-green);">&bull; Gate Met</strong>' : ''}
           </div>
+          ${s.mobileOverride ? '<div style="margin-top:4px;"><span class="pill blue" style="font-size:0.72rem;">Mobile Override ON</span></div>' : ''}
         </td>
         <td>
           ${s.enrolled
@@ -1158,7 +1164,49 @@ function openStudentModal(idx) {
         <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
         <button type="submit" class="btn btn-green">Save Track, Batch &amp; Mentor</button>
       </div>
-    </form>`);
+    </form>
+
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--adm-line);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+        <div>
+          <strong style="font-size:0.94rem;color:var(--adm-navy);">Assessment Device Override</strong>
+          <div style="font-size:0.82rem;color:var(--adm-muted);">Allow this student to take the assessment on a mobile phone or tablet.</div>
+        </div>
+        ${pillBadge(s.mobileOverride ? 'Mobile Allowed' : 'Desktop Only', s.mobileOverride ? 'blue' : 'gray')}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input id="m-mobile-reason" class="f-ctrl" style="flex:1;min-width:210px;margin-bottom:0;" type="text" value="${escHtml(s.mobileOverrideReason || '')}" placeholder="Reason (e.g. Student has no computer)">
+        <button type="button" class="btn ${s.mobileOverride ? 'btn-danger' : 'btn-outline'} btn-sm" onclick="submitStudentMobileOverride(${idx}, ${s.mobileOverride ? 'false' : 'true'})">
+          ${s.mobileOverride ? 'Revoke Mobile Override' : 'Allow Mobile Assessment'}
+        </button>
+      </div>
+    </div>`);
+}
+
+async function submitStudentMobileOverride(idx, allow) {
+  const s = cacheStudents[idx];
+  if (!s) return;
+  const reason = ($('m-mobile-reason')?.value || '').trim();
+  if (allow && reason.length < 3) {
+    showToast('Enter a short reason for allowing mobile assessment (min 3 chars).', true);
+    return;
+  }
+  try {
+    const res = await api(`/api/admin/students/${encodeURIComponent(s.id)}/mobile-override`, {
+      method: 'POST',
+      body: JSON.stringify({
+        allowed: Boolean(allow),
+        reason: reason || (allow ? 'Approved by admin' : 'Revoked by admin'),
+        email: s.email,
+        applicationId: s.applicationId
+      })
+    });
+    showToast(res.message || 'Mobile assessment override updated.');
+    closeModal();
+    await loadStudents();
+  } catch (err) {
+    showToast(err.message, true);
+  }
 }
 
 async function submitStudentAssignment(idx) {
@@ -1262,12 +1310,25 @@ async function loadAssessments() {
     return;
   }
 
-  const [attempts, settings] = await Promise.all([
+  const [attempts, settings, blockedLogs] = await Promise.all([
     api('/api/admin/attempts'),
-    api('/api/admin/settings').catch(() => cacheSettings || {})
+    api('/api/admin/settings').catch(() => cacheSettings || {}),
+    api('/api/admin/audit-logs?action=ASSESSMENT_DEVICE_BLOCKED').catch(() => [])
   ]);
   cacheAttempts = Array.isArray(attempts) ? attempts : [];
   cacheSettings = settings || {};
+  const blockedArr = Array.isArray(blockedLogs) ? blockedLogs : [];
+  cacheBlockedDeviceCount = blockedArr.length;
+  cacheBlockedDevices = blockedArr.slice(0, 30).map(b => ({
+    id: b.id,
+    applicationId: b.details?.application_id || b.target_id || 'UNKNOWN',
+    email: b.details?.email || b.admin_email || '',
+    time: b.details?.time || b.created_at,
+    userAgent: b.details?.user_agent || '',
+    reason: b.details?.reason || 'device_not_allowed',
+    endpoint: b.details?.endpoint || ''
+  }));
+  const desktopOnlyOn = cacheSettings.desktop_only !== false;
   attpPage = 1;
 
   const total = cacheAttempts.length;
@@ -1308,6 +1369,11 @@ async function loadAssessments() {
         <p>Monitor live and completed candidate assessment sessions, review proctoring integrity flags, and manage rules.</p>
       </div>
       <div class="adm-hero-actions">
+        <label style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--adm-line);border-radius:9px;background:#fff;font-size:0.84rem;font-weight:700;cursor:pointer;">
+          <input id="assm-desktop-only-toggle" type="checkbox"${desktopOnlyOn ? ' checked' : ''} onchange="toggleDesktopOnlySetting(this.checked)">
+          <span>Desktop only</span>
+          ${pillBadge(desktopOnlyOn ? 'ON' : 'OFF', desktopOnlyOn ? 'green' : 'gray')}
+        </label>
         <button type="button" class="btn btn-outline btn-sm" onclick="showTab('settings', 'exam')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
           Proctoring Rules / Settings
@@ -1328,6 +1394,7 @@ async function loadAssessments() {
     <div class="kpi-grid">
       ${kpiCard('ACTIVE LIVE TESTS', String(inProgressCnt), `${inProgressCnt > 0 ? 'Sessions running now' : 'No candidate in live exam'}`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M4.93 4.93l14.14 14.14M1 12h22M4.93 19.07l14.14-14.14"/></svg>', 'green', '', total ? Math.round((inProgressCnt / total) * 100) : 8, '')}
       ${kpiCard('FLAGGED INFRACTIONS', String(flaggedCnt), `${flaggedCnt > 0 ? 'Requiring admin review' : 'Zero integrity warnings'}`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>', flaggedCnt > 0 ? 'red' : 'green', "setAttemptSegment('flagged')", total ? Math.round((flaggedCnt / total) * 100) : 4, flaggedCnt > 0 ? 'red' : '')}
+      ${kpiCard('BLOCKED MOBILE ATTEMPTS', String(cacheBlockedDeviceCount), `${desktopOnlyOn ? 'Phones & tablets rejected' : 'Desktop-only disabled'} · View log`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>', cacheBlockedDeviceCount > 0 ? 'red' : 'blue', 'openBlockedDevicesModal()', '', cacheBlockedDeviceCount > 0 ? 'red' : '')}
       ${kpiCard('TESTS COMPLETED', String(completedCnt), `Avg. Score: ${avgScore}%`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>', 'blue', "setAttemptSegment('completed')", total ? Math.round((completedCnt / total) * 100) : 10, 'slate')}
       ${kpiCard('QUALIFIED PASS RATE', `${passRatePct}%`, `${passedCnt} of ${total} >= ${passMark}% threshold`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>', 'green', '', passRatePct, '')}
     </div>
@@ -4095,6 +4162,14 @@ async function loadSettingsView() {
             <label class="f-lbl" for="set-pass">Qualifying Pass Cutoff (Marks / 100)</label>
             <input id="set-pass" class="f-ctrl" type="number" min="0" max="100" value="${escHtml(passMark)}">
 
+            <label style="display:flex;align-items:center;gap:10px;background:#F8FAFC;border:1px solid var(--adm-line);border-radius:10px;padding:10px 12px;margin-bottom:12px;cursor:pointer;">
+              <input id="set-desktop-only" type="checkbox"${cacheSettings.desktop_only !== false ? ' checked' : ''}>
+              <span>
+                <strong style="display:block;font-size:0.88rem;color:var(--adm-navy);">Desktop Only Assessment</strong>
+                <span style="font-size:0.8rem;color:var(--adm-muted);">Require a laptop or desktop computer (blocks phones &amp; tablets unless student has an override).</span>
+              </span>
+            </label>
+
             <div style="background:#F8FAFC;border:1px solid var(--adm-line);border-radius:10px;padding:11px 12px;margin-bottom:12px;">
               <div style="display:flex;justify-content:space-between;font-size:0.88rem;font-weight:700;margin-bottom:6px;">
                 <span>Proctoring Strike Auto-Submit Policy</span>
@@ -4172,7 +4247,8 @@ async function saveExamSettings() {
         pass_mark: Number($('set-pass')?.value || 30),
         negative_marking: Number($('set-neg')?.value || 0),
         attempt_limit: Number($('set-limit')?.value || 1),
-        coupon_valid_hours: Number($('set-coupon-hrs')?.value || 24)
+        coupon_valid_hours: Number($('set-coupon-hrs')?.value || 24),
+        desktop_only: Boolean($('set-desktop-only')?.checked ?? true)
       })
     });
     showToast('Saved platform & assessment configuration.');
@@ -4180,6 +4256,71 @@ async function saveExamSettings() {
   } catch (err) {
     showToast(err.message, true);
   }
+}
+
+async function toggleDesktopOnlySetting(enabled) {
+  try {
+    await api('/api/admin/settings', {
+      method: 'POST',
+      body: JSON.stringify({ desktop_only: Boolean(enabled) })
+    });
+    cacheSettings = { ...(cacheSettings || {}), desktop_only: Boolean(enabled) };
+    showToast(`Desktop-only assessment enforcement turned ${enabled ? 'ON' : 'OFF'}.`);
+    await loadAssessments();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+async function openBlockedDevicesModal() {
+  let rows = cacheBlockedDevices;
+  try {
+    const fresh = await api('/api/admin/audit-logs?action=ASSESSMENT_DEVICE_BLOCKED');
+    if (Array.isArray(fresh)) {
+      cacheBlockedDeviceCount = fresh.length;
+      rows = fresh.slice(0, 30).map(b => ({
+        applicationId: b.details?.application_id || b.target_id || 'UNKNOWN',
+        email: b.details?.email || b.admin_email || '',
+        time: b.details?.time || b.created_at,
+        userAgent: b.details?.user_agent || '',
+        reason: b.details?.reason || 'device_not_allowed',
+        endpoint: b.details?.endpoint || ''
+      }));
+      cacheBlockedDevices = rows;
+    }
+  } catch {}
+
+  openModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;">
+      <div>
+        <h3 style="margin:0;font-family:'Space Grotesk',sans-serif;">Blocked Mobile &amp; Tablet Attempts (${cacheBlockedDeviceCount})</h3>
+        <div style="font-size:0.86rem;color:var(--adm-muted);">Assessment start/resume/submit requests rejected under Desktop-Only policy</div>
+      </div>
+      <button type="button" class="btn btn-outline btn-sm" onclick="closeModal()">Close</button>
+    </div>
+    <div class="table-wrap" style="max-height:420px;overflow:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Application ID</th>
+            <th>Candidate</th>
+            <th>Reason</th>
+            <th>Time</th>
+            <th>User-Agent</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.length ? rows.map(r => `
+            <tr>
+              <td><span class="adm-uid-chip">${escHtml(r.applicationId || '—')}</span></td>
+              <td style="font-size:0.84rem;">${escHtml(r.email || '—')}</td>
+              <td>${pillBadge(r.reason || 'blocked', 'yellow')}</td>
+              <td style="font-size:0.82rem;white-space:nowrap;">${escHtml(r.time ? new Date(r.time).toLocaleString('en-IN') : '—')}</td>
+              <td style="font-size:0.78rem;color:var(--adm-muted);max-width:260px;word-break:break-word;">${escHtml(r.userAgent || '—')}</td>
+            </tr>`).join('') : emptyTableRow(5, 'No blocked mobile/tablet assessment attempts logged yet.')}
+        </tbody>
+      </table>
+    </div>`);
 }
 
 function renderPaymentsTable() {
