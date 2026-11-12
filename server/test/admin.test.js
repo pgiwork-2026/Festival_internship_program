@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 import { buildCertificatePDF, certificateNumber, verifyCertificateEligibility } from '../certificate.js';
-import { parseYouTubeUrl, sharedRecordedVideos, sharedDeletedVideoIds } from '../logic.js';
-import { mountAdmin } from '../admin.js';
+import { parseYouTubeUrl, sharedRecordedVideos, sharedDeletedVideoIds, SYLLABUS_TRACKS, matchesStudentDomain } from '../logic.js';
+import { mountAdmin, enrichBatchesWithEnrollmentCounts } from '../admin.js';
 import { registerStudentRoutes } from '../student.js';
 
 test('certificate eligibility validation: strictly enforces 30 hours and 75% attendance', () => {
@@ -125,7 +125,28 @@ test('parseYouTubeUrl handles watch, youtu.be, shorts, live, and rejects non-You
   assert.equal(parseYouTubeUrl('not a url'), null);
 });
 
-test('admin recorded video upload via YouTube link publishes to matching student materials and supports deletion', async () => {
+test('all 13 curriculum tracks match PDF 10-day 30h structure and strict domain video matching', () => {
+  assert.equal(SYLLABUS_TRACKS.length, 13);
+  for (const t of SYLLABUS_TRACKS) {
+    assert.ok(t.overview && t.overview.length > 20, `Expected PDF overview for ${t.title}`);
+    assert.ok(Array.isArray(t.toolsCovered) && t.toolsCovered.length >= 3, `Expected toolsCovered for ${t.title}`);
+    assert.equal(t.modules.length, 10, `Expected 10 modules for ${t.title}`);
+    assert.equal(t.modules.reduce((s, m) => s + m.hours, 0), 30, `Expected 30h for ${t.title}`);
+    t.modules.forEach((m, i) => {
+      assert.equal(m.day, i + 1, `Expected sequential Day ${i + 1} for ${t.title}`);
+      assert.ok(m.title && m.description && m.project, `Expected PDF title, description, project on Day ${m.day} of ${t.title}`);
+      assert.ok(Array.isArray(m.topics) && m.topics.length >= 3, `Expected topics on Day ${m.day} of ${t.title}`);
+    });
+  }
+  assert.equal(SYLLABUS_TRACKS.find(t => t.id === 'tech-web')?.modules[0]?.title, 'Introduction to Web Development & HTML');
+  assert.equal(SYLLABUS_TRACKS.find(t => t.id === 'nontech-sales')?.modules[9]?.title, 'Sales Mini Project & Review');
+  assert.equal(matchesStudentDomain('Marketing', 'Digital Marketing'), false);
+  assert.equal(matchesStudentDomain('Digital Marketing', 'Digital Marketing'), true);
+  assert.equal(matchesStudentDomain('Python Programming', ''), false);
+  assert.equal(matchesStudentDomain('all', 'Python Programming'), false);
+});
+
+test('admin recorded video upload via YouTube link publishes strictly to chosen domain and supports deletion', async () => {
   const prevVids = [...sharedRecordedVideos];
   const prevDeleted = new Set(sharedDeletedVideoIds);
   sharedRecordedVideos.length = 0;
@@ -182,9 +203,16 @@ test('admin recorded video upload via YouTube link publishes to matching student
     const bad = await fetch(`${base}/api/admin/videos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'Bad Link', youtubeUrl: 'https://example.com/video.mp4' })
+      body: JSON.stringify({ title: 'Bad Link', youtubeUrl: 'https://example.com/video.mp4', track: 'Python Programming' })
     });
     assert.equal(bad.status, 400);
+
+    const badAll = await fetch(`${base}/api/admin/videos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'No Domain', youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ', track: 'all' })
+    });
+    assert.equal(badAll.status, 400);
 
     const addPy = await (await fetch(`${base}/api/admin/videos`, {
       method: 'POST',
@@ -229,5 +257,75 @@ test('admin recorded video upload via YouTube link publishes to matching student
     sharedRecordedVideos.push(...prevVids);
     sharedDeletedVideoIds.clear();
     prevDeleted.forEach(x => sharedDeletedVideoIds.add(x));
+  }
+});
+
+test('batch enrollment counts aggregate real enrollments and exclude test/cancelled rows', async () => {
+  const batches = [
+    { id: 'b-vj', name: 'Vijayadashami', slug: 'vijayadashami', seats_limit: 60, enrolled_count: 0 },
+    { id: 'b-dw', name: 'Diwali', slug: 'diwali', seats_limit: 60, enrolled_count: 0 },
+    { id: 'b-wi', name: 'Winter Internship 2026', slug: 'winter-2026', seats_limit: 60, enrolled_count: 0 }
+  ];
+  const enrollments = [
+    { id: 'e1', user_id: 'u1', batch_id: 'b-vj', status: 'active', is_test: false, amount_paise: 99900 },
+    { id: 'e2', user_id: 'u2', batch_id: 'b-vj', status: 'active', is_test: false, amount_paise: 119900 },
+    { id: 'e2-dup', user_id: 'u2', batch_id: 'b-vj', status: 'active', is_test: false, amount_paise: 119900 },
+    { id: 'e3', user_id: 'u3', batch_id: 'b-vj', status: 'cancelled', is_test: false, amount_paise: 99900 },
+    { id: 'e4', user_id: 'u4', batch_id: 'b-wi', status: 'active', is_test: false, amount_paise: 0 },
+    { id: 'e5', user_id: 'u5', batch_id: 'b-wi', status: 'active', is_test: true, coupon_code: 'PGITEST1', amount_paise: 100 },
+    { id: 'e6', user_id: 'u6', batch_id: 'b-wi', status: 'active', is_test: true, coupon_code: 'PGITEST1', amount_paise: 100 }
+  ];
+
+  const enriched = enrichBatchesWithEnrollmentCounts(batches, enrollments);
+  assert.equal(enriched[0].enrolled_count, 2);
+  assert.equal(enriched[0].test_enrolled_count, 0);
+  assert.equal(enriched[1].enrolled_count, 0);
+  assert.equal(enriched[2].enrolled_count, 1);
+  assert.equal(enriched[2].test_enrolled_count, 2);
+
+  const mockDb = {
+    from(table) {
+      return {
+        select() { return this; },
+        eq() { return this; },
+        order() {
+          return Promise.resolve({ data: table === 'batches' ? batches : enrollments, error: null });
+        },
+        single() {
+          return Promise.resolve({ data: { role: 'admin' }, error: null });
+        },
+        then(resolve, reject) {
+          return Promise.resolve({ data: table === 'batches' ? batches : enrollments, error: null }).then(resolve, reject);
+        }
+      };
+    }
+  };
+
+  const app = express();
+  mountAdmin({
+    app,
+    db: mockDb,
+    auth: (req, _res, next) => { req.user = { id: 'admin-1', email: 'admin@plantgreeninertia.com' }; next(); },
+    wrap: fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next),
+    fail: (code, msg) => Object.assign(new Error(msg), { status: code }),
+    reportData: async () => ({}),
+    sendPdf: () => {},
+    buildReportPDF: async () => Buffer.alloc(0),
+    reportId: () => 'R1'
+  });
+
+  const srv = await new Promise(resolve => { const s = app.listen(0, () => resolve(s)); });
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  try {
+    const res = await fetch(`${base}/api/admin/batches`);
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.length, 3);
+    assert.equal(data[0].enrolled_count, 2);
+    assert.equal(data[1].enrolled_count, 0);
+    assert.equal(data[2].enrolled_count, 1);
+    assert.equal(data[2].test_enrolled_count, 2);
+  } finally {
+    srv.close();
   }
 });

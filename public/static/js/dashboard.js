@@ -399,11 +399,12 @@ async function loadSyllabusTrack() {
               <span class="mod-seq-ico ${stateClass}" aria-hidden="true">${iconSvg}</span>
               <div style="flex:1;min-width:0;">
                 <div class="mod-seq-meta-row">
-                  <span class="mod-num-tag">Module ${pad2(m.day)}</span>
+                  <span class="mod-num-tag">Day ${pad2(m.day)} &middot; Module ${pad2(m.day)}</span>
                   <span class="mod-state-pill ${stateClass}">${stateLabel}</span>
                 </div>
-                <h4 class="mod-seq-title">${m.title}</h4>
-                <p class="mod-seq-desc">${topicsText}</p>
+                <h4 class="mod-seq-title">${escHtml(m.title)}</h4>
+                <p class="mod-seq-desc">${escHtml(m.description || topicsText)}</p>
+                ${m.project ? `<p class="mod-seq-desc" style="margin-top:4px;color:var(--hub-navy);"><strong>Project / Application:</strong> ${escHtml(m.project)}</p>` : ''}
                 ${isActive && activePct > 0 ? `
                   <div class="mod-seq-prog-wrap">
                     <div class="hub-bar-track" style="flex:1;"><div class="hub-bar-fill" style="width:${activePct}%;"></div></div>
@@ -426,8 +427,9 @@ async function loadSyllabusTrack() {
 
           <div class="mod-notes-drawer hidden" id="mod-notes-${m.day}">
             <div class="mod-topic-chips">
-              ${(m.topics || []).map(t => `<span class="mod-topic-chip">${t}</span>`).join('')}
+              ${(m.topics || []).map(t => `<span class="mod-topic-chip">${escHtml(t)}</span>`).join('')}
             </div>
+            ${Array.isArray(track.toolsCovered) && track.toolsCovered.length ? `<div style="font-size:0.82rem;color:var(--hub-slate);margin-bottom:8px;"><strong>Tools covered:</strong> ${track.toolsCovered.map(escHtml).join(' &bull; ')}</div>` : ''}
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <a href="${track.pdfUrl || '/static/pdf/PGI_Winter_Internship_Complete_Syllabus.pdf'}" target="_blank" class="mod-notes-btn" style="text-decoration:none;">Download Track PDF</a>
               <button type="button" class="mod-notes-btn" onclick="switchModule('assignments')">Open Submissions</button>
@@ -439,6 +441,12 @@ async function loadSyllabusTrack() {
 
     box.innerHTML = `
       ${summaryHtml}
+      ${track.overview || (Array.isArray(track.toolsCovered) && track.toolsCovered.length) ? `
+        <div class="dash-module" style="margin-bottom:14px;padding:14px 16px;">
+          ${track.overview ? `<div style="font-size:0.88rem;color:var(--hub-slate);line-height:1.45;"><strong>Course Overview:</strong> ${escHtml(track.overview)}</div>` : ''}
+          ${Array.isArray(track.toolsCovered) && track.toolsCovered.length ? `<div style="font-size:0.83rem;color:var(--hub-navy);margin-top:6px;"><strong>Tools Covered:</strong> ${track.toolsCovered.map(escHtml).join(' &middot; ')}</div>` : ''}
+        </div>
+      ` : ''}
       <div class="mod-seq-header">
         <h3>Structured Sequence</h3>
         <span>Winter 2026 Registry</span>

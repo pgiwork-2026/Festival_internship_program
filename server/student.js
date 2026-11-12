@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendPasswordResetEmail } from './email.js';
 import { buildProjectReportPDF } from './project_report.js';
 import { buildCertificatePDF } from './certificate.js';
-import { SYLLABUS_TRACKS, normalizeLoginPassword, parseDobCredentials, sharedSupportTickets, loadRecordedVideos } from './logic.js';
+import { SYLLABUS_TRACKS, normalizeLoginPassword, parseDobCredentials, sharedSupportTickets, loadRecordedVideos, resolveCanonicalDomain, matchesStudentDomain } from './logic.js';
 
 // In-memory fallback stores for offline testing and development
 const localPasswordResets = new Map();
@@ -555,21 +555,13 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
   // ===================================================================
   app.get('/api/student/syllabus', auth, wrap(async (req, res) => {
     const { enrollment, appRecord } = await loadStudentContext(req);
-    const enrolledDomain = enrollment?.courses?.title || appRecord?.domain_name || 'Web Development';
-    const domainType = appRecord?.domain_type || enrollment?.courses?.domain_type || 'Technical';
-    const domLower = String(enrolledDomain).toLowerCase();
-
-    const selectedTrackId = (domLower.includes('app') || domLower.includes('mobile') || domLower.includes('android'))
-      ? 'tech-app'
-      : (domainType === 'Non-Technical' || domLower.includes('marketing') || domLower.includes('business') || domLower.includes('operations'))
-        ? 'nontech-marketing'
-        : 'tech-web';
-
-    const myTrack = SYLLABUS_TRACKS.find(t => t.id === selectedTrackId) || SYLLABUS_TRACKS[0];
+    const enrolledDomain = appRecord?.domain_name || enrollment?.courses?.title || 'Web Development & Full Stack Development';
+    const canonicalDomain = resolveCanonicalDomain(enrolledDomain);
+    const myTrack = SYLLABUS_TRACKS.find(t => t.title === canonicalDomain) || SYLLABUS_TRACKS[0];
 
     res.json({
       enrolledTrackId: myTrack.id,
-      enrolledDomain: enrolledDomain,
+      enrolledDomain: canonicalDomain || enrolledDomain,
       tracks: [myTrack]
     });
   }));
@@ -804,18 +796,17 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
   // ===================================================================
   app.get('/api/student/materials', auth, wrap(async (req, res) => {
     const { enrollment, appRecord, mode } = await loadStudentContext(req);
-    const studentTrack = String(enrollment?.courses?.title || appRecord?.domain_name || '').trim();
-    const studentTrackLow = studentTrack.toLowerCase();
+    const rawDomain = String(appRecord?.domain_name || enrollment?.courses?.title || '').trim();
+    const chosenDomain = resolveCanonicalDomain(rawDomain) || rawDomain;
     const studentModeLow = String(mode || 'Online').toLowerCase();
 
     const allVideos = await loadRecordedVideos(db);
     const recordings = allVideos
       .filter(v => {
-        const vt = String(v.track || 'all').trim().toLowerCase();
         const vm = String(v.mode || 'all').trim().toLowerCase();
-        const trackMatch = !vt || vt === 'all' || !studentTrackLow || vt === studentTrackLow || studentTrackLow.includes(vt) || vt.includes(studentTrackLow);
+        const domainAllowed = matchesStudentDomain(v.track, chosenDomain);
         const modeMatch = !vm || vm === 'all' || vm === studentModeLow;
-        return trackMatch && modeMatch;
+        return domainAllowed && modeMatch;
       })
       .map(v => ({
         id: v.id,
@@ -851,7 +842,7 @@ export function registerStudentRoutes(app, { db, auth, wrap, fail, localApplicat
     }
 
     res.json({
-      track: enrollment?.courses?.title || appRecord?.domain_name || null,
+      track: chosenDomain || null,
       recordings,
       categories: [{ category: 'Program Documents', items }]
     });

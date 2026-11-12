@@ -580,7 +580,7 @@ async function loadOverview() {
       ${kpiCard('Assessments Completed', `${assm.completed ?? 0} / ${assm.totalStarted ?? 0}`, `Eligible ${assm.eligible ?? 0} · Pass Rate ${assm.passRate ?? 0}% (Cutoff ${assm.passMark ?? 30}%)`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>', 'green', "showTab('assessments', 'attempts')")}
       ${kpiCard('Blocked Mobile Attempts', String(cacheBlockedDeviceCount), `${assm.desktopOnly === false ? 'Desktop-only OFF' : 'Desktop-only ON'} · Click to inspect logs`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>', cacheBlockedDeviceCount > 0 ? 'red' : 'blue', 'openBlockedDevicesModal()')}
       ${kpiCard('Enrolled Interns', String(ints.totalEnrolled ?? 0), `Active ${ints.active ?? 0} · Completed ${ints.completed ?? 0} · Offline ${ints.offline ?? 0}`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/></svg>', 'blue', "showTab('submissions', 'attendance')")}
-      ${kpiCard('Tuition Collected', fmtRupees(pay.revenueRupees), `${pay.completedCount ?? 0} Paid · ${pay.pendingCount ?? 0} Pending · Coupons Used ${coup.used ?? 0}/${coup.issued ?? 0}`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>', 'green', "showTab('settings', 'payments')")}
+      ${kpiCard('Tuition Collected', fmtRupees(pay.revenueRupees), `${pay.completedCount ?? 0} Paid · ${pay.pendingCount ?? 0} Pending · Coupons Used ${coup.used ?? 0}/${coup.issued ?? 0}${Number(pay.testCompletedCount || 0) > 0 ? ` · Test ${fmtRupees(pay.testRevenueRupees)} (${pay.testCompletedCount})` : ''}`, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>', 'green', "showTab('settings', 'payments')")}
     </div>
 
     <section class="adm-panel">
@@ -2880,19 +2880,23 @@ async function loadCurriculumView() {
   if (sub === 'videos') {
     const videos = await api('/api/admin/videos').catch(() => []);
     cacheVideos = Array.isArray(videos) ? videos : [];
-    const allTrackCnt = cacheVideos.filter(v => !v.track || v.track === 'all').length;
-    const trackSpecificCnt = cacheVideos.length - allTrackCnt;
-    const latestVid = cacheVideos[0] || null;
+    const domainFilter = (window.__adminVidDomainFilter || '').trim();
+    const visibleVideos = domainFilter
+      ? cacheVideos.filter(v => String(v.track || '').toLowerCase() === domainFilter.toLowerCase())
+      : cacheVideos;
+    const uniqueDomainsCnt = new Set(cacheVideos.map(v => v.track).filter(Boolean)).size;
+    const onlineOnlyCnt = cacheVideos.filter(v => v.mode === 'Online').length;
+    const latestVid = visibleVideos[0] || cacheVideos[0] || null;
 
     $('admin-view').innerHTML = `
       <div class="adm-stu-hero">
         <div>
           <div>
-            <span class="adm-hero-pill">VIDEO LIBRARY // YOUTUBE LECTURE LINKS</span>
-            <span class="adm-sync-note">&bull; Published to Student Portal</span>
+            <span class="adm-hero-pill">VIDEO LIBRARY // DOMAIN-LOCKED YOUTUBE LECTURES</span>
+            <span class="adm-sync-note">&bull; Published Only to Selected Domain</span>
           </div>
           <h2>Recorded Videos</h2>
-          <p>Add recorded class sessions via YouTube links. Students see matching track videos automatically under Recorded Videos.</p>
+          <p>Assign recorded YouTube lectures to a specific internship domain. Students can watch only videos belonging to the domain they chose.</p>
         </div>
         <div class="adm-hero-actions">
           <button type="button" class="btn btn-outline btn-sm" onclick="refreshCurrentTab()">Refresh</button>
@@ -2903,10 +2907,20 @@ async function loadCurriculumView() {
       ${tabsHtml}
 
       <div class="kpi-grid">
-        ${kpiCard('TOTAL VIDEOS', String(cacheVideos.length), 'YouTube recordings published', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>', 'green')}
-        ${kpiCard('ALL-TRACK ACCESS', String(allTrackCnt), 'Visible to every enrolled fellow', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>', 'blue')}
-        ${kpiCard('TRACK-SPECIFIC', String(trackSpecificCnt), 'Targeted to single domain tracks', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/></svg>', 'blue')}
+        ${kpiCard('TOTAL VIDEOS', String(cacheVideos.length), 'YouTube recordings uploaded', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>', 'green')}
+        ${kpiCard('DOMAINS COVERED', `${uniqueDomainsCnt} / ${WINTER_VIDEO_TRACKS.length}`, 'Strict per-domain student access', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/></svg>', 'blue')}
+        ${kpiCard('MODE FILTERED', String(onlineOnlyCnt), 'Online-only cohort recordings', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>', 'blue')}
         ${kpiCard('LATEST UPLOAD', latestVid ? (latestVid.session_number || 'NEW') : 'NONE', latestVid ? escHtml(latestVid.title) : 'Upload your first YouTube lecture', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', 'green')}
+      </div>
+
+      <div class="adm-seg-bar">
+        <span style="font-size:0.86rem;font-weight:700;color:var(--adm-navy);">Showing ${visibleVideos.length} recording${visibleVideos.length === 1 ? '' : 's'}</span>
+        <div class="adm-seg-controls">
+          <select class="adm-seg-select" aria-label="Filter recorded videos by domain" onchange="window.__adminVidDomainFilter=this.value; loadCurriculumView();">
+            <option value="">All 13 Domains (Admin View)</option>
+            ${WINTER_VIDEO_TRACKS.map(t => `<option value="${escHtml(t)}"${domainFilter === t ? ' selected' : ''}>${escHtml(t)}</option>`).join('')}
+          </select>
+        </div>
       </div>
 
       <div class="table-wrap">
@@ -2914,14 +2928,16 @@ async function loadCurriculumView() {
           <thead>
             <tr>
               <th>Preview &amp; Title</th>
-              <th>Track &amp; Mode</th>
+              <th>Assigned Domain &amp; Mode</th>
               <th>Session &amp; Instructor</th>
               <th>Uploaded</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            ${cacheVideos.length ? cacheVideos.map((v, idx) => `
+            ${visibleVideos.length ? visibleVideos.map(v => {
+              const origIdx = cacheVideos.indexOf(v);
+              return `
               <tr>
                 <td>
                   <div style="display:flex;align-items:center;gap:12px;min-width:260px;">
@@ -2935,7 +2951,7 @@ async function loadCurriculumView() {
                   </div>
                 </td>
                 <td>
-                  <div>${pillBadge(v.track === 'all' ? 'All Tracks' : v.track, v.track === 'all' ? 'green' : 'blue')}</div>
+                  <div>${pillBadge(v.track || 'Unassigned', 'blue')}</div>
                   <div style="font-size:0.82rem;color:var(--adm-muted);margin-top:4px;">Mode: ${escHtml(v.mode === 'all' ? 'Online & Offline' : v.mode)}</div>
                 </td>
                 <td>
@@ -2946,10 +2962,11 @@ async function loadCurriculumView() {
                 <td>
                   <div style="display:flex;gap:6px;flex-wrap:wrap;">
                     <a href="${safeHref(v.youtube_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="text-decoration:none;">Open YouTube</a>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteAdminVideo(${idx})">Delete</button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteAdminVideo(${origIdx})">Delete</button>
                   </div>
                 </td>
-              </tr>`).join('') : emptyTableRow(5, 'No recorded videos uploaded yet. Click "+ Add Recorded Video" to attach a YouTube link.')}
+              </tr>`;
+            }).join('') : emptyTableRow(5, 'No recorded videos uploaded for this filter yet. Click "+ Add Recorded Video" to attach a YouTube link.')}
           </tbody>
         </table>
       </div>`;
@@ -2993,7 +3010,7 @@ async function loadCurriculumView() {
                   <td><strong>${escHtml(b.name)}</strong><div style="font-family:'JetBrains Mono',monospace;font-size:0.84rem;color:var(--adm-muted);">${escHtml(b.slug || '')}</div></td>
                   <td style="font-size:0.88rem;">${fmtDate(b.starts_on)} &rarr; ${fmtDate(b.ends_on)}</td>
                   <td>${pillBadge(b.mode || 'Hybrid', 'blue')}<div style="font-size:0.84rem;color:var(--adm-muted);margin-top:3px;">${escHtml(b.timings || 'Standard Cohort Timings')}</div></td>
-                  <td><strong>${escHtml(b.enrolled_count ?? 0)} / ${escHtml(b.seats_limit ?? 40)}</strong> seats</td>
+                  <td><strong>${escHtml(b.enrolled_count ?? 0)} / ${escHtml(b.seats_limit ?? 60)}</strong> seats${Number(b.test_enrolled_count || 0) > 0 ? `<div style="font-size:0.78rem;color:var(--adm-muted);margin-top:2px;">+${Number(b.test_enrolled_count)} test enrollment${Number(b.test_enrolled_count) === 1 ? '' : 's'}</div>` : ''}</td>
                   <td>${pillBadge(b.status || 'upcoming')}</td>
                   <td>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -3074,6 +3091,24 @@ async function loadCurriculumView() {
         </select>
       </div>
     </div>
+
+    ${track.overview || (track.toolsCovered && track.toolsCovered.length) ? `
+      <div class="adm-panel" style="margin-bottom:14px;padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1 1 420px;">
+            <div style="font-size:0.78rem;font-weight:800;letter-spacing:0.06em;color:var(--adm-green);text-transform:uppercase;margin-bottom:4px;">${escHtml(track.domainType || 'Technical')} Track &bull; 10-Day Course Outline</div>
+            <strong style="display:block;font-size:1.02rem;color:var(--adm-navy);margin-bottom:4px;">${escHtml(track.title)}</strong>
+            ${track.overview ? `<p style="margin:0;font-size:0.88rem;color:var(--adm-slate);line-height:1.45;">${escHtml(track.overview)}</p>` : ''}
+          </div>
+          ${track.toolsCovered && track.toolsCovered.length ? `
+            <div style="flex:0 1 360px;">
+              <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.05em;color:var(--adm-muted);text-transform:uppercase;margin-bottom:6px;">Tools Covered</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                ${track.toolsCovered.map(tl => `<span class="pill blue">${escHtml(tl)}</span>`).join('')}
+              </div>
+            </div>` : ''}
+        </div>
+      </div>` : ''}
 
     <div id="curr-modules-list" class="adm-mod-stack"></div>
 
@@ -3186,7 +3221,9 @@ function renderCurriculumModules() {
             ${pillBadge(statusLabel, isFocus ? 'green' : (computedStatus === 'completed' ? 'blue' : 'gray'))}
             <span style="font-size:0.84rem;font-weight:700;color:var(--adm-muted);">${escHtml(m.hours || 3)}.0 Hours</span>
           </div>
-          <strong style="display:block;font-size:0.98rem;color:var(--adm-navy);">${escHtml(m.title)}</strong>
+          <strong style="display:block;font-size:0.98rem;color:var(--adm-navy);">Day ${d} &mdash; ${escHtml(m.title)}</strong>
+          ${m.description ? `<p style="margin:5px 0 6px;font-size:0.86rem;color:var(--adm-slate);line-height:1.42;">${escHtml(m.description)}</p>` : ''}
+          ${m.project ? `<div style="margin:0 0 6px;font-size:0.84rem;color:var(--adm-navy);"><strong>Project / application:</strong> ${escHtml(m.project)}</div>` : ''}
           <div class="adm-mod-topic-bar">
             <strong style="font-size:0.78rem;letter-spacing:0.05em;color:var(--adm-slate);">KEY TOPICS:</strong>
             ${(m.topics || []).map(escHtml).join(' &bull; ')}
@@ -3229,9 +3266,13 @@ function openModuleModal(modIdx) {
         </div>
       </div>
       <label class="f-lbl" for="mod-title">Module Title *</label>
-      <input id="mod-title" class="f-ctrl" type="text" value="${escHtml(m?.title || '')}" placeholder="e.g. REST APIs & Security Headers" required>
+      <input id="mod-title" class="f-ctrl" type="text" value="${escHtml(m?.title || '')}" placeholder="e.g. Introduction to Web Development &amp; HTML" required>
+      <label class="f-lbl" for="mod-desc">Lesson Description</label>
+      <textarea id="mod-desc" class="f-ctrl" rows="2" placeholder="What students learn on this day...">${escHtml(m?.description || '')}</textarea>
+      <label class="f-lbl" for="mod-project">Project / Application</label>
+      <input id="mod-project" class="f-ctrl" type="text" value="${escHtml(m?.project || '')}" placeholder="e.g. Create a simple personal profile webpage.">
       <label class="f-lbl" for="mod-topics">Key Topics &amp; Lab Goals (comma separated)</label>
-      <textarea id="mod-topics" class="f-ctrl" rows="3" placeholder="Topic 1, Topic 2, Lab objective">${escHtml((m?.topics || []).join(', '))}</textarea>
+      <textarea id="mod-topics" class="f-ctrl" rows="2" placeholder="Topic 1, Topic 2, Lab objective">${escHtml((m?.topics || []).join(', '))}</textarea>
       <div style="display:flex;justify-content:flex-end;gap:10px;">
         <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
         <button type="submit" class="btn btn-green">Save Module Syllabus</button>
@@ -3250,6 +3291,8 @@ async function saveCurriculumModule(modIdx) {
         hours: Number($('mod-hrs')?.value || 3),
         status: $('mod-status')?.value || undefined,
         title: ($('mod-title')?.value || '').trim(),
+        description: ($('mod-desc')?.value || '').trim(),
+        project: ($('mod-project')?.value || '').trim(),
         topics: $('mod-topics')?.value || ''
       })
     });
@@ -3301,21 +3344,23 @@ function updateVideoModalPreview() {
 }
 
 function openAddVideoModal() {
-  const trackOptions = ['<option value="all">All Tracks (Visible to Every Student)</option>']
-    .concat(WINTER_VIDEO_TRACKS.map(t => `<option value="${escHtml(t)}">${escHtml(t)}</option>`))
+  const activeTrackTitle = (cacheCurriculum.tracks || []).find(t => t.id === currTrackId)?.title || '';
+  const defaultDomain = window.__adminVidDomainFilter || activeTrackTitle || WINTER_VIDEO_TRACKS[0];
+  const trackOptions = ['<option value="">-- Select Student Domain --</option>']
+    .concat(WINTER_VIDEO_TRACKS.map(t => `<option value="${escHtml(t)}"${defaultDomain === t ? ' selected' : ''}>${escHtml(t)}</option>`))
     .join('');
 
   openModal(`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
       <div>
-        <span class="adm-hero-pill">RECORDED SESSIONS // YOUTUBE UPLOAD</span>
+        <span class="adm-hero-pill">RECORDED SESSIONS // DOMAIN-LOCKED YOUTUBE UPLOAD</span>
         <h3 style="margin:4px 0 0;font-family:'Space Grotesk',sans-serif;">Add Recorded Video</h3>
       </div>
       <button type="button" class="btn btn-outline btn-sm" onclick="closeModal()">Close</button>
     </div>
     <form onsubmit="event.preventDefault(); saveAdminVideo();">
       <label class="f-lbl" for="vid-title">Session / Video Title *</label>
-      <input id="vid-title" class="f-ctrl" type="text" placeholder="e.g. Day 01 — Orientation & Git Architecture" required>
+      <input id="vid-title" class="f-ctrl" type="text" placeholder="e.g. Day 01 — Orientation & Fundamentals" required>
 
       <label class="f-lbl" for="vid-yt-url">YouTube Video Link *</label>
       <input id="vid-yt-url" class="f-ctrl" type="url" placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..." oninput="updateVideoModalPreview()" required>
@@ -3326,8 +3371,8 @@ function openAddVideoModal() {
 
       <div class="adm-form-2col" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
         <div>
-          <label class="f-lbl" for="vid-track">Target Track</label>
-          <select id="vid-track" class="f-ctrl">${trackOptions}</select>
+          <label class="f-lbl" for="vid-track">Student Domain *</label>
+          <select id="vid-track" class="f-ctrl" required>${trackOptions}</select>
         </div>
         <div>
           <label class="f-lbl" for="vid-mode">Batch Mode</label>
@@ -3346,6 +3391,8 @@ function openAddVideoModal() {
           <input id="vid-duration" class="f-ctrl" type="text" placeholder="e.g. 45 mins">
         </div>
       </div>
+
+      <p style="margin:0 0 12px;font-size:0.8rem;color:var(--adm-muted);">Only students who chose this selected domain will see and watch this video.</p>
 
       <label class="f-lbl" for="vid-instructor">Mentor / Speaker</label>
       <input id="vid-instructor" class="f-ctrl" type="text" value="Plant Green Inertia Mentor" placeholder="Instructor name">
@@ -3539,9 +3586,9 @@ function renderBatchesTable() {
   }
 
   tbody.innerHTML = rows.map(({ b, idx }) => {
-    const assignedCnt = cacheStudents.filter(s => s.assignedBatchId === b.id || s.assignedBatch === b.name).length;
     const seats = Number(b.seats_limit || 60);
-    const enrolled = Math.max(Number(b.enrolled_count || 0), assignedCnt);
+    const enrolled = Number(b.enrolled_count || 0);
+    const testEnrolled = Number(b.test_enrolled_count || 0);
     const pct = seats ? Math.min(100, Math.round((enrolled / seats) * 100)) : 0;
     const isAct = b.status === 'active' || b.is_active;
 
@@ -3566,6 +3613,7 @@ function renderBatchesTable() {
         <td style="min-width:150px;">
           <div style="font-size:0.9rem;font-weight:700;margin-bottom:4px;">${enrolled} / ${seats} seats (${pct}%)</div>
           <div class="adm-prog-track"><div class="adm-prog-fill" style="width:${Math.max(4, pct)}%;"></div></div>
+          ${testEnrolled > 0 ? `<div style="font-size:0.78rem;color:var(--adm-muted);margin-top:4px;">+${testEnrolled} test enrollment${testEnrolled === 1 ? '' : 's'} excluded</div>` : ''}
         </td>
         <td>${pillBadge(b.status || (isAct ? 'active' : 'upcoming'))}</td>
         <td>

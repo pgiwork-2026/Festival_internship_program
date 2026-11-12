@@ -9,7 +9,8 @@ import {
   parseYouTubeUrl,
   loadRecordedVideos,
   saveRecordedVideo,
-  deleteRecordedVideo
+  deleteRecordedVideo,
+  resolveCanonicalDomain
 } from './logic.js';
 import {
   deleteCouponByCode,
@@ -36,6 +37,31 @@ const localNotifications = [
   { id: 'n1', title: 'Winter Cohort 2026 Orientation', message: 'Welcome to Plant Green Inertia Winter Internship! Orientation begins promptly at your scheduled time. Review your 30-hour curriculum syllabus.', target_track: 'all', target_mode: 'all', priority: 'high', created_at: new Date(Date.now() - 3600000).toISOString() },
   { id: 'n2', title: 'Daily Attendance Verification Notice', message: 'Attendance must be verified for all 10 sessions (3 hours/day) to qualify for your official completion certificate and 1-page project report.', target_track: 'all', target_mode: 'all', priority: 'normal', created_at: new Date(Date.now() - 7200000).toISOString() }
 ];
+
+/**
+ * Compute per-batch real enrollment counts from live enrollment rows while excluding test payments and cancelled/dropped rows.
+ */
+export function enrichBatchesWithEnrollmentCounts(batches = [], enrollments = []) {
+  const excluded = new Set(['cancelled', 'refunded', 'failed', 'dropped']);
+  const realByBatch = new Map();
+  const testByBatch = new Map();
+
+  for (const e of (enrollments || [])) {
+    if (!e?.batch_id) continue;
+    const status = String(e.status || 'active').toLowerCase();
+    if (excluded.has(status)) continue;
+    const key = String(e.user_id || e.id || '');
+    const bucketMap = isTestTransactionRecord(e) ? testByBatch : realByBatch;
+    if (!bucketMap.has(e.batch_id)) bucketMap.set(e.batch_id, new Set());
+    if (key) bucketMap.get(e.batch_id).add(key);
+  }
+
+  return (batches || []).map(b => ({
+    ...b,
+    enrolled_count: realByBatch.get(b.id)?.size ?? 0,
+    test_enrolled_count: testByBatch.get(b.id)?.size ?? 0
+  }));
+}
 
 export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, buildReportPDF, reportId }) {
   // Admin Authorization Gate (requires authenticated user with profiles.role = 'admin')
@@ -156,6 +182,7 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
 
     // Filter out test coupon transactions and test enrollments from revenue, payment reports, and metrics
     const paidOrders = rawPaidOrders.filter(o => !isTestTransactionRecord(o));
+    const testPaidOrders = rawPaidOrders.filter(o => isTestTransactionRecord(o));
     const createdOrders = rawCreatedOrders.filter(o => !isTestTransactionRecord(o));
     const failedOrders = rawFailedOrders.filter(o => !isTestTransactionRecord(o));
     const coupons = rawCoupons.filter(c => !isTestCoupon(c));
@@ -193,6 +220,8 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
     // Payments
     const revenuePaise = paidOrders.reduce((sum, o) => sum + Number(o.amount_paise || 0), 0);
     const completedPaymentsCount = paidOrders.length;
+    const testRevenuePaise = testPaidOrders.reduce((sum, o) => sum + Number(o.amount_paise || 0), 0);
+    const testCompletedPaymentsCount = testPaidOrders.length;
     const pendingPaymentsCount = createdOrders.length;
     const failedPaymentsCount = failedOrders.length;
 
@@ -241,7 +270,10 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
         pendingCount: pendingPaymentsCount,
         failedCount: failedPaymentsCount,
         revenuePaise,
-        revenueRupees: revenuePaise / 100
+        revenueRupees: revenuePaise / 100,
+        testCompletedCount: testCompletedPaymentsCount,
+        testRevenuePaise,
+        testRevenueRupees: testRevenuePaise / 100
       },
       interns: {
         active: activeInterns,
@@ -296,7 +328,7 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
       rows(db.from('internship_applications').select('*').order('created_at', { ascending: false }).limit(5000)),
       rows(db.from('assessment_attempts').select('id,user_id,status,score_percent,started_at,correct_count,total_questions').order('started_at', { ascending: false })),
       rows(db.from('scholarship_coupons').select('user_id,code,discount_percent,expires_at,status')),
-      rows(db.from('enrollments').select('user_id,status,kind,amount_paise,transaction_ref,enrolled_at,receipt_no,student_id')),
+      rows(db.from('enrollments').select('user_id,batch_id,status,kind,amount_paise,transaction_ref,enrolled_at,receipt_no,student_id')),
       rows(db.from('student_attendance').select('student_id,user_id,status,hours_logged')),
       rows(db.from('batches').select('id,name')),
       rows(db.from('mentors').select('id,name,domain'))
@@ -388,9 +420,9 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
           percentage: attPct,
           meetsCriteria: att.hours >= 30.0 && attPct >= 75.0
         },
-        assignedBatchId: appRec.assigned_batch_id || null,
+        assignedBatchId: appRec.assigned_batch_id || en?.batch_id || null,
         assignedMentorId: appRec.assigned_mentor_id || null,
-        assignedBatch: batchMap[appRec.assigned_batch_id] || 'Winter 2026 Alpha',
+        assignedBatch: batchMap[appRec.assigned_batch_id || en?.batch_id] || batches.find(b => b.status === 'active')?.name || 'Unassigned',
         assignedMentor: mentorMap[appRec.assigned_mentor_id] || 'Unassigned',
         mobileOverride,
         mobileOverrideReason,
@@ -1034,7 +1066,11 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   const slugify = n => String(n).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
 
   A('get', '/batches', async (_q, res) => {
-    res.json(await rows(db.from('batches').select('*').order('starts_on', { ascending: false, nullsFirst: true })));
+    const [batches, enrollments] = await Promise.all([
+      rows(db.from('batches').select('*').order('starts_on', { ascending: false, nullsFirst: true })),
+      rows(db.from('enrollments').select('id,user_id,batch_id,status,is_test,coupon_code,amount_paise'))
+    ]);
+    res.json(enrichBatchesWithEnrollmentCounts(batches, enrollments));
   });
 
   A('post', '/batches', async (req, res) => {
@@ -1646,7 +1682,7 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
   A('get', '/curriculum', async (_q, res) => {
     let courses = [];
     try {
-      const { data } = await db.from('courses').select('id,title,duration,domain_type,access_url').order('title', { ascending: true });
+      const { data } = await db.from('courses').select('id,title,duration,description,access_url,active').order('title', { ascending: true });
       if (data) courses = data;
     } catch {}
     res.json({ tracks: SYLLABUS_TRACKS, courses });
@@ -1660,6 +1696,8 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
     const day = Math.max(1, Math.min(30, Number(b.day || 1)));
     const title = String(b.title || '').trim();
     const hours = Math.max(0.5, Math.min(12, Number(b.hours ?? 3)));
+    const description = b.description !== undefined ? String(b.description || '').trim().slice(0, 600) : undefined;
+    const project = b.project !== undefined ? String(b.project || '').trim().slice(0, 300) : undefined;
     const topics = Array.isArray(b.topics)
       ? b.topics.map(x => String(x || '').trim()).filter(Boolean)
       : String(b.topics || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -1674,6 +1712,8 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
         day,
         hours,
         title,
+        ...(description !== undefined ? { description } : {}),
+        ...(project !== undefined ? { project } : {}),
         topics: topics.length ? topics : track.modules[modIndex].topics,
         ...(status ? { status } : {})
       };
@@ -1682,6 +1722,8 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
         day,
         hours,
         title,
+        ...(description ? { description } : {}),
+        ...(project ? { project } : {}),
         topics: topics.length ? topics : ['Guided Lab Exercise', 'Deliverable Checkpoint'],
         ...(status ? { status } : {})
       });
@@ -1710,7 +1752,10 @@ export function mountAdmin({ app, db, auth, wrap, fail, reportData, sendPdf, bui
       throw fail(400, 'Enter a valid YouTube video URL (youtube.com/watch?v=..., youtu.be/..., or /shorts/...).');
     }
 
-    const track = String(b.track || 'all').trim().slice(0, 120) || 'all';
+    const track = resolveCanonicalDomain(b.track);
+    if (!track) {
+      throw fail(400, 'Please select a valid internship domain so only students in that domain can watch this video.');
+    }
     const modeRaw = String(b.mode || 'all').trim();
     const mode = ['Online', 'Offline'].includes(modeRaw) ? modeRaw : 'all';
     const sessionNumber = String(b.sessionNumber || b.session_number || 'SESSION').trim().slice(0, 40) || 'SESSION';

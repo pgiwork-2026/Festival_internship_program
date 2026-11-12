@@ -412,6 +412,8 @@ test('test coupon end-to-end: env gating, server-only Rs 1 order, verify tamper 
     assert.equal(analytics.status, 200);
     assert.equal(analytics.data.payments.completedCount, 1);
     assert.equal(analytics.data.payments.revenuePaise, 99900);
+    assert.equal(analytics.data.payments.testCompletedCount, 2);
+    assert.equal(analytics.data.payments.testRevenuePaise, 200);
     assert.equal(analytics.data.interns.totalEnrolled, 1);
 
     const paymentsReport = await reqJson(srv, 'GET', '/api/admin/payments');
